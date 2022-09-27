@@ -1,0 +1,12 @@
+domain: giantswarm
+layout:
+- go.kubebuilder.io/v3
+projectName: dex-operator
+repo: giantswarm/dex-operator
+resources:
+- controller: true
+  domain: giantswarm
+  group: application.giantswarm.io
+  kind: App
+  version: v1alpha1
+version: "3"
