@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"giantswarm/dex-operator/controllers"
+	"giantswarm/dex-operator/util"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -88,8 +89,10 @@ func main() {
 	}
 
 	if err = (&controllers.AppReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("App"),
+		Scheme:        mgr.GetScheme(),
+		LabelSelector: util.DexLabelSelector(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
 		os.Exit(1)
