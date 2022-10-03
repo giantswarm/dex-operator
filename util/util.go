@@ -5,11 +5,8 @@ import (
 )
 
 const (
-	AppLabel              = "app.kubernetes.io/name"
-	DexAppLabelValue      = "dex-app"
-	DexOperatorLabelValue = "dex-operator"
-	DexConfigSecretName   = "default-dex-config-secret"
-	DexOperatorFinalizer  = "dex-operator.finalizers.giantswarm.io"
+	AppLabel         = "app.kubernetes.io/name"
+	DexAppLabelValue = "dex-app"
 )
 
 func DexLabelSelector() metav1.LabelSelector {

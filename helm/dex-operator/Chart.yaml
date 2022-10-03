@@ -1,0 +1,10 @@
+name: dex-operator
+version: [[ .Version ]]
+description: "An operator that automates the management of dex connector configurations"
+appVersion: "[[ .AppVersion ]]"
+home: "https://github.com/giantswarm/dex-operator"
+apiVersion: v1
+annotations:
+  application.giantswarm.io/team: "rainbow"
+  config.giantswarm.io/version: 1.x.x
+

@@ -18,8 +18,6 @@ package controllers
 
 import (
 	"context"
-	"giantswarm/dex-operator/util"
-	"reflect"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
@@ -73,15 +71,15 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// App is deleted.
 	if !app.DeletionTimestamp.IsZero() {
-		if controllerutil.ContainsFinalizer(app, util.DexOperatorFinalizer) {
+		if controllerutil.ContainsFinalizer(app, DexOperatorFinalizer) {
 			return r.ReconcileDelete(ctx, app, log)
 		}
 		return ctrl.Result{}, nil
 	}
 
 	// Add finalizer
-	if !controllerutil.ContainsFinalizer(app, util.DexOperatorFinalizer) {
-		controllerutil.AddFinalizer(app, util.DexOperatorFinalizer)
+	if !controllerutil.ContainsFinalizer(app, DexOperatorFinalizer) {
+		controllerutil.AddFinalizer(app, DexOperatorFinalizer)
 		if err := r.Update(ctx, app); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -120,7 +118,7 @@ func (r *AppReconciler) ReconcileCreateOrUpdate(ctx context.Context, app *v1alph
 				Name:      dexSecretConfig.Name,
 				Namespace: dexSecretConfig.Namespace,
 				Labels: map[string]string{
-					label.ManagedBy: util.DexOperatorLabelValue,
+					label.ManagedBy: DexOperatorLabelValue,
 				},
 			},
 		}
@@ -132,7 +130,7 @@ func (r *AppReconciler) ReconcileCreateOrUpdate(ctx context.Context, app *v1alph
 
 	// Update secret if needed
 	// TODO: idp logic
-	return ctrl.Result{}, nil
+	return DefaultRequeue(), nil
 }
 
 func (r *AppReconciler) ReconcileDelete(ctx context.Context, app *v1alpha1.App, log logr.Logger) (ctrl.Result, error) {
@@ -158,8 +156,8 @@ func (r *AppReconciler) ReconcileDelete(ctx context.Context, app *v1alpha1.App, 
 	}
 
 	// remove finalizer
-	if controllerutil.ContainsFinalizer(app, util.DexOperatorFinalizer) {
-		controllerutil.RemoveFinalizer(app, util.DexOperatorFinalizer)
+	if controllerutil.ContainsFinalizer(app, DexOperatorFinalizer) {
+		controllerutil.RemoveFinalizer(app, DexOperatorFinalizer)
 		if err := r.Update(ctx, app); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -181,21 +179,9 @@ func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExtraConfig) bool {
-	if app.Spec.ExtraConfigs == nil {
-		return false
-	}
-	for _, config := range app.Spec.ExtraConfigs {
-		if reflect.DeepEqual(config, dexSecretConfig) {
-			return true
-		}
-	}
-	return false
-}
-
 func getDexSecretConfig(app *v1alpha1.App) v1alpha1.AppExtraConfig {
 	return v1alpha1.AppExtraConfig{
 		Kind:      "secret",
-		Name:      util.DexConfigSecretName,
+		Name:      DexConfigSecretName,
 		Namespace: app.Namespace}
 }
