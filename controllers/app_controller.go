@@ -18,27 +18,32 @@ package controllers
 
 import (
 	"context"
+	"giantswarm/dex-operator/pkg/idp"
+	"giantswarm/dex-operator/pkg/key"
+	"time"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
-	"github.com/giantswarm/k8smetadata/pkg/label"
+	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	LabelSelector metav1.LabelSelector
+	Log               logr.Logger
+	Scheme            *runtime.Scheme
+	LabelSelector     metav1.LabelSelector
+	BaseDomain        string
+	ManagementCluster string
 }
 
 //+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps,verbs=get;list;watch;create;update;patch;delete
@@ -69,101 +74,47 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	c := idp.Config{
+		Log:    &log,
+		Client: r.Client,
+		App:    app,
+	}
+
+	idpService, err := idp.New(c)
+	if err != nil {
+		log.Error(err, "failed to create idp service")
+		return ctrl.Result{}, microerror.Mask(err)
+	}
+
 	// App is deleted.
 	if !app.DeletionTimestamp.IsZero() {
-		if controllerutil.ContainsFinalizer(app, DexOperatorFinalizer) {
-			return r.ReconcileDelete(ctx, app, log)
+		if err := idpService.ReconcileDelete(ctx); err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+		// remove finalizer
+		if controllerutil.ContainsFinalizer(app, key.DexOperatorFinalizer) {
+			controllerutil.RemoveFinalizer(app, key.DexOperatorFinalizer)
+			if err := r.Update(ctx, app); err != nil {
+				return ctrl.Result{}, err
+			}
+			log.Info("Removed finalizer from dex app instance.")
 		}
 		return ctrl.Result{}, nil
 	}
 
 	// Add finalizer
-	if !controllerutil.ContainsFinalizer(app, DexOperatorFinalizer) {
-		controllerutil.AddFinalizer(app, DexOperatorFinalizer)
+	if !controllerutil.ContainsFinalizer(app, key.DexOperatorFinalizer) {
+		controllerutil.AddFinalizer(app, key.DexOperatorFinalizer)
 		if err := r.Update(ctx, app); err != nil {
 			return ctrl.Result{}, err
 		}
 		log.Info("Added finalizer to dex app instance.")
 	}
 	// App is not deleted
-	return r.ReconcileCreateOrUpdate(ctx, app, log)
-}
-
-func (r *AppReconciler) ReconcileCreateOrUpdate(ctx context.Context, app *v1alpha1.App, log logr.Logger) (ctrl.Result, error) {
-	// Add secret config to app instance
-	dexSecretConfig := getDexSecretConfig(app)
-	if !dexSecretConfigIsPresent(app, dexSecretConfig) {
-		app.Spec.ExtraConfigs = append(app.Spec.ExtraConfigs, dexSecretConfig)
-		if err := r.Update(ctx, app); err != nil {
-			return ctrl.Result{}, err
-		}
-		log.Info("Added secret config to dex app instance.")
+	if err := idpService.Reconcile(ctx); err != nil {
+		return ctrl.Result{}, microerror.Mask(err)
 	}
-
-	// Fetch secret
-	secret := &corev1.Secret{}
-	if err := r.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return ctrl.Result{}, err
-		}
-
-		// Create Secret if not found
-		// TODO: idp logic
-		secret = &corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      dexSecretConfig.Name,
-				Namespace: dexSecretConfig.Namespace,
-				Labels: map[string]string{
-					label.ManagedBy: DexOperatorLabelValue,
-				},
-			},
-		}
-		if err := r.Create(ctx, secret); err != nil {
-			return ctrl.Result{}, err
-		}
-		log.Info("Created default dex config secret for dex app instance.")
-	}
-
-	// Update secret if needed
-	// TODO: idp logic
 	return DefaultRequeue(), nil
-}
-
-func (r *AppReconciler) ReconcileDelete(ctx context.Context, app *v1alpha1.App, log logr.Logger) (ctrl.Result, error) {
-	// Fetch secret if present
-	dexSecretConfig := getDexSecretConfig(app)
-	if dexSecretConfigIsPresent(app, dexSecretConfig) {
-		secret := &corev1.Secret{}
-		if err := r.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return ctrl.Result{}, err
-			}
-		} else {
-
-			// TODO: idp logic
-			//delete secret if it exists
-			if err := r.Delete(ctx, secret); err != nil {
-				if !apierrors.IsNotFound(err) {
-					return ctrl.Result{}, err
-				}
-			}
-			log.Info("Deleted default dex config secret for dex app instance.")
-		}
-	}
-
-	// remove finalizer
-	if controllerutil.ContainsFinalizer(app, DexOperatorFinalizer) {
-		controllerutil.RemoveFinalizer(app, DexOperatorFinalizer)
-		if err := r.Update(ctx, app); err != nil {
-			return ctrl.Result{}, err
-		}
-		log.Info("Removed finalizer from dex app instance.")
-	}
-	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -179,9 +130,9 @@ func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func getDexSecretConfig(app *v1alpha1.App) v1alpha1.AppExtraConfig {
-	return v1alpha1.AppExtraConfig{
-		Kind:      "secret",
-		Name:      DexConfigSecretName,
-		Namespace: app.Namespace}
+func DefaultRequeue() reconcile.Result {
+	return ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: time.Minute * 5,
+	}
 }

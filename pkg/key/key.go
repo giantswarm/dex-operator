@@ -1,12 +1,14 @@
-package util
+package key
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	AppLabel         = "app.kubernetes.io/name"
-	DexAppLabelValue = "dex-app"
+	AppLabel              = "app.kubernetes.io/name"
+	DexAppLabelValue      = "dex-app"
+	DexOperatorFinalizer  = "dex-operator.finalizers.giantswarm.io"
+	DexOperatorLabelValue = "dex-operator"
 )
 
 func DexLabelSelector() metav1.LabelSelector {

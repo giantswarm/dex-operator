@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"giantswarm/dex-operator/controllers"
-	"giantswarm/dex-operator/util"
+	"giantswarm/dex-operator/pkg/key"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -48,14 +48,21 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
+	var (
+		baseDomain           string
+		enableLeaderElection bool
+		managementCluster    string
+		metricsAddr          string
+		probeAddr            string
+	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
+	flag.StringVar(&baseDomain, "base-domain", "", "Domain for the dex callback address, e.g. customer.gigantic.io.")
+	flag.StringVar(&managementCluster, "management-cluster", "", "Name of the management cluster.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -89,10 +96,12 @@ func main() {
 	}
 
 	if err = (&controllers.AppReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("App"),
-		Scheme:        mgr.GetScheme(),
-		LabelSelector: util.DexLabelSelector(),
+		BaseDomain:        baseDomain,
+		ManagementCluster: managementCluster,
+		Client:            mgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("App"),
+		Scheme:            mgr.GetScheme(),
+		LabelSelector:     key.DexLabelSelector(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
 		os.Exit(1)
