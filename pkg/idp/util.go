@@ -1,13 +1,11 @@
 package idp
 
 import (
+	"giantswarm/dex-operator/pkg/key"
 	"reflect"
+	"strings"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
-)
-
-const (
-	DexConfigName = "default-dex-config"
 )
 
 func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExtraConfig) bool {
@@ -22,9 +20,13 @@ func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExt
 	return false
 }
 
+func clusterValuesIsPresent(app *v1alpha1.App) bool {
+	return strings.HasSuffix(app.Spec.Config.ConfigMap.Name, key.ClusterValuesConfigmapSuffix)
+}
+
 func getDexSecretConfig(app *v1alpha1.App) v1alpha1.AppExtraConfig {
 	return v1alpha1.AppExtraConfig{
 		Kind:      "secret",
-		Name:      DexConfigName,
+		Name:      key.DexConfigName,
 		Namespace: app.Namespace}
 }

@@ -8,8 +8,6 @@ require (
 	github.com/giantswarm/k8smetadata v0.6.0
 	github.com/giantswarm/microerror v0.4.0
 	github.com/go-logr/logr v1.2.3
-	github.com/onsi/ginkgo/v2 v2.1.4
-	github.com/onsi/gomega v1.19.0
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
@@ -97,4 +95,9 @@ require (
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
+)
+
+replace (
+	github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.5
+	google.golang.org/grpc => google.golang.org/grpc v1.26.0
 )

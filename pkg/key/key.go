@@ -1,14 +1,19 @@
 package key
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	AppLabel              = "app.kubernetes.io/name"
-	DexAppLabelValue      = "dex-app"
-	DexOperatorFinalizer  = "dex-operator.finalizers.giantswarm.io"
-	DexOperatorLabelValue = "dex-operator"
+	AppLabel                     = "app.kubernetes.io/name"
+	DexAppLabelValue             = "dex-app"
+	DexConfigName                = "default-dex-config"
+	DexOperatorFinalizer         = "dex-operator.finalizers.giantswarm.io"
+	DexOperatorLabelValue        = "dex-operator"
+	ClusterValuesConfigmapSuffix = "cluster-values"
+	BaseDomainKey                = "baseDomain"
 )
 
 func DexLabelSelector() metav1.LabelSelector {
@@ -17,4 +22,12 @@ func DexLabelSelector() metav1.LabelSelector {
 			AppLabel: DexAppLabelValue,
 		},
 	}
+}
+
+func GetIdpAppName(namespace string, name string) string {
+	return fmt.Sprintf("%s-%s", namespace, name)
+}
+
+func GetRedirectURI(baseDomain string) string {
+	return fmt.Sprintf("https://dex.g8s.%s/callback", baseDomain)
 }

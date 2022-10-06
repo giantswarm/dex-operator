@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"giantswarm/dex-operator/pkg/idp"
+	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"giantswarm/dex-operator/pkg/key"
 	"time"
 
@@ -39,11 +41,11 @@ import (
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
-	Log               logr.Logger
-	Scheme            *runtime.Scheme
-	LabelSelector     metav1.LabelSelector
-	BaseDomain        string
-	ManagementCluster string
+	Log                 logr.Logger
+	Scheme              *runtime.Scheme
+	LabelSelector       metav1.LabelSelector
+	BaseDomain          string
+	ProviderCredentials []provider.ProviderCredential
 }
 
 //+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps,verbs=get;list;watch;create;update;patch;delete
@@ -74,16 +76,25 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	c := idp.Config{
-		Log:    &log,
-		Client: r.Client,
-		App:    app,
-	}
+	var idpService *idp.Service
+	{
+		providers, err := r.GetProviders()
+		if err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
 
-	idpService, err := idp.New(c)
-	if err != nil {
-		log.Error(err, "failed to create idp service")
-		return ctrl.Result{}, microerror.Mask(err)
+		c := idp.Config{
+			Log:                         &log,
+			Client:                      r.Client,
+			App:                         app,
+			Providers:                   providers,
+			ManagementClusterBaseDomain: r.BaseDomain,
+		}
+
+		idpService, err = idp.New(c)
+		if err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
 	}
 
 	// App is deleted.
@@ -135,4 +146,27 @@ func DefaultRequeue() reconcile.Result {
 		Requeue:      true,
 		RequeueAfter: time.Minute * 5,
 	}
+}
+
+func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
+	var providers []provider.Provider
+	{
+		for _, p := range r.ProviderCredentials {
+			provider, err := NewProvider(p)
+			if err != nil {
+				return nil, err
+			}
+			providers = append(providers, provider)
+		}
+	}
+	return providers, nil
+}
+
+func NewProvider(p provider.ProviderCredential) (provider.Provider, error) {
+	switch p.Name {
+	case mockprovider.ProviderName:
+		return mockprovider.New(p)
+		// TODO: add providers here
+	}
+	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", p.Name)
 }
