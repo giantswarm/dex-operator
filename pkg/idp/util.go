@@ -24,9 +24,10 @@ func clusterValuesIsPresent(app *v1alpha1.App) bool {
 	return strings.HasSuffix(app.Spec.Config.ConfigMap.Name, key.ClusterValuesConfigmapSuffix)
 }
 
-func getDexSecretConfig(app *v1alpha1.App) v1alpha1.AppExtraConfig {
+func GetDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
 	return v1alpha1.AppExtraConfig{
 		Kind:      "secret",
 		Name:      key.DexConfigName,
-		Namespace: app.Namespace}
+		Namespace: namespace,
+		Priority:  25}
 }

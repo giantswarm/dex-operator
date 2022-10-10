@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/dexidp/dex/server"
+	"gopkg.in/yaml.v2"
 )
 
 type Provider interface {
@@ -20,8 +21,23 @@ type AppConfig struct {
 }
 
 type ProviderCredential struct {
-	Name        string            `json:"name"`
-	Credentials map[string]string `json:"credentials"`
+	Name        string            `yaml:"name"`
+	Credentials map[string]string `yaml:"credentials"`
+}
+
+func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
+	credentials := &[]ProviderCredential{}
+
+	file, err := os.ReadFile(fileLocation)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := yaml.Unmarshal(file, credentials); err != nil {
+		return nil, err
+	}
+
+	return *credentials, nil
 }
 
 /*

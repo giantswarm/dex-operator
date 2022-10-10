@@ -63,7 +63,7 @@ func New(c Config) (*Service, error) {
 
 func (s *Service) Reconcile(ctx context.Context) error {
 	// Add secret config to app instance
-	dexSecretConfig := getDexSecretConfig(s.app)
+	dexSecretConfig := GetDexSecretConfig(s.app.Namespace)
 	if !dexSecretConfigIsPresent(s.app, dexSecretConfig) {
 		s.app.Spec.ExtraConfigs = append(s.app.Spec.ExtraConfigs, dexSecretConfig)
 		if err := s.Update(ctx, s.app); err != nil {
@@ -117,7 +117,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
 	// Fetch secret if present
-	dexSecretConfig := getDexSecretConfig(s.app)
+	dexSecretConfig := GetDexSecretConfig(s.app.Namespace)
 	if dexSecretConfigIsPresent(s.app, dexSecretConfig) {
 		secret := &corev1.Secret{}
 		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {

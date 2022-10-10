@@ -18,12 +18,10 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"giantswarm/dex-operator/pkg/idp"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"giantswarm/dex-operator/pkg/key"
-	"os"
 	"time"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
@@ -151,7 +149,7 @@ func DefaultRequeue() reconcile.Result {
 }
 
 func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
-	providerCredentials, err := r.readCredentials()
+	providerCredentials, err := provider.ReadCredentials(r.ProviderCredentials)
 	if err != nil {
 		return nil, err
 	}
@@ -167,20 +165,6 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 		}
 	}
 	return providers, nil
-}
-
-func (r *AppReconciler) readCredentials() ([]provider.ProviderCredential, error) {
-	credentials := &[]provider.ProviderCredential{}
-
-	file, err := os.ReadFile(r.ProviderCredentials)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(file, credentials); err != nil {
-		return nil, err
-	}
-
-	return *credentials, nil
 }
 
 func NewProvider(p provider.ProviderCredential) (provider.Provider, error) {
