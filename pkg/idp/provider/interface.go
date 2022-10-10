@@ -20,8 +20,8 @@ type AppConfig struct {
 }
 
 type ProviderCredential struct {
-	Name        string
-	Credentials map[string]string
+	Name        string            `json:"name"`
+	Credentials map[string]string `json:"credentials"`
 }
 
 /*

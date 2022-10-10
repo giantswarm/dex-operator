@@ -27,9 +27,6 @@ spec:
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
-        env:
-          - name: AZURE_SHARED_CREDENTIALS_FILE
-            value: /home/.azure/credentials
         command:
         - /manager
         args:
@@ -49,4 +46,4 @@ spec:
       volumes:
       - name: credentials
         secret:
-          secretName: {{ include "resource.default.name" . }}-azure-credentials
+          secretName: {{ include "resource.default.name" . }}-credentials

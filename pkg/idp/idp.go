@@ -46,12 +46,16 @@ func New(c Config) (*Service, error) {
 	if c.Providers == nil {
 		return nil, microerror.Maskf(invalidConfigError, "providers can not be nil")
 	}
+	if c.ManagementClusterBaseDomain == "" {
+		return nil, microerror.Maskf(invalidConfigError, "no management cluster base domain given")
+	}
 
 	s := &Service{
-		Client:    c.Client,
-		app:       c.App,
-		log:       *c.Log,
-		providers: c.Providers,
+		Client:                      c.Client,
+		app:                         c.App,
+		log:                         *c.Log,
+		providers:                   c.Providers,
+		managementClusterBaseDomain: c.ManagementClusterBaseDomain,
 	}
 
 	return s, nil
@@ -121,7 +125,9 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 				return err
 			}
 		} else {
-			// TODO: idp logic
+			if err := s.DeleteProviderApps(key.GetIdpAppName(s.app.Namespace, s.app.Name)); err != nil {
+				return err
+			}
 			//delete secret if it exists
 			if err := s.Delete(ctx, secret); err != nil {
 				if !apierrors.IsNotFound(err) {
@@ -153,6 +159,16 @@ func (s *Service) CreateProviderApps(appConfig provider.AppConfig) (map[string][
 		connectors[connector.ID] = connectorData
 	}
 	return connectors, nil
+}
+
+func (s *Service) DeleteProviderApps(appName string) error {
+	for _, provider := range s.providers {
+
+		if err := provider.DeleteApp(appName); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) {

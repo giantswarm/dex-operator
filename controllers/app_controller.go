@@ -18,10 +18,12 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"giantswarm/dex-operator/pkg/idp"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"giantswarm/dex-operator/pkg/key"
+	"os"
 	"time"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
@@ -45,7 +47,7 @@ type AppReconciler struct {
 	Scheme              *runtime.Scheme
 	LabelSelector       metav1.LabelSelector
 	BaseDomain          string
-	ProviderCredentials []provider.ProviderCredential
+	ProviderCredentials string
 }
 
 //+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps,verbs=get;list;watch;create;update;patch;delete
@@ -149,9 +151,14 @@ func DefaultRequeue() reconcile.Result {
 }
 
 func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
+	providerCredentials, err := r.readCredentials()
+	if err != nil {
+		return nil, err
+	}
+
 	var providers []provider.Provider
 	{
-		for _, p := range r.ProviderCredentials {
+		for _, p := range providerCredentials {
 			provider, err := NewProvider(p)
 			if err != nil {
 				return nil, err
@@ -160,6 +167,20 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 		}
 	}
 	return providers, nil
+}
+
+func (r *AppReconciler) readCredentials() ([]provider.ProviderCredential, error) {
+	credentials := &[]provider.ProviderCredential{}
+
+	file, err := os.ReadFile(r.ProviderCredentials)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(file, credentials); err != nil {
+		return nil, err
+	}
+
+	return *credentials, nil
 }
 
 func NewProvider(p provider.ProviderCredential) (provider.Provider, error) {

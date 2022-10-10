@@ -15,7 +15,7 @@ func TestCreateProviderApps(t *testing.T) {
 	}{
 		{
 			name:      "case 0",
-			providers: []provider.Provider{&mockprovider.MockProvider{}},
+			providers: []provider.Provider{&mockprovider.MockProvider{Name: mockprovider.ProviderName}},
 			appConfig: provider.AppConfig{
 				RedirectURI: `hello.com`,
 				Name:        "hello",
@@ -24,8 +24,8 @@ func TestCreateProviderApps(t *testing.T) {
 		{
 			name: "case 1",
 			providers: []provider.Provider{
-				&mockprovider.MockProvider{},
-				&mockprovider.MockProvider{}},
+				&mockprovider.MockProvider{Name: mockprovider.ProviderName},
+				&mockprovider.MockProvider{Name: mockprovider.ProviderName}},
 			appConfig: provider.AppConfig{
 				RedirectURI: `hello.com`,
 				Name:        "hello",

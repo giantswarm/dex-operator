@@ -11,12 +11,12 @@ const (
 )
 
 type MockProvider struct {
-	name string
+	Name string
 }
 
 func New(p provider.ProviderCredential) (*MockProvider, error) {
 	return &MockProvider{
-		name: p.Name,
+		Name: ProviderName,
 	}, nil
 }
 

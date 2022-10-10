@@ -51,10 +51,12 @@ func main() {
 	var (
 		baseDomain           string
 		enableLeaderElection bool
+		idpCredentials       string
 		metricsAddr          string
 		probeAddr            string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&idpCredentials, "idp-credentials-file", "/home/.idp/credentials", "The location of the idp credentials file.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -94,11 +96,12 @@ func main() {
 	}
 
 	if err = (&controllers.AppReconciler{
-		BaseDomain:    baseDomain,
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("App"),
-		Scheme:        mgr.GetScheme(),
-		LabelSelector: key.DexLabelSelector(),
+		BaseDomain:          baseDomain,
+		Client:              mgr.GetClient(),
+		Log:                 ctrl.Log.WithName("controllers").WithName("App"),
+		Scheme:              mgr.GetScheme(),
+		LabelSelector:       key.DexLabelSelector(),
+		ProviderCredentials: idpCredentials,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
 		os.Exit(1)
