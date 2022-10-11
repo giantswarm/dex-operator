@@ -27,13 +27,11 @@ spec:
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
-        env:
-          - name: AZURE_SHARED_CREDENTIALS_FILE
-            value: /home/.azure/credentials
         command:
         - /manager
         args:
         - --enable-leader-election
+        - --base-domain={{ .Values.baseDomain }}
         resources:
           requests:
             cpu: 100m
@@ -48,4 +46,4 @@ spec:
       volumes:
       - name: credentials
         secret:
-          secretName: {{ include "resource.default.name" . }}-azure-credentials
+          secretName: {{ include "resource.default.name" . }}-credentials

@@ -3,9 +3,22 @@ version: 2.1
 orbs:
   architect: giantswarm/architect@4.25.0
 
+jobs:
+  tests:
+    executor: architect/architect
+    steps:
+      - checkout
+      - run:
+          name: "Run tests"
+          command: CGO_ENABLED=0 make test
+
 workflows:
   build:
     jobs:
+    - tests:
+        filters:
+          tags:
+            only: /^v.*/
     - architect/go-build:
         context: architect
         name: go-build
