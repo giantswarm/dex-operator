@@ -3,6 +3,8 @@ idp:
     accessKeyID: accesskey
     secretAccessKey: secretkey
 
+baseDomain: ""
+
 project:
   branch: "[[ .Branch ]]"
   commit: "[[ .SHA ]]"
