@@ -10,7 +10,7 @@ jobs:
       - checkout
       - run:
           name: "Run tests"
-          command: CGO_ENABLED=0 make test
+          command: CGO_ENABLED=1 make test
 
 workflows:
   build:
