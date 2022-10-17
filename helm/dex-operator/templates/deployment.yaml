@@ -30,17 +30,17 @@ spec:
         command:
         - /manager
         args:
-        - --enable-leader-election
+        - --leader-elect
         - --base-domain={{ .Values.baseDomain }}
         resources:
           requests:
             cpu: 100m
-            memory: 50Mi
+            memory: 220Mi
           limits:
             cpu: 100m
-            memory: 80Mi
+            memory: 220Mi
         volumeMounts:
-        - mountPath: /home/.azure
+        - mountPath: /home/.idp
           name: credentials
       terminationGracePeriodSeconds: 10
       volumes:

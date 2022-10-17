@@ -6,4 +6,4 @@ home: "https://github.com/giantswarm/dex-operator"
 apiVersion: v1
 annotations:
   application.giantswarm.io/team: "rainbow"
-  config.giantswarm.io/version: 1.x.x
+  config.giantswarm.io/version: "dex-operator"

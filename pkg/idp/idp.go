@@ -3,6 +3,7 @@ package idp
 import (
 	"context"
 	"encoding/json"
+	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
 
@@ -79,32 +80,21 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			return err
 		} else {
 
-			// Create apps for each provider and get connector configs
+			// Create apps for each provider and get dex config
 			appConfig, err := s.GetAppConfig(ctx)
 			if err != nil {
 				return microerror.Mask(err)
 			}
-			connectors, err := s.CreateProviderApps(appConfig)
+			dexConfig, err := s.CreateProviderApps(appConfig)
 			if err != nil {
 				return err
 			}
-
-			// Create secret
-			secret = &corev1.Secret{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      dexSecretConfig.Name,
-					Namespace: dexSecretConfig.Namespace,
-					Labels: map[string]string{
-						label.ManagedBy: key.DexOperatorLabelValue,
-					},
-				},
-				Type: "Opaque",
-				Data: connectors,
+			data, err := json.Marshal(dexConfig)
+			if err != nil {
+				return err
 			}
+			// Create secret
+			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace, data)
 			if err := s.Create(ctx, secret); err != nil {
 				return err
 			}
@@ -141,24 +131,25 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) CreateProviderApps(appConfig provider.AppConfig) (map[string][]byte, error) {
-	connectors := map[string][]byte{}
+func (s *Service) CreateProviderApps(appConfig provider.AppConfig) (dex.DexConfig, error) {
+	dexConfig := dex.DexConfig{
+		Oidc: dex.DexOidc{
+			Giantswarm: dex.DexOidcGiantswarm{},
+		},
+	}
 	for _, provider := range s.providers {
 
 		// Create the app on the identity provider
 		connector, err := provider.CreateApp(appConfig)
 		if err != nil {
-			return nil, err
+			return dexConfig, err
 		}
 
-		// Receive connector configuration
-		connectorData, err := json.Marshal(connector)
-		if err != nil {
-			return nil, err
-		}
-		connectors[connector.ID] = connectorData
+		// Add connector configuration to config
+		dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
+
 	}
-	return connectors, nil
+	return dexConfig, nil
 }
 
 func (s *Service) DeleteProviderApps(appName string) error {
@@ -195,4 +186,22 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 		Name:        key.GetIdpAppName(s.app.Namespace, s.app.Name),
 		RedirectURI: key.GetRedirectURI(baseDomain),
 	}, nil
+}
+
+func (s *Service) GetDefaultDexConfigSecret(name string, namespace string, data []byte) *corev1.Secret {
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				label.ManagedBy: key.DexOperatorLabelValue,
+			},
+		},
+		Type: "Opaque",
+		Data: map[string][]byte{"default": data},
+	}
 }
