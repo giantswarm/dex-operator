@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
+	"github.com/giantswarm/microerror"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -109,7 +110,7 @@ var _ = Describe("App controller", func() {
 			Eventually(func() ([]v1alpha1.AppExtraConfig, error) {
 				err := k8sClient.Get(ctx, appLookupKey, createdApp)
 				if err != nil {
-					return nil, err
+					return nil, microerror.Mask(err)
 				}
 				return createdApp.Spec.ExtraConfigs, nil
 			}, duration, interval).Should(Equal([]v1alpha1.AppExtraConfig{

@@ -68,7 +68,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	if !dexSecretConfigIsPresent(s.app, dexSecretConfig) {
 		s.app.Spec.ExtraConfigs = append(s.app.Spec.ExtraConfigs, dexSecretConfig)
 		if err := s.Update(ctx, s.app); err != nil {
-			return err
+			return microerror.Mask(err)
 		}
 		s.log.Info("Added secret config to dex app instance.")
 	}
@@ -77,7 +77,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	secret := &corev1.Secret{}
 	if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
 		if !apierrors.IsNotFound(err) {
-			return err
+			return microerror.Mask(err)
 		} else {
 
 			// Create apps for each provider and get dex config
@@ -85,18 +85,18 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			if err != nil {
 				return microerror.Mask(err)
 			}
-			dexConfig, err := s.CreateProviderApps(appConfig)
+			dexConfig, err := s.CreateProviderApps(appConfig, ctx)
 			if err != nil {
-				return err
+				return microerror.Mask(err)
 			}
 			data, err := json.Marshal(dexConfig)
 			if err != nil {
-				return err
+				return microerror.Mask(err)
 			}
 			// Create secret
 			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace, data)
 			if err := s.Create(ctx, secret); err != nil {
-				return err
+				return microerror.Mask(err)
 			}
 			s.log.Info("Created default dex config secret for dex app instance.")
 		}
@@ -112,16 +112,16 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 		secret := &corev1.Secret{}
 		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
 			if !apierrors.IsNotFound(err) {
-				return err
+				return microerror.Mask(err)
 			}
 		} else {
 			if err := s.DeleteProviderApps(key.GetIdpAppName(s.app.Namespace, s.app.Name)); err != nil {
-				return err
+				return microerror.Mask(err)
 			}
 			//delete secret if it exists
 			if err := s.Delete(ctx, secret); err != nil {
 				if !apierrors.IsNotFound(err) {
-					return err
+					return microerror.Mask(err)
 				}
 			} else {
 				s.log.Info("Deleted default dex config secret for dex app instance.")
@@ -131,7 +131,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) CreateProviderApps(appConfig provider.AppConfig) (dex.DexConfig, error) {
+func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.Context) (dex.DexConfig, error) {
 	dexConfig := dex.DexConfig{
 		Oidc: dex.DexOidc{
 			Giantswarm: dex.DexOidcGiantswarm{},
@@ -140,7 +140,7 @@ func (s *Service) CreateProviderApps(appConfig provider.AppConfig) (dex.DexConfi
 	for _, provider := range s.providers {
 
 		// Create the app on the identity provider
-		connector, err := provider.CreateApp(appConfig)
+		connector, err := provider.CreateApp(appConfig, ctx)
 		if err != nil {
 			return dexConfig, err
 		}
@@ -156,7 +156,7 @@ func (s *Service) DeleteProviderApps(appName string) error {
 	for _, provider := range s.providers {
 
 		if err := provider.DeleteApp(appName); err != nil {
-			return err
+			return microerror.Mask(err)
 		}
 	}
 	return nil

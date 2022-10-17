@@ -1,14 +1,16 @@
 package provider
 
 import (
+	"context"
 	"giantswarm/dex-operator/pkg/dex"
 	"os"
 
+	"github.com/giantswarm/microerror"
 	"gopkg.in/yaml.v2"
 )
 
 type Provider interface {
-	CreateApp(AppConfig) (dex.Connector, error)
+	CreateApp(AppConfig, context.Context) (dex.Connector, error)
 	DeleteApp(string) error
 }
 
@@ -27,11 +29,11 @@ func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 
 	file, err := os.ReadFile(fileLocation)
 	if err != nil {
-		return nil, err
+		return nil, microerror.Mask(err)
 	}
 
 	if err := yaml.Unmarshal(file, credentials); err != nil {
-		return nil, err
+		return nil, microerror.Mask(err)
 	}
 
 	return *credentials, nil

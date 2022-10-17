@@ -1,6 +1,7 @@
 package mockprovider
 
 import (
+	"context"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 
@@ -21,7 +22,7 @@ func New(p provider.ProviderCredential) (*MockProvider, error) {
 	}, nil
 }
 
-func (m *MockProvider) CreateApp(config provider.AppConfig) (dex.Connector, error) {
+func (m *MockProvider) CreateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
 	return dex.Connector{
 		Type: "mockCallback",
 		ID:   "mock",

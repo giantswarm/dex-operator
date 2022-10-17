@@ -1,6 +1,7 @@
 package idp
 
 import (
+	"context"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"strconv"
@@ -38,7 +39,7 @@ func TestCreateProviderApps(t *testing.T) {
 			s := Service{
 				providers: tc.providers,
 			}
-			_, err := s.CreateProviderApps(tc.appConfig)
+			_, err := s.CreateProviderApps(tc.appConfig, context.Background())
 			if err != nil {
 				t.Fatal(err)
 			}
