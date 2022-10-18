@@ -28,6 +28,10 @@ func GetIdpAppName(namespace string, name string) string {
 	return fmt.Sprintf("%s-%s", namespace, name)
 }
 
+func GetConnectorDescription(connectorType string, owner string) string {
+	return fmt.Sprintf("%s connector for %s", connectorType, owner)
+}
+
 func GetRedirectURI(baseDomain string) string {
 	return fmt.Sprintf("https://dex.g8s.%s/callback", baseDomain)
 }

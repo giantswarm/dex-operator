@@ -12,6 +12,9 @@ import (
 type Provider interface {
 	CreateApp(AppConfig, context.Context) (dex.Connector, error)
 	DeleteApp(string) error
+	GetName() string
+	GetOwner() string
+	GetType() string
 }
 
 type AppConfig struct {
@@ -21,6 +24,7 @@ type AppConfig struct {
 
 type ProviderCredential struct {
 	Name        string            `yaml:"name"`
+	Owner       string            `yaml:"owner"`
 	Credentials map[string]string `yaml:"credentials"`
 }
 

@@ -16,7 +16,7 @@ func TestReadCredentials(t *testing.T) {
 			name:     "case 0",
 			location: "test-data/credentials",
 			credentials: []ProviderCredential{
-				{Name: "mock", Credentials: map[string]string{"hello": "hi"}},
+				{Name: "mock", Owner: "giantswarm", Credentials: map[string]string{"hello": "hi"}},
 			},
 		},
 	}

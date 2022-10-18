@@ -3,6 +3,7 @@ package idp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
@@ -144,7 +145,7 @@ func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.C
 		if err != nil {
 			return dexConfig, err
 		}
-
+		s.log.Info(fmt.Sprintf("Created app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 		// Add connector configuration to config
 		dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
 
@@ -158,6 +159,7 @@ func (s *Service) DeleteProviderApps(appName string) error {
 		if err := provider.DeleteApp(appName); err != nil {
 			return microerror.Mask(err)
 		}
+		s.log.Info(fmt.Sprintf("Deleted app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 	}
 	return nil
 }

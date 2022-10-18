@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/key"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/dexidp/dex/connector/microsoft"
@@ -21,13 +22,14 @@ const (
 	TenantIDKey           = "tenant-id"
 	ClientIDKey           = "client-id"
 	ClientSecretKey       = "client-secret"
-	Owner                 = "giantswarm" //TODO: make this variable so it can be used for customer too
 )
 
 type Azure struct {
 	Name     string
-	Auther   *azauth.AzureIdentityAuthenticationProvider
+	Client   *msgraphsdk.GraphServiceClient
+	Owner    string
 	TenantID string
+	Type     string
 }
 
 func New(p provider.ProviderCredential) (*Azure, error) {
@@ -51,36 +53,48 @@ func New(p provider.ProviderCredential) (*Azure, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
+	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	client := msgraphsdk.NewGraphServiceClient(adapter)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
 	return &Azure{
-		Name:     ProviderName,
-		Auther:   auth,
+		Name:     fmt.Sprintf("%s-%s", p.Owner, p.Name),
+		Type:     ProviderConnectorType,
+		Client:   client,
+		Owner:    p.Owner,
 		TenantID: tenantID,
 	}, nil
 }
 
+func (a *Azure) GetName() string {
+	return a.Name
+}
+
+func (a *Azure) GetType() string {
+	return a.Type
+}
+
+func (a *Azure) GetOwner() string {
+	return a.Owner
+}
+
 func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
-
-	adapter, err := msgraphsdk.NewGraphRequestAdapter(a.Auther)
+	createdApp, err := a.Client.Applications().Post(ctx, getAppRequestBody(config), nil)
 	if err != nil {
 		return dex.Connector{}, microerror.Mask(err)
 	}
-	client := msgraphsdk.NewGraphServiceClient(adapter)
+	createdSecret, err := a.Client.ApplicationsById(*createdApp.GetId()).AddPassword().Post(ctx, getSecretRequestBody(config), nil)
 	if err != nil {
 		return dex.Connector{}, microerror.Mask(err)
 	}
-	createdApp, err := client.Applications().Post(ctx, getAppRequestBody(config), nil)
-	if err != nil {
-		return dex.Connector{}, microerror.Mask(err)
-	}
-	createdSecret, err := client.ApplicationsById(*createdApp.GetId()).AddPassword().Post(ctx, getSecretRequestBody(config), nil)
-	if err != nil {
-		return dex.Connector{}, microerror.Mask(err)
-	}
-
 	return dex.Connector{
-		Type: ProviderConnectorType,
-		ID:   fmt.Sprintf("%s-%s", Owner, ProviderName),
-		Name: fmt.Sprintf("%s for %s", ProviderConnectorType, Owner),
+		Type: a.Type,
+		ID:   a.Name,
+		Name: key.GetConnectorDescription(ProviderConnectorType, a.Owner),
 		Config: &microsoft.Config{
 			ClientID:     *createdSecret.GetKeyId(),
 			ClientSecret: *createdSecret.GetSecretText(),
@@ -91,6 +105,11 @@ func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.C
 }
 
 func (a *Azure) DeleteApp(name string) error {
+	// TODO this needs to be the id. Where does the id come from?
+	if err := a.Client.ApplicationsById(name).Delete(context.Background(), nil); err != nil {
+		//TODO catch not found case
+		return microerror.Mask(err)
+	}
 	return nil
 }
 
