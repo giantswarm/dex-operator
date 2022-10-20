@@ -135,7 +135,8 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.Context) (dex.DexConfig, error) {
 	dexConfig := dex.DexConfig{
 		Oidc: dex.DexOidc{
-			Giantswarm: dex.DexOidcGiantswarm{},
+			Giantswarm: dex.DexOidcOwner{},
+			Customer:   dex.DexOidcOwner{},
 		},
 	}
 	for _, provider := range s.providers {
@@ -145,10 +146,16 @@ func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.C
 		if err != nil {
 			return dexConfig, err
 		}
-		s.log.Info(fmt.Sprintf("Created app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 		// Add connector configuration to config
-		dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
-
+		switch provider.GetOwner() {
+		case "giantswarm":
+			dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
+		case "customer":
+			dexConfig.Oidc.Customer.Connectors = append(dexConfig.Oidc.Customer.Connectors, connector)
+		default:
+			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
+		}
+		s.log.Info(fmt.Sprintf("Created app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 	}
 	return dexConfig, nil
 }

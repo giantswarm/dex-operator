@@ -1,6 +1,6 @@
 module giantswarm/dex-operator
 
-go 1.18
+go 1.19
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.1.0
@@ -10,7 +10,7 @@ require (
 	github.com/giantswarm/microerror v0.4.0
 	github.com/go-logr/logr v1.2.3
 	github.com/microsoft/kiota-authentication-azure-go v0.5.0
-	github.com/microsoftgraph/msgraph-sdk-go v0.43.0
+	github.com/microsoftgraph/msgraph-sdk-go v0.44.0
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
 	gopkg.in/yaml.v2 v2.4.0

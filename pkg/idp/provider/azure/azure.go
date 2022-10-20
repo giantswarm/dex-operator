@@ -12,6 +12,7 @@ import (
 	"github.com/giantswarm/microerror"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/applications"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications/item/addpassword"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
@@ -24,6 +25,13 @@ const (
 	ClientSecretKey       = "client-secret"
 )
 
+func ProviderPermissions() []string {
+	return []string{"Application.ReadWrite.OwnedBy"}
+}
+func AppPermissions() []string {
+	return []string{"Directory.Read.All", "User.Read"}
+}
+
 type Azure struct {
 	Name     string
 	Client   *msgraphsdk.GraphServiceClient
@@ -35,6 +43,12 @@ type Azure struct {
 func New(p provider.ProviderCredential) (*Azure, error) {
 	var tenantID, clientID, clientSecret string
 	{
+		if p.Name == "" {
+			return nil, microerror.Maskf(invalidConfigError, "Credential name must not be empty.")
+		}
+		if p.Owner == "" {
+			return nil, microerror.Maskf(invalidConfigError, "Credential owner must not be empty.")
+		}
 		if tenantID = p.Credentials[TenantIDKey]; tenantID == "" {
 			return nil, microerror.Maskf(invalidConfigError, "%s must not be empty.", TenantIDKey)
 		}
@@ -49,7 +63,7 @@ func New(p provider.ProviderCredential) (*Azure, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	auth, err := azauth.NewAzureIdentityAuthenticationProviderWithScopes(cred, []string{"User.Read"})
+	auth, err := azauth.NewAzureIdentityAuthenticationProviderWithScopes(cred, ProviderPermissions())
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
@@ -83,21 +97,33 @@ func (a *Azure) GetOwner() string {
 }
 
 func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
-	createdApp, err := a.Client.Applications().Post(ctx, getAppRequestBody(config), nil)
+	createdApp, err := a.Client.Applications().Post(ctx, getAppCreateRequestBody(config), nil)
 	if err != nil {
 		return dex.Connector{}, microerror.Mask(err)
 	}
-	createdSecret, err := a.Client.ApplicationsById(*createdApp.GetId()).AddPassword().Post(ctx, getSecretRequestBody(config), nil)
+	id := createdApp.GetId()
+	if id == nil {
+		return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
+	}
+	createdSecret, err := a.Client.ApplicationsById(*id).AddPassword().Post(ctx, getSecretCreateRequestBody(config), nil)
 	if err != nil {
 		return dex.Connector{}, microerror.Mask(err)
+	}
+	clientID := createdSecret.GetKeyId()
+	if clientID == nil {
+		return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find client id for app %s.", config.Name)
+	}
+	clientSecret := createdSecret.GetSecretText()
+	if clientSecret == nil {
+		return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find client secret for app %s.", config.Name)
 	}
 	return dex.Connector{
 		Type: a.Type,
 		ID:   a.Name,
 		Name: key.GetConnectorDescription(ProviderConnectorType, a.Owner),
 		Config: &microsoft.Config{
-			ClientID:     *createdSecret.GetKeyId(),
-			ClientSecret: *createdSecret.GetSecretText(),
+			ClientID:     *clientID,
+			ClientSecret: *clientSecret,
 			RedirectURI:  config.RedirectURI,
 			Tenant:       a.TenantID,
 		},
@@ -105,17 +131,67 @@ func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.C
 }
 
 func (a *Azure) DeleteApp(name string) error {
-	// TODO this needs to be the id. Where does the id come from?
-	if err := a.Client.ApplicationsById(name).Delete(context.Background(), nil); err != nil {
-		//TODO catch not found case
+	appID, err := a.GetAppID(name)
+	if err != nil {
+		if IsNotExist(err) {
+			// already deleted case
+			return nil
+		}
+		return microerror.Mask(err)
+	}
+	if err := a.Client.ApplicationsById(appID).Delete(context.Background(), nil); err != nil {
 		return microerror.Mask(err)
 	}
 	return nil
 }
 
-func getAppRequestBody(config provider.AppConfig) *models.Application {
+func (a *Azure) GetAppID(name string) (string, error) {
+	result, err := a.Client.Applications().Get(context.Background(), getAppGetRequestConfig(name))
+	if err != nil {
+		return "", microerror.Mask(err)
+	}
+	count := result.GetOdataCount()
+	if *count == 0 {
+		return "", microerror.Maskf(notFoundError, "No application with name %s exists.", name)
+	} else if *count != 1 {
+		return "", microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, count)
+	}
+	appList := result.GetValue()
+	if len(appList) != 1 {
+		return "", microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, len(appList))
+	}
+	id := appList[1].GetAppId()
+	if id == nil {
+		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", name)
+	}
+	return *id, nil
+}
+
+func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
+	headers := map[string]string{
+		"ConsistencyLevel": "eventual",
+	}
+	requestFilter := fmt.Sprintf("displayName eq %s", name)
+	requestCount := true
+	requestTop := int32(1)
+
+	requestParameters := &applications.ApplicationsRequestBuilderGetQueryParameters{
+		Filter:  &requestFilter,
+		Count:   &requestCount,
+		Top:     &requestTop,
+		Orderby: []string{"displayName"},
+	}
+	return &applications.ApplicationsRequestBuilderGetRequestConfiguration{
+		Headers:         headers,
+		QueryParameters: requestParameters,
+	}
+}
+
+func getAppCreateRequestBody(config provider.AppConfig) *models.Application {
 	web := models.NewWebApplication()
 	web.SetRedirectUris([]string{config.RedirectURI})
+
+	// TODO define permissions
 
 	app := models.NewApplication()
 	app.SetDisplayName(&config.Name)
@@ -124,7 +200,7 @@ func getAppRequestBody(config provider.AppConfig) *models.Application {
 	return app
 }
 
-func getSecretRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {
+func getSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {
 	keyCredential := models.NewPasswordCredential()
 	keyCredential.SetDisplayName(&config.Name)
 

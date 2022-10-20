@@ -22,7 +22,9 @@ type MockProvider struct {
 
 func New(p provider.ProviderCredential) (*MockProvider, error) {
 	return &MockProvider{
-		Name: ProviderName,
+		Name:  ProviderName,
+		Type:  ProviderConnectorType,
+		Owner: "giantswarm",
 	}, nil
 }
 

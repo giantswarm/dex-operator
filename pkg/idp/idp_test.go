@@ -2,10 +2,13 @@ package idp
 
 import (
 	"context"
-	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"strconv"
 	"testing"
+
+	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
+
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func TestCreateProviderApps(t *testing.T) {
@@ -16,7 +19,7 @@ func TestCreateProviderApps(t *testing.T) {
 	}{
 		{
 			name:      "case 0",
-			providers: []provider.Provider{&mockprovider.MockProvider{Name: mockprovider.ProviderName}},
+			providers: []provider.Provider{getExampleProvider()},
 			appConfig: provider.AppConfig{
 				RedirectURI: `hello.com`,
 				Name:        "hello",
@@ -25,8 +28,8 @@ func TestCreateProviderApps(t *testing.T) {
 		{
 			name: "case 1",
 			providers: []provider.Provider{
-				&mockprovider.MockProvider{Name: mockprovider.ProviderName},
-				&mockprovider.MockProvider{Name: mockprovider.ProviderName}},
+				getExampleProvider(),
+				getExampleProvider()},
 			appConfig: provider.AppConfig{
 				RedirectURI: `hello.com`,
 				Name:        "hello",
@@ -38,6 +41,7 @@ func TestCreateProviderApps(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			s := Service{
 				providers: tc.providers,
+				log:       ctrl.Log.WithName("test"),
 			}
 			_, err := s.CreateProviderApps(tc.appConfig, context.Background())
 			if err != nil {
@@ -45,4 +49,9 @@ func TestCreateProviderApps(t *testing.T) {
 			}
 		})
 	}
+}
+
+func getExampleProvider() provider.Provider {
+	p, _ := mockprovider.New(provider.ProviderCredential{})
+	return p
 }
