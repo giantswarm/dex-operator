@@ -34,6 +34,7 @@ workflows:
         image: "quay.io/giantswarm/dex-operator"
         username_envar: "QUAY_USERNAME"
         password_envar: "QUAY_PASSWORD"
+        resource_class: xlarge
         requires:
         - go-build
         filters:
@@ -46,6 +47,7 @@ workflows:
           image: "docker.io/giantswarm/dex-operator"
           username_envar: "DOCKER_USERNAME"
           password_envar: "DOCKER_PASSWORD"
+          resource_class: xlarge
           requires:
             - go-build
           # Needed to trigger job also on git tag.
