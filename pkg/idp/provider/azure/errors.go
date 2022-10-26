@@ -44,10 +44,8 @@ func IsRequestFailed(err error) bool {
 }
 
 func printOdataError(err error) string {
-	switch err.(type) {
+	switch typed := err.(type) {
 	case *odataerrors.ODataError:
-		typed := err.(*odataerrors.ODataError)
-
 		if terr := typed.GetError(); terr != nil {
 			return fmt.Sprintf("error: %s\n code: %s\n msg: %s", typed.Error(), *terr.GetCode(), *terr.GetMessage())
 		} else {
