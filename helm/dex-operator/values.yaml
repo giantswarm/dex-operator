@@ -1,21 +1,3 @@
-oidc:
-  customer:
-    providers:
-    - name: mock
-      credentials: |-
-        id: test
-    - name: ad
-      credentials: |-
-        client-id: someid
-        client-secret: verysecret
-        tenant-id: anotherid
-  giantswarm:
-    providers:
-    - name: mock
-      credentials: |-
-        name: name
-        anothervalue: something
-
 baseDomain: ""
 
 project:

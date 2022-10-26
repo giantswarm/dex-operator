@@ -25,10 +25,10 @@ const (
 	ClientSecretKey       = "client-secret"
 )
 
-func ProviderPermissions() []string {
-	return []string{"Application.ReadWrite.OwnedBy"}
+func ProviderScope() []string {
+	return []string{key.DexResourceURI + "/.default"}
 }
-func AppPermissions() []string {
+func AppScope() []string {
 	return []string{"Directory.Read.All", "User.Read"}
 }
 
@@ -63,7 +63,7 @@ func New(p provider.ProviderCredential) (*Azure, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	auth, err := azauth.NewAzureIdentityAuthenticationProviderWithScopes(cred, ProviderPermissions())
+	auth, err := azauth.NewAzureIdentityAuthenticationProviderWithScopes(cred, ProviderScope())
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}

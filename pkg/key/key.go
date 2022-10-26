@@ -14,6 +14,7 @@ const (
 	DexOperatorLabelValue        = "dex-operator"
 	ClusterValuesConfigmapSuffix = "cluster-values"
 	BaseDomainKey                = "baseDomain"
+	DexResourceURI               = "https://dex.giantswarm.io"
 )
 
 func DexLabelSelector() metav1.LabelSelector {

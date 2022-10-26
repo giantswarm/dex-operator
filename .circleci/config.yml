@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  architect: giantswarm/architect@dev:timeout
+  architect: giantswarm/architect@4.25.2
 
 jobs:
   tests:
