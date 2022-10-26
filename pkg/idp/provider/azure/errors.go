@@ -1,7 +1,10 @@
 package azure
 
 import (
+	"fmt"
+
 	"github.com/giantswarm/microerror"
+	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 )
 
 var invalidConfigError = &microerror.Error{
@@ -29,4 +32,28 @@ var notExistError = &microerror.Error{
 // IsNotExist asserts notExistError.
 func IsNotExist(err error) bool {
 	return microerror.Cause(err) == notExistError
+}
+
+var requestFailedError = &microerror.Error{
+	Kind: "requestFailedError",
+}
+
+// IsRequestFailed asserts requestFailedError.
+func IsRequestFailed(err error) bool {
+	return microerror.Cause(err) == requestFailedError
+}
+
+func printOdataError(err error) string {
+	switch err.(type) {
+	case *odataerrors.ODataError:
+		typed := err.(*odataerrors.ODataError)
+
+		if terr := typed.GetError(); terr != nil {
+			return fmt.Sprintf("error: %s\n code: %s\n msg: %s", typed.Error(), *terr.GetCode(), *terr.GetMessage())
+		} else {
+			return fmt.Sprintf("error: %s", typed.Error())
+		}
+	default:
+		return fmt.Sprintf("%T > error: %#v", err, err)
+	}
 }

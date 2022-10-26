@@ -99,7 +99,7 @@ func (a *Azure) GetOwner() string {
 func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
 	createdApp, err := a.Client.Applications().Post(ctx, getAppCreateRequestBody(config), nil)
 	if err != nil {
-		return dex.Connector{}, microerror.Mask(err)
+		return dex.Connector{}, microerror.Maskf(requestFailedError, printOdataError(err))
 	}
 	id := createdApp.GetId()
 	if id == nil {
@@ -107,7 +107,7 @@ func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.C
 	}
 	createdSecret, err := a.Client.ApplicationsById(*id).AddPassword().Post(ctx, getSecretCreateRequestBody(config), nil)
 	if err != nil {
-		return dex.Connector{}, microerror.Mask(err)
+		return dex.Connector{}, microerror.Maskf(requestFailedError, printOdataError(err))
 	}
 	clientID := createdSecret.GetKeyId()
 	if clientID == nil {
@@ -140,7 +140,7 @@ func (a *Azure) DeleteApp(name string) error {
 		return microerror.Mask(err)
 	}
 	if err := a.Client.ApplicationsById(appID).Delete(context.Background(), nil); err != nil {
-		return microerror.Mask(err)
+		return microerror.Maskf(requestFailedError, printOdataError(err))
 	}
 	return nil
 }
@@ -148,7 +148,7 @@ func (a *Azure) DeleteApp(name string) error {
 func (a *Azure) GetAppID(name string) (string, error) {
 	result, err := a.Client.Applications().Get(context.Background(), getAppGetRequestConfig(name))
 	if err != nil {
-		return "", microerror.Mask(err)
+		return "", microerror.Maskf(requestFailedError, printOdataError(err))
 	}
 	count := result.GetOdataCount()
 	if *count == 0 {
