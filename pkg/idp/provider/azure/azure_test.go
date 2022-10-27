@@ -4,6 +4,8 @@ import (
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"strconv"
 	"testing"
+
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 func TestGetRequestBody(t *testing.T) {
@@ -19,7 +21,7 @@ func TestGetRequestBody(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			m := getAppCreateRequestBody(tc.config)
+			m := getAppCreateRequestBody(tc.config, []models.RequiredResourceAccessable{models.NewRequiredResourceAccess()})
 			name := m.GetDisplayName()
 			if *name != tc.config.Name {
 				t.Fatalf("Expected %s, got %v", tc.config.Name, *name)

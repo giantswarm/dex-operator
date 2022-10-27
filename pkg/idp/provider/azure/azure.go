@@ -6,6 +6,7 @@ import (
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/dexidp/dex/connector/microsoft"
@@ -23,13 +24,12 @@ const (
 	TenantIDKey           = "tenant-id"
 	ClientIDKey           = "client-id"
 	ClientSecretKey       = "client-secret"
+	PermissionType        = "Scope"
+	DefaultName           = "giantswarm-dex"
 )
 
 func ProviderScope() []string {
-	return []string{key.DexResourceURI + "/.default"}
-}
-func AppScope() []string {
-	return []string{"Directory.Read.All", "User.Read"}
+	return []string{"https://graph.microsoft.com/.default"}
 }
 
 type Azure struct {
@@ -97,7 +97,12 @@ func (a *Azure) GetOwner() string {
 }
 
 func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
-	createdApp, err := a.Client.Applications().Post(ctx, getAppCreateRequestBody(config), nil)
+	permissions, err := a.getPermissions()
+	if err != nil {
+		return dex.Connector{}, microerror.Mask(err)
+	}
+
+	createdApp, err := a.Client.Applications().Post(ctx, getAppCreateRequestBody(config, permissions), nil)
 	if err != nil {
 		return dex.Connector{}, microerror.Maskf(requestFailedError, printOdataError(err))
 	}
@@ -146,32 +151,59 @@ func (a *Azure) DeleteApp(name string) error {
 }
 
 func (a *Azure) GetAppID(name string) (string, error) {
-	result, err := a.Client.Applications().Get(context.Background(), getAppGetRequestConfig(name))
+	app, err := a.GetApp(name)
 	if err != nil {
-		return "", microerror.Maskf(requestFailedError, printOdataError(err))
+		return "", microerror.Mask(err)
 	}
-	count := result.GetOdataCount()
-	if *count == 0 {
-		return "", microerror.Maskf(notFoundError, "No application with name %s exists.", name)
-	} else if *count != 1 {
-		return "", microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, count)
-	}
-	appList := result.GetValue()
-	if len(appList) != 1 {
-		return "", microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, len(appList))
-	}
-	id := appList[1].GetAppId()
+	id := app.GetId()
 	if id == nil {
 		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", name)
 	}
 	return *id, nil
 }
 
+func (a *Azure) GetApp(name string) (models.Applicationable, error) {
+	result, err := a.Client.Applications().Get(context.Background(), getAppGetRequestConfig(name))
+	if err != nil {
+		return nil, microerror.Maskf(requestFailedError, printOdataError(err))
+	}
+	count := result.GetOdataCount()
+	if *count == 0 {
+		return nil, microerror.Maskf(notFoundError, "No application with name %s exists.", name)
+	} else if *count != 1 {
+		return nil, microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, count)
+	}
+	appList := result.GetValue()
+	if len(appList) != 1 {
+		return nil, microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, len(appList))
+	}
+	return appList[0], nil
+}
+
+func (a *Azure) getPermissions() ([]models.RequiredResourceAccessable, error) {
+	result, err := a.GetApp(DefaultName)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	var resourceAccess []models.ResourceAccessable
+	t := PermissionType
+	for _, rra := range result.GetRequiredResourceAccess() {
+		for _, ra := range rra.GetResourceAccess() {
+			if ra.GetType() == &t {
+				resourceAccess = append(resourceAccess, ra)
+			}
+		}
+	}
+	requiredResourceaccess := models.NewRequiredResourceAccess()
+	requiredResourceaccess.SetResourceAccess(resourceAccess)
+	return []models.RequiredResourceAccessable{requiredResourceaccess}, nil
+}
+
 func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
 	headers := map[string]string{
 		"ConsistencyLevel": "eventual",
 	}
-	requestFilter := fmt.Sprintf("displayName eq %s", name)
+	requestFilter := fmt.Sprintf("displayName eq '%s'", name)
 	requestCount := true
 	requestTop := int32(1)
 
@@ -187,15 +219,13 @@ func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilde
 	}
 }
 
-func getAppCreateRequestBody(config provider.AppConfig) *models.Application {
+func getAppCreateRequestBody(config provider.AppConfig, permissions []models.RequiredResourceAccessable) *models.Application {
 	web := models.NewWebApplication()
 	web.SetRedirectUris([]string{config.RedirectURI})
-
-	// TODO define permissions
-
 	app := models.NewApplication()
 	app.SetDisplayName(&config.Name)
 	app.SetWeb(web)
+	app.SetRequiredResourceAccess(permissions)
 
 	return app
 }
@@ -203,6 +233,9 @@ func getAppCreateRequestBody(config provider.AppConfig) *models.Application {
 func getSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {
 	keyCredential := models.NewPasswordCredential()
 	keyCredential.SetDisplayName(&config.Name)
+
+	validUntil := time.Now().AddDate(0, key.SecretValidityMonths, 0)
+	keyCredential.SetEndDateTime(&validUntil)
 
 	secret := addpassword.NewAddPasswordPostRequestBody()
 	secret.SetPasswordCredential(keyCredential)

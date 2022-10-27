@@ -17,6 +17,10 @@ const (
 	DexResourceURI               = "https://dex.giantswarm.io"
 )
 
+const (
+	SecretValidityMonths = 6
+)
+
 func DexLabelSelector() metav1.LabelSelector {
 	return metav1.LabelSelector{
 		MatchLabels: map[string]string{
