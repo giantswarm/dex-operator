@@ -42,5 +42,5 @@ func GetRedirectURI(baseDomain string) string {
 }
 
 func GetIdentifierURI(baseDomain string) string {
-	return fmt.Sprintf("https://dex.g8s.%s", baseDomain)
+	return fmt.Sprintf("https://dex.giantswarm.io/%s", baseDomain)
 }
