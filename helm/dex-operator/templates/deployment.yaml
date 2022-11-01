@@ -32,6 +32,7 @@ spec:
         args:
         - --leader-elect
         - --base-domain={{ .Values.baseDomain }}
+        - --management-cluster={{ .Values.managementCluster }}
         resources:
           requests:
             cpu: 100m

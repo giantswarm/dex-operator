@@ -29,8 +29,8 @@ func DexLabelSelector() metav1.LabelSelector {
 	}
 }
 
-func GetIdpAppName(namespace string, name string) string {
-	return fmt.Sprintf("%s-%s", namespace, name)
+func GetIdpAppName(installation string, namespace string, name string) string {
+	return fmt.Sprintf("%s-%s-%s", installation, namespace, name)
 }
 
 func GetConnectorDescription(connectorType string, owner string) string {

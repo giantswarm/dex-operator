@@ -46,6 +46,7 @@ type AppReconciler struct {
 	Scheme              *runtime.Scheme
 	LabelSelector       metav1.LabelSelector
 	BaseDomain          string
+	ManagementCluster   string
 	ProviderCredentials string
 }
 
@@ -90,6 +91,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			App:                         app,
 			Providers:                   providers,
 			ManagementClusterBaseDomain: r.BaseDomain,
+			ManagementClusterName:       r.ManagementCluster,
 		}
 
 		idpService, err = idp.New(c)

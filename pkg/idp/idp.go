@@ -25,6 +25,7 @@ type Config struct {
 	App                         *v1alpha1.App
 	Providers                   []provider.Provider
 	ManagementClusterBaseDomain string
+	ManagementClusterName       string
 }
 
 type Service struct {
@@ -33,6 +34,7 @@ type Service struct {
 	app                         *v1alpha1.App
 	providers                   []provider.Provider
 	managementClusterBaseDomain string
+	managementClusterName       string
 }
 
 func New(c Config) (*Service, error) {
@@ -51,13 +53,16 @@ func New(c Config) (*Service, error) {
 	if c.ManagementClusterBaseDomain == "" {
 		return nil, microerror.Maskf(invalidConfigError, "no management cluster base domain given")
 	}
-
+	if c.ManagementClusterName == "" {
+		return nil, microerror.Maskf(invalidConfigError, "no management cluster name given")
+	}
 	s := &Service{
 		Client:                      c.Client,
 		app:                         c.App,
 		log:                         *c.Log,
 		providers:                   c.Providers,
 		managementClusterBaseDomain: c.ManagementClusterBaseDomain,
+		managementClusterName:       c.ManagementClusterName,
 	}
 
 	return s, nil
@@ -116,7 +121,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 				return microerror.Mask(err)
 			}
 		} else {
-			if err := s.DeleteProviderApps(key.GetIdpAppName(s.app.Namespace, s.app.Name), ctx); err != nil {
+			if err := s.DeleteProviderApps(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name), ctx); err != nil {
 				return microerror.Mask(err)
 			}
 			//delete secret if it exists
@@ -192,7 +197,7 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 		}
 	}
 	return provider.AppConfig{
-		Name:          key.GetIdpAppName(s.app.Namespace, s.app.Name),
+		Name:          key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
 		RedirectURI:   key.GetRedirectURI(baseDomain),
 		IdentifierURI: key.GetIdentifierURI(baseDomain),
 	}, nil

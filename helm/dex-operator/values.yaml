@@ -12,6 +12,7 @@ oidc:
         anothervalue: something
 
 baseDomain: ""
+managementCluster: ""
 
 project:
   branch: "[[ .Branch ]]"
