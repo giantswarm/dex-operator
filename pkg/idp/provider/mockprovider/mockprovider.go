@@ -52,6 +52,6 @@ func (m *MockProvider) CreateApp(config provider.AppConfig, ctx context.Context)
 	}, nil
 }
 
-func (m *MockProvider) DeleteApp(name string) error {
+func (m *MockProvider) DeleteApp(name string, ctx context.Context) error {
 	return nil
 }

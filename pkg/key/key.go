@@ -40,3 +40,7 @@ func GetConnectorDescription(connectorType string, owner string) string {
 func GetRedirectURI(baseDomain string) string {
 	return fmt.Sprintf("https://dex.g8s.%s/callback", baseDomain)
 }
+
+func GetIdentifierURI(baseDomain string) string {
+	return fmt.Sprintf("https://dex.g8s.%s", baseDomain)
+}

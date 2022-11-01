@@ -25,15 +25,6 @@ func IsNotFound(err error) bool {
 	return microerror.Cause(err) == notFoundError
 }
 
-var notExistError = &microerror.Error{
-	Kind: "notExistError",
-}
-
-// IsNotExist asserts notExistError.
-func IsNotExist(err error) bool {
-	return microerror.Cause(err) == notExistError
-}
-
 var requestFailedError = &microerror.Error{
 	Kind: "requestFailedError",
 }

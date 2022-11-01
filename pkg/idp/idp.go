@@ -116,7 +116,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 				return microerror.Mask(err)
 			}
 		} else {
-			if err := s.DeleteProviderApps(key.GetIdpAppName(s.app.Namespace, s.app.Name)); err != nil {
+			if err := s.DeleteProviderApps(key.GetIdpAppName(s.app.Namespace, s.app.Name), ctx); err != nil {
 				return microerror.Mask(err)
 			}
 			//delete secret if it exists
@@ -160,10 +160,10 @@ func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.C
 	return dexConfig, nil
 }
 
-func (s *Service) DeleteProviderApps(appName string) error {
+func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error {
 	for _, provider := range s.providers {
 
-		if err := provider.DeleteApp(appName); err != nil {
+		if err := provider.DeleteApp(appName, ctx); err != nil {
 			return microerror.Mask(err)
 		}
 		s.log.Info(fmt.Sprintf("Deleted app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
@@ -192,8 +192,9 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 		}
 	}
 	return provider.AppConfig{
-		Name:        key.GetIdpAppName(s.app.Namespace, s.app.Name),
-		RedirectURI: key.GetRedirectURI(baseDomain),
+		Name:          key.GetIdpAppName(s.app.Namespace, s.app.Name),
+		RedirectURI:   key.GetRedirectURI(baseDomain),
+		IdentifierURI: key.GetIdentifierURI(baseDomain),
 	}, nil
 }
 

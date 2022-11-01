@@ -4,8 +4,6 @@ import (
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"strconv"
 	"testing"
-
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 func TestGetRequestBody(t *testing.T) {
@@ -21,7 +19,7 @@ func TestGetRequestBody(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			m := getAppCreateRequestBody(tc.config, []models.RequiredResourceAccessable{models.NewRequiredResourceAccess()})
+			m := getAppCreateRequestBody(tc.config)
 			name := m.GetDisplayName()
 			if *name != tc.config.Name {
 				t.Fatalf("Expected %s, got %v", tc.config.Name, *name)
@@ -33,7 +31,13 @@ func TestGetRequestBody(t *testing.T) {
 			if uri[0] != tc.config.RedirectURI {
 				t.Fatalf("Expected %s, got %v", tc.config.RedirectURI, uri[0])
 			}
-
+			access := m.GetRequiredResourceAccess()
+			if len(access) == 0 {
+				t.Fatalf("Expected permissions to exist.")
+			}
+			if len(access[0].GetResourceAccess()) == 0 {
+				t.Fatalf("Expected permissions to exist.")
+			}
 			s := getSecretCreateRequestBody(tc.config)
 			secretName := s.GetPasswordCredential().GetDisplayName()
 			if *secretName != tc.config.Name {

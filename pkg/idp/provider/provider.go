@@ -11,15 +11,16 @@ import (
 
 type Provider interface {
 	CreateApp(AppConfig, context.Context) (dex.Connector, error)
-	DeleteApp(string) error
+	DeleteApp(string, context.Context) error
 	GetName() string
 	GetOwner() string
 	GetType() string
 }
 
 type AppConfig struct {
-	RedirectURI string
-	Name        string
+	RedirectURI   string
+	Name          string
+	IdentifierURI string
 }
 
 type ProviderCredential struct {
