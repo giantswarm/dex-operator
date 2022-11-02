@@ -199,7 +199,7 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 	return provider.AppConfig{
 		Name:          key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
 		RedirectURI:   key.GetRedirectURI(baseDomain),
-		IdentifierURI: key.GetIdentifierURI(baseDomain),
+		IdentifierURI: key.GetIdentifierURI(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name)),
 	}, nil
 }
 
