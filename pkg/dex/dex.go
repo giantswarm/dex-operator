@@ -7,10 +7,11 @@ type DexConfig struct {
 }
 
 type DexOidc struct {
-	Giantswarm DexOidcGiantswarm `json:"giantswarm"`
+	Giantswarm DexOidcOwner `json:"giantswarm,omitempty"`
+	Customer   DexOidcOwner `json:"customer,omitempty"`
 }
 
-type DexOidcGiantswarm struct {
+type DexOidcOwner struct {
 	Connectors []Connector `json:"connectors"`
 }
 

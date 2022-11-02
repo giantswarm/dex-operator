@@ -53,6 +53,7 @@ func main() {
 		baseDomain           string
 		enableLeaderElection bool
 		idpCredentials       string
+		managementCluster    string
 		metricsAddr          string
 		probeAddr            string
 	)
@@ -64,6 +65,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 
 	flag.StringVar(&baseDomain, "base-domain", "", "Domain for the dex callback address, e.g. customer.gigantic.io.")
+	flag.StringVar(&managementCluster, "management-cluster", "", "Name of the management cluster.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -98,6 +100,7 @@ func main() {
 
 	if err = (&controllers.AppReconciler{
 		BaseDomain:          baseDomain,
+		ManagementCluster:   managementCluster,
 		Client:              mgr.GetClient(),
 		Log:                 ctrl.Log.WithName("controllers").WithName("App"),
 		Scheme:              mgr.GetScheme(),

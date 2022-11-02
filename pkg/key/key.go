@@ -14,6 +14,11 @@ const (
 	DexOperatorLabelValue        = "dex-operator"
 	ClusterValuesConfigmapSuffix = "cluster-values"
 	BaseDomainKey                = "baseDomain"
+	DexResourceURI               = "https://dex.giantswarm.io"
+)
+
+const (
+	SecretValidityMonths = 6
 )
 
 func DexLabelSelector() metav1.LabelSelector {
@@ -24,10 +29,18 @@ func DexLabelSelector() metav1.LabelSelector {
 	}
 }
 
-func GetIdpAppName(namespace string, name string) string {
-	return fmt.Sprintf("%s-%s", namespace, name)
+func GetIdpAppName(installation string, namespace string, name string) string {
+	return fmt.Sprintf("%s-%s-%s", installation, namespace, name)
+}
+
+func GetConnectorDescription(connectorType string, owner string) string {
+	return fmt.Sprintf("%s connector for %s", connectorType, owner)
 }
 
 func GetRedirectURI(baseDomain string) string {
 	return fmt.Sprintf("https://dex.g8s.%s/callback", baseDomain)
+}
+
+func GetIdentifierURI(name string) string {
+	return fmt.Sprintf("https://dex.giantswarm.io/%s", name)
 }

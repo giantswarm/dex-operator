@@ -20,6 +20,7 @@ import (
 	"context"
 	"giantswarm/dex-operator/pkg/idp"
 	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/idp/provider/azure"
 	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"giantswarm/dex-operator/pkg/key"
 	"time"
@@ -45,6 +46,7 @@ type AppReconciler struct {
 	Scheme              *runtime.Scheme
 	LabelSelector       metav1.LabelSelector
 	BaseDomain          string
+	ManagementCluster   string
 	ProviderCredentials string
 }
 
@@ -89,6 +91,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			App:                         app,
 			Providers:                   providers,
 			ManagementClusterBaseDomain: r.BaseDomain,
+			ManagementClusterName:       r.ManagementCluster,
 		}
 
 		idpService, err = idp.New(c)
@@ -132,7 +135,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	predicate, err := predicate.LabelSelectorPredicate(r.LabelSelector)
 	if err != nil {
-		return err
+		return microerror.Mask(err)
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.App{}).
@@ -151,7 +154,7 @@ func DefaultRequeue() reconcile.Result {
 func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 	providerCredentials, err := provider.ReadCredentials(r.ProviderCredentials)
 	if err != nil {
-		return nil, err
+		return nil, microerror.Mask(err)
 	}
 
 	var providers []provider.Provider
@@ -159,7 +162,7 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 		for _, p := range providerCredentials {
 			provider, err := NewProvider(p)
 			if err != nil {
-				return nil, err
+				return nil, microerror.Mask(err)
 			}
 			providers = append(providers, provider)
 		}
@@ -171,7 +174,8 @@ func NewProvider(p provider.ProviderCredential) (provider.Provider, error) {
 	switch p.Name {
 	case mockprovider.ProviderName:
 		return mockprovider.New(p)
-		// TODO: add providers here
+	case azure.ProviderName:
+		return azure.New(p)
 	}
 	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", p.Name)
 }

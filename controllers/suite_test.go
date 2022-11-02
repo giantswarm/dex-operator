@@ -87,6 +87,7 @@ var _ = BeforeSuite(func() {
 
 	err = (&AppReconciler{
 		BaseDomain:          "test.io",
+		ManagementCluster:   "something",
 		Log:                 ctrl.Log.WithName("controllers").WithName("App"),
 		Client:              k8sManager.GetClient(),
 		Scheme:              k8sManager.GetScheme(),

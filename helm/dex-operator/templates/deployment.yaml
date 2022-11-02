@@ -28,10 +28,11 @@ spec:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
         command:
-        - /manager
+        - /dex-operator
         args:
         - --leader-elect
         - --base-domain={{ .Values.baseDomain }}
+        - --management-cluster={{ .Values.managementCluster }}
         resources:
           requests:
             cpu: 100m

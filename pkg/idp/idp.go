@@ -3,6 +3,7 @@ package idp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
@@ -24,6 +25,7 @@ type Config struct {
 	App                         *v1alpha1.App
 	Providers                   []provider.Provider
 	ManagementClusterBaseDomain string
+	ManagementClusterName       string
 }
 
 type Service struct {
@@ -32,6 +34,7 @@ type Service struct {
 	app                         *v1alpha1.App
 	providers                   []provider.Provider
 	managementClusterBaseDomain string
+	managementClusterName       string
 }
 
 func New(c Config) (*Service, error) {
@@ -50,13 +53,16 @@ func New(c Config) (*Service, error) {
 	if c.ManagementClusterBaseDomain == "" {
 		return nil, microerror.Maskf(invalidConfigError, "no management cluster base domain given")
 	}
-
+	if c.ManagementClusterName == "" {
+		return nil, microerror.Maskf(invalidConfigError, "no management cluster name given")
+	}
 	s := &Service{
 		Client:                      c.Client,
 		app:                         c.App,
 		log:                         *c.Log,
 		providers:                   c.Providers,
 		managementClusterBaseDomain: c.ManagementClusterBaseDomain,
+		managementClusterName:       c.ManagementClusterName,
 	}
 
 	return s, nil
@@ -68,7 +74,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	if !dexSecretConfigIsPresent(s.app, dexSecretConfig) {
 		s.app.Spec.ExtraConfigs = append(s.app.Spec.ExtraConfigs, dexSecretConfig)
 		if err := s.Update(ctx, s.app); err != nil {
-			return err
+			return microerror.Mask(err)
 		}
 		s.log.Info("Added secret config to dex app instance.")
 	}
@@ -77,7 +83,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	secret := &corev1.Secret{}
 	if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
 		if !apierrors.IsNotFound(err) {
-			return err
+			return microerror.Mask(err)
 		} else {
 
 			// Create apps for each provider and get dex config
@@ -85,18 +91,18 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			if err != nil {
 				return microerror.Mask(err)
 			}
-			dexConfig, err := s.CreateProviderApps(appConfig)
+			dexConfig, err := s.CreateProviderApps(appConfig, ctx)
 			if err != nil {
-				return err
+				return microerror.Mask(err)
 			}
 			data, err := json.Marshal(dexConfig)
 			if err != nil {
-				return err
+				return microerror.Mask(err)
 			}
 			// Create secret
 			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace, data)
 			if err := s.Create(ctx, secret); err != nil {
-				return err
+				return microerror.Mask(err)
 			}
 			s.log.Info("Created default dex config secret for dex app instance.")
 		}
@@ -112,16 +118,16 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 		secret := &corev1.Secret{}
 		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
 			if !apierrors.IsNotFound(err) {
-				return err
+				return microerror.Mask(err)
 			}
 		} else {
-			if err := s.DeleteProviderApps(key.GetIdpAppName(s.app.Namespace, s.app.Name)); err != nil {
-				return err
+			if err := s.DeleteProviderApps(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name), ctx); err != nil {
+				return microerror.Mask(err)
 			}
 			//delete secret if it exists
 			if err := s.Delete(ctx, secret); err != nil {
 				if !apierrors.IsNotFound(err) {
-					return err
+					return microerror.Mask(err)
 				}
 			} else {
 				s.log.Info("Deleted default dex config secret for dex app instance.")
@@ -131,33 +137,41 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) CreateProviderApps(appConfig provider.AppConfig) (dex.DexConfig, error) {
+func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.Context) (dex.DexConfig, error) {
 	dexConfig := dex.DexConfig{
 		Oidc: dex.DexOidc{
-			Giantswarm: dex.DexOidcGiantswarm{},
+			Giantswarm: dex.DexOidcOwner{},
+			Customer:   dex.DexOidcOwner{},
 		},
 	}
 	for _, provider := range s.providers {
 
 		// Create the app on the identity provider
-		connector, err := provider.CreateApp(appConfig)
+		connector, err := provider.CreateApp(appConfig, ctx)
 		if err != nil {
 			return dexConfig, err
 		}
-
 		// Add connector configuration to config
-		dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
-
+		switch provider.GetOwner() {
+		case "giantswarm":
+			dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
+		case "customer":
+			dexConfig.Oidc.Customer.Connectors = append(dexConfig.Oidc.Customer.Connectors, connector)
+		default:
+			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
+		}
+		s.log.Info(fmt.Sprintf("Created app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 	}
 	return dexConfig, nil
 }
 
-func (s *Service) DeleteProviderApps(appName string) error {
+func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error {
 	for _, provider := range s.providers {
 
-		if err := provider.DeleteApp(appName); err != nil {
-			return err
+		if err := provider.DeleteApp(appName, ctx); err != nil {
+			return microerror.Mask(err)
 		}
+		s.log.Info(fmt.Sprintf("Deleted app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 	}
 	return nil
 }
@@ -183,8 +197,9 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 		}
 	}
 	return provider.AppConfig{
-		Name:        key.GetIdpAppName(s.app.Namespace, s.app.Name),
-		RedirectURI: key.GetRedirectURI(baseDomain),
+		Name:          key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
+		RedirectURI:   key.GetRedirectURI(baseDomain),
+		IdentifierURI: key.GetIdentifierURI(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name)),
 	}, nil
 }
 

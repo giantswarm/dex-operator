@@ -1,31 +1,50 @@
 package mockprovider
 
 import (
+	"context"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/key"
 
 	"github.com/dexidp/dex/connector/mock"
 )
 
 const (
-	ProviderName = "mock"
+	ProviderName          = "mock"
+	ProviderConnectorType = "mockCallback"
 )
 
 type MockProvider struct {
-	Name string
+	Name  string
+	Type  string
+	Owner string
 }
 
 func New(p provider.ProviderCredential) (*MockProvider, error) {
 	return &MockProvider{
-		Name: ProviderName,
+		Name:  ProviderName,
+		Type:  ProviderConnectorType,
+		Owner: "giantswarm",
 	}, nil
 }
 
-func (m *MockProvider) CreateApp(config provider.AppConfig) (dex.Connector, error) {
+func (m *MockProvider) GetName() string {
+	return m.Name
+}
+
+func (m *MockProvider) GetType() string {
+	return m.Type
+}
+
+func (m *MockProvider) GetOwner() string {
+	return m.Owner
+}
+
+func (m *MockProvider) CreateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
 	return dex.Connector{
-		Type: "mockCallback",
-		ID:   "mock",
-		Name: "Example",
+		Type: m.Type,
+		ID:   m.Name,
+		Name: key.GetConnectorDescription(ProviderConnectorType, m.Owner),
 		Config: &mock.PasswordConfig{
 			Username: "test",
 			Password: "test",
@@ -33,6 +52,6 @@ func (m *MockProvider) CreateApp(config provider.AppConfig) (dex.Connector, erro
 	}, nil
 }
 
-func (m *MockProvider) DeleteApp(name string) error {
+func (m *MockProvider) DeleteApp(name string, ctx context.Context) error {
 	return nil
 }
