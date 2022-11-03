@@ -2,6 +2,7 @@ package azure
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
@@ -104,16 +105,22 @@ func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.C
 	if clientSecret == nil {
 		return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find client secret for app %s.", config.Name)
 	}
+	connectorConfig := &microsoft.Config{
+		ClientID:     *id,
+		ClientSecret: *clientSecret,
+		RedirectURI:  config.RedirectURI,
+		Tenant:       a.TenantID,
+	}
+	data, err := json.Marshal(connectorConfig)
+	if err != nil {
+		return dex.Connector{}, microerror.Mask(err)
+	}
+
 	return dex.Connector{
-		Type: a.Type,
-		ID:   a.Name,
-		Name: key.GetConnectorDescription(ProviderConnectorType, a.Owner),
-		Config: &microsoft.Config{
-			ClientID:     *id,
-			ClientSecret: *clientSecret,
-			RedirectURI:  config.RedirectURI,
-			Tenant:       a.TenantID,
-		},
+		Type:   a.Type,
+		ID:     a.Name,
+		Name:   key.GetConnectorDescription(ProviderConnectorType, a.Owner),
+		Config: string(data[:]),
 	}, nil
 }
 
