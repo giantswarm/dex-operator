@@ -105,8 +105,12 @@ func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.C
 	if clientSecret == nil {
 		return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find client secret for app %s.", config.Name)
 	}
+	clientId := createdApp.GetAppId()
+	if clientId == nil {
+		return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find App ID of app %s.", config.Name)
+	}
 	connectorConfig := &microsoft.Config{
-		ClientID:     *id,
+		ClientID:     *clientId,
 		ClientSecret: *clientSecret,
 		RedirectURI:  config.RedirectURI,
 		Tenant:       a.TenantID,
