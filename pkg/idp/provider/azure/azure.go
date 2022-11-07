@@ -13,6 +13,7 @@ import (
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"gopkg.in/yaml.v2"
 )
 
 type Azure struct {
@@ -104,16 +105,26 @@ func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.C
 	if clientSecret == nil {
 		return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find client secret for app %s.", config.Name)
 	}
+	clientId := createdApp.GetAppId()
+	if clientId == nil {
+		return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find App ID of app %s.", config.Name)
+	}
+	connectorConfig := &microsoft.Config{
+		ClientID:     *clientId,
+		ClientSecret: *clientSecret,
+		RedirectURI:  config.RedirectURI,
+		Tenant:       a.TenantID,
+	}
+	data, err := yaml.Marshal(connectorConfig)
+	if err != nil {
+		return dex.Connector{}, microerror.Mask(err)
+	}
+
 	return dex.Connector{
-		Type: a.Type,
-		ID:   a.Name,
-		Name: key.GetConnectorDescription(ProviderConnectorType, a.Owner),
-		Config: &microsoft.Config{
-			ClientID:     *id,
-			ClientSecret: *clientSecret,
-			RedirectURI:  config.RedirectURI,
-			Tenant:       a.TenantID,
-		},
+		Type:   a.Type,
+		ID:     a.Name,
+		Name:   key.GetConnectorDescription(ProviderConnectorType, a.Owner),
+		Config: string(data[:]),
 	}, nil
 }
 

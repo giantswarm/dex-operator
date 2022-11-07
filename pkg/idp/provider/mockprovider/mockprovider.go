@@ -7,6 +7,8 @@ import (
 	"giantswarm/dex-operator/pkg/key"
 
 	"github.com/dexidp/dex/connector/mock"
+	"github.com/giantswarm/microerror"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -41,14 +43,19 @@ func (m *MockProvider) GetOwner() string {
 }
 
 func (m *MockProvider) CreateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
+	connectorConfig := &mock.PasswordConfig{
+		Username: "test",
+		Password: "test",
+	}
+	data, err := yaml.Marshal(connectorConfig)
+	if err != nil {
+		return dex.Connector{}, microerror.Mask(err)
+	}
 	return dex.Connector{
-		Type: m.Type,
-		ID:   m.Name,
-		Name: key.GetConnectorDescription(ProviderConnectorType, m.Owner),
-		Config: &mock.PasswordConfig{
-			Username: "test",
-			Password: "test",
-		},
+		Type:   m.Type,
+		ID:     m.Name,
+		Name:   key.GetConnectorDescription(ProviderConnectorType, m.Owner),
+		Config: string(data[:]),
 	}, nil
 }
 

@@ -18,7 +18,13 @@ Providers need to implement the `provider.Provider` interface.
 ### azure active directory
 
 Configures app registration in an azure active directory tenant.
-To configure this identity provider, add the following configuration to `values`:
+To configure this identity provider, first [add two app registrations to the tenant](https://learn.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app).
+
+- Name: `giantswarm-dex`. It needs `delegated` Permissions `Directory.Read.All` and `User.Read`.
+- Name: `dex-operator`. It needs `Application` Permissions `Application.ReadWrite.All` and a client secret configured.
+
+
+Then, add the following configuration to `values`:
 ```
 oidc:
   $OWNER:
@@ -33,3 +39,5 @@ oidc:
 - `$TENANTID`: The ID of the azure tenant that should be used for the configuration.
 - `$CLIENTID`: ID of the client (application) configured in the tenant for `dex-operator`.
 - `$CLIENTSECRET`: Secret configured for `dex-operator` client.
+
+When the configuration is added, a `microsoft` connector should be added to each installed `dex-app` and the application registration with callback URI should be visible in the active directory.

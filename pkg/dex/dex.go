@@ -1,7 +1,5 @@
 package dex
 
-import "github.com/dexidp/dex/server"
-
 type DexConfig struct {
 	Oidc DexOidc `json:"oidc"`
 }
@@ -20,5 +18,5 @@ type Connector struct {
 	Name string `json:"connectorName"`
 	ID   string `json:"id"`
 
-	Config server.ConnectorConfig `json:"connectorConfig"`
+	Config string `json:"connectorConfig"`
 }

@@ -1,15 +1,8 @@
 oidc:
   customer:
-    providers:
-    - name: mock
-      credentials: |-
-        id: test
+    providers: []
   giantswarm:
-    providers:
-    - name: mock
-      credentials: |-
-        name: name
-        anothervalue: something
+    providers: []
 
 baseDomain: ""
 managementCluster: ""
