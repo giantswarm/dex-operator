@@ -2,13 +2,13 @@ package mockprovider
 
 import (
 	"context"
-	"encoding/json"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
 
 	"github.com/dexidp/dex/connector/mock"
 	"github.com/giantswarm/microerror"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -47,7 +47,7 @@ func (m *MockProvider) CreateApp(config provider.AppConfig, ctx context.Context)
 		Username: "test",
 		Password: "test",
 	}
-	data, err := json.Marshal(connectorConfig)
+	data, err := yaml.Marshal(connectorConfig)
 	if err != nil {
 		return dex.Connector{}, microerror.Mask(err)
 	}

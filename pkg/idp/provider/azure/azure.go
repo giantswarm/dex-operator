@@ -2,7 +2,6 @@ package azure
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
@@ -14,6 +13,7 @@ import (
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"gopkg.in/yaml.v2"
 )
 
 type Azure struct {
@@ -111,7 +111,7 @@ func (a *Azure) CreateApp(config provider.AppConfig, ctx context.Context) (dex.C
 		RedirectURI:  config.RedirectURI,
 		Tenant:       a.TenantID,
 	}
-	data, err := json.Marshal(connectorConfig)
+	data, err := yaml.Marshal(connectorConfig)
 	if err != nil {
 		return dex.Connector{}, microerror.Mask(err)
 	}
