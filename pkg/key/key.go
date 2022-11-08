@@ -13,6 +13,7 @@ const (
 	DexOperatorFinalizer         = "dex-operator.finalizers.giantswarm.io"
 	DexOperatorLabelValue        = "dex-operator"
 	ClusterValuesConfigmapSuffix = "cluster-values"
+	ClusterValuesConfigMapKey    = "values"
 	BaseDomainKey                = "baseDomain"
 	DexResourceURI               = "https://dex.giantswarm.io"
 )

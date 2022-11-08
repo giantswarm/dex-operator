@@ -189,7 +189,7 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 				return provider.AppConfig{}, err
 			}
 			// Get the base domain
-			baseDomain = clusterValuesConfigmap.Data[key.BaseDomainKey]
+			baseDomain = getBaseDomainFromClusterValues(clusterValuesConfigmap)
 		}
 		// Vintage management cluster case
 		if baseDomain == "" {
