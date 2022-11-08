@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 type Config struct {
@@ -107,6 +108,14 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			s.log.Info("Created default dex config secret for dex app instance.")
 		}
 	}
+	// Add finalizer
+	if !controllerutil.ContainsFinalizer(secret, key.DexOperatorFinalizer) {
+		controllerutil.AddFinalizer(secret, key.DexOperatorFinalizer)
+		if err := s.Update(ctx, secret); err != nil {
+			return microerror.Mask(err)
+		}
+		s.log.Info("Added finalizer to default dex config secret.")
+	}
 	// TODO: update/rotation logic
 	return nil
 }
@@ -123,6 +132,17 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 		} else {
 			if err := s.DeleteProviderApps(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name), ctx); err != nil {
 				return microerror.Mask(err)
+			}
+			// remove finalizer
+			if controllerutil.ContainsFinalizer(secret, key.DexOperatorFinalizer) {
+				controllerutil.RemoveFinalizer(secret, key.DexOperatorFinalizer)
+				if err := s.Update(ctx, secret); err != nil {
+					if !apierrors.IsNotFound(err) {
+						return microerror.Mask(err)
+					}
+				} else {
+					s.log.Info("Removed finalizer from default dex config secret.")
+				}
 			}
 			//delete secret if it exists
 			if err := s.Delete(ctx, secret); err != nil {
