@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added finalizer management for default dex config secret.
 - Added `README.md`.
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.

@@ -10,9 +10,10 @@ const (
 	AppLabel                     = "app.kubernetes.io/name"
 	DexAppLabelValue             = "dex-app"
 	DexConfigName                = "default-dex-config"
-	DexOperatorFinalizer         = "dex-operator.finalizers.giantswarm.io"
+	DexOperatorFinalizer         = "dex-operator.finalizers.giantswarm.io/app-controller"
 	DexOperatorLabelValue        = "dex-operator"
 	ClusterValuesConfigmapSuffix = "cluster-values"
+	ClusterValuesConfigMapKey    = "values"
 	BaseDomainKey                = "baseDomain"
 	DexResourceURI               = "https://dex.giantswarm.io"
 )
