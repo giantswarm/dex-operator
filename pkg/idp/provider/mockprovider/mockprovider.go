@@ -24,9 +24,9 @@ type MockProvider struct {
 
 func New(p provider.ProviderCredential) (*MockProvider, error) {
 	return &MockProvider{
-		Name:  ProviderName,
+		Name:  key.GetProviderName(p.Owner, ProviderName),
 		Type:  ProviderConnectorType,
-		Owner: "giantswarm",
+		Owner: p.Owner,
 	}, nil
 }
 
@@ -42,7 +42,7 @@ func (m *MockProvider) GetOwner() string {
 	return m.Owner
 }
 
-func (m *MockProvider) CreateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
+func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, currentConnector dex.Connector) (dex.Connector, error) {
 	connectorConfig := &mock.PasswordConfig{
 		Username: "test",
 		Password: "test",

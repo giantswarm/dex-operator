@@ -1,13 +1,16 @@
 package idp
 
 import (
+	"encoding/json"
 	"fmt"
+	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/key"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
+	"github.com/giantswarm/microerror"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -42,4 +45,24 @@ func GetDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
 		Name:      key.DexConfigName,
 		Namespace: namespace,
 		Priority:  25}
+}
+
+func getOldConnectorsFromSecret(secret *corev1.Secret) (map[string]dex.Connector, error) {
+	connectors := map[string]dex.Connector{}
+	configData, exists := secret.Data["default"]
+	if !exists {
+		return connectors, nil
+	}
+	config := &dex.DexConfig{}
+	if err := json.Unmarshal(configData, config); err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	for _, connector := range config.Oidc.Customer.Connectors {
+		connectors[connector.ID] = connector
+	}
+	for _, connector := range config.Oidc.Giantswarm.Connectors {
+		connectors[connector.ID] = connector
+	}
+	return connectors, nil
 }

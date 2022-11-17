@@ -27,10 +27,8 @@ func ProviderScope() []string {
 	return []string{"https://graph.microsoft.com/.default"}
 }
 
-func getPermissionCreateRequestBody(parentApp models.Applicationable) models.Applicationable {
-	app := models.NewApplication()
-	app.SetRequiredResourceAccess(parentApp.GetRequiredResourceAccess())
-	return app
+func getPermissionCreateRequestBody(parentApp models.Applicationable) []models.RequiredResourceAccessable {
+	return parentApp.GetRequiredResourceAccess()
 }
 
 func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
@@ -54,11 +52,25 @@ func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilde
 }
 
 func getAppCreateRequestBody(config provider.AppConfig) *models.Application {
-	// Redirect URIs
-	web := models.NewWebApplication()
-	web.SetRedirectUris([]string{config.RedirectURI})
+	// Assemble request body
+	app := models.NewApplication()
+	app.SetDisplayName(&config.Name)
+	app.SetWeb(getRedirectURIsRequestBody([]string{config.RedirectURI}))
+	app.SetOptionalClaims(getClaimsRequestBody())
+	app.SetIdentifierUris([]string{config.IdentifierURI})
+	audience := Audience
+	app.SetSignInAudience(&audience)
 
-	// Claims
+	return app
+}
+
+func getRedirectURIsRequestBody(redirectURIs []string) models.WebApplicationable {
+	web := models.NewWebApplication()
+	web.SetRedirectUris(redirectURIs)
+	return web
+}
+
+func getClaimsRequestBody() *models.OptionalClaims {
 	claimName := Claim
 	claim := models.NewOptionalClaim()
 	claim.SetName(&claimName)
@@ -66,19 +78,7 @@ func getAppCreateRequestBody(config provider.AppConfig) *models.Application {
 	claims.SetAccessToken([]models.OptionalClaimable{claim})
 	claims.SetIdToken([]models.OptionalClaimable{claim})
 	claims.SetSaml2Token([]models.OptionalClaimable{claim})
-
-	// Audience
-	audience := Audience
-
-	// Assemble request body
-	app := models.NewApplication()
-	app.SetDisplayName(&config.Name)
-	app.SetWeb(web)
-	app.SetOptionalClaims(claims)
-	app.SetIdentifierUris([]string{config.IdentifierURI})
-	app.SetSignInAudience(&audience)
-
-	return app
+	return claims
 }
 
 func getSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {

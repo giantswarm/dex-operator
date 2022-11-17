@@ -85,29 +85,35 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return microerror.Mask(err)
-		} else {
-
-			// Create apps for each provider and get dex config
-			appConfig, err := s.GetAppConfig(ctx)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-			dexConfig, err := s.CreateProviderApps(appConfig, ctx)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-			data, err := json.Marshal(dexConfig)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-			// Create secret
-			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace, data)
-			if err := s.Create(ctx, secret); err != nil {
-				return microerror.Mask(err)
-			}
-			s.log.Info("Created default dex config secret for dex app instance.")
 		}
 	}
+	{
+		// Get existing connectors from the dex config secret
+		oldConnectors, err := getOldConnectorsFromSecret(secret)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		// Create apps for each provider and get dex config
+		appConfig, err := s.GetAppConfig(ctx)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		dexConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		data, err := json.Marshal(dexConfig)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		// Create secret
+		secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace, data)
+		if err := s.Create(ctx, secret); err != nil {
+			return microerror.Mask(err)
+		}
+		s.log.Info("Created default dex config secret for dex app instance.")
+	}
+
 	// Add finalizer
 	if !controllerutil.ContainsFinalizer(secret, key.DexOperatorFinalizer) {
 		controllerutil.AddFinalizer(secret, key.DexOperatorFinalizer)
@@ -157,7 +163,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.Context) (dex.DexConfig, error) {
+func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context, oldConnectors map[string]dex.Connector) (dex.DexConfig, error) {
 	dexConfig := dex.DexConfig{
 		Oidc: dex.DexOidc{
 			Giantswarm: dex.DexOidcOwner{},
@@ -165,17 +171,16 @@ func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.C
 		},
 	}
 	for _, provider := range s.providers {
-
 		// Create the app on the identity provider
-		connector, err := provider.CreateApp(appConfig, ctx)
+		connector, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
 		if err != nil {
 			return dexConfig, err
 		}
 		// Add connector configuration to config
 		switch provider.GetOwner() {
-		case "giantswarm":
+		case key.OwnerGiantswarm:
 			dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
-		case "customer":
+		case key.OwnerCustomer:
 			dexConfig.Oidc.Customer.Connectors = append(dexConfig.Oidc.Customer.Connectors, connector)
 		default:
 			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
