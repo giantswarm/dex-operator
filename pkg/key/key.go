@@ -21,7 +21,7 @@ const (
 )
 
 const (
-	SecretValidityMonths = 6
+	SecretValidityMonths = 3
 )
 
 func DexLabelSelector() metav1.LabelSelector {

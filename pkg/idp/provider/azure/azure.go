@@ -5,13 +5,14 @@ import (
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
-	"reflect"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/dexidp/dex/connector/microsoft"
 	"github.com/giantswarm/microerror"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/applications/item/removepassword"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"gopkg.in/yaml.v2"
 )
@@ -83,7 +84,7 @@ func (a *Azure) GetOwner() string {
 	return a.Owner
 }
 
-func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, currentConnector dex.Connector) (dex.Connector, error) {
+func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
 	var clientId, clientSecret *string
 	{
 		// Create or update application registration
@@ -91,12 +92,8 @@ func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context
 		if err != nil {
 			return dex.Connector{}, microerror.Mask(err)
 		}
-		id := app.GetId()
-		if id == nil {
-			return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
-		}
 		//Create or update secret
-		secret, err := a.createOrUpdateSecret(*id, config, ctx)
+		secret, err := a.createOrUpdateSecret(app, config, ctx)
 		if err != nil {
 			return dex.Connector{}, microerror.Mask(err)
 		}
@@ -143,11 +140,11 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 		}
 	}
 	//Update if needed
-	needsUpdate, patch, err := a.computeAppUpdatePatch(config, app, ctx)
+	parentApp, err := a.GetApp(DefaultName)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	if needsUpdate {
+	if needsUpdate, patch := computeAppUpdatePatch(config, app, parentApp); needsUpdate {
 		id := app.GetId()
 		if id == nil {
 			return nil, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
@@ -160,61 +157,52 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 	return app, nil
 }
 
-func (a *Azure) computeAppUpdatePatch(config provider.AppConfig, app models.Applicationable, ctx context.Context) (bool, models.Applicationable, error) {
-	appPatch := models.NewApplication()
-	appNeedsUpdate := false
-	{
-		needsUpdate, patch, err := a.computePermissionsUpdatePatch(app, ctx)
-		if err != nil {
-			return false, nil, microerror.Mask(err)
-		}
-		if needsUpdate {
-			appNeedsUpdate = true
-			appPatch.SetRequiredResourceAccess(patch)
-		}
-	}
-	if needsUpdate, patch := a.computeRedirectURIUpdatePatch(app, config, ctx); needsUpdate {
-		appNeedsUpdate = true
-		appPatch.SetWeb(patch)
-	}
-	return appNeedsUpdate, appPatch, nil
-}
+func (a *Azure) createOrUpdateSecret(app models.Applicationable, config provider.AppConfig, ctx context.Context) (models.PasswordCredentialable, error) {
+	var needsCreation bool
+	secret, err := a.GetSecret(app, config.Name)
 
-func (a *Azure) computePermissionsUpdatePatch(app models.Applicationable, ctx context.Context) (bool, []models.RequiredResourceAccessable, error) {
-	var original, patch []models.RequiredResourceAccessable
-	{
-		original = app.GetRequiredResourceAccess()
-
-		parentApp, err := a.GetApp(DefaultName)
-		if err != nil {
-			return false, nil, microerror.Mask(err)
-		}
-		patch = getPermissionCreateRequestBody(parentApp)
-	}
-	if reflect.DeepEqual(original, patch) {
-		return false, nil, nil
-	}
-	return true, patch, nil
-}
-
-func (a *Azure) computeRedirectURIUpdatePatch(app models.Applicationable, config provider.AppConfig, ctx context.Context) (bool, models.WebApplicationable) {
-	var original, patch models.WebApplicationable
-	{
-		original = app.GetWeb()
-		patch = getRedirectURIsRequestBody([]string{config.RedirectURI})
-	}
-	if reflect.DeepEqual(original, patch) {
-		return false, nil
-	}
-	return true, patch
-}
-
-func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx context.Context) (models.PasswordCredentialable, error) {
-	createdSecret, err := a.Client.ApplicationsById(id).AddPassword().Post(ctx, getSecretCreateRequestBody(config), nil)
 	if err != nil {
-		return nil, microerror.Maskf(requestFailedError, printOdataError(err))
+		if !IsNotFound(err) {
+			return nil, microerror.Mask(err)
+		}
+		needsCreation = true
 	}
-	return createdSecret, nil
+
+	id := app.GetId()
+	if id == nil {
+		return nil, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
+	}
+
+	if !needsCreation && secretNeedsRenewal(secret) {
+		requestBody := removepassword.NewRemovePasswordPostRequestBody()
+		requestBody.SetKeyId(secret.GetKeyId())
+
+		err = a.Client.ApplicationsById(*id).RemovePassword().Post(context.Background(), requestBody, nil)
+		if err != nil {
+			return nil, microerror.Maskf(requestFailedError, printOdataError(err))
+		}
+		needsCreation = true
+	}
+
+	// Create secret if it does not exist
+	if needsCreation {
+		secret, err = a.Client.ApplicationsById(*id).AddPassword().Post(ctx, getSecretCreateRequestBody(config), nil)
+		if err != nil {
+			return nil, microerror.Maskf(requestFailedError, printOdataError(err))
+		}
+	}
+	return secret, nil
+}
+
+func secretNeedsRenewal(secret models.PasswordCredentialable) bool {
+	bestBefore := secret.GetEndDateTime()
+	if bestBefore == nil {
+		return true
+	}
+	if bestBefore.Before(time.Now().Add(24 * time.Hour)) {
+		return true
+	}
+	return false
 }
 
 func (a *Azure) DeleteApp(name string, ctx context.Context) error {
@@ -259,4 +247,15 @@ func (a *Azure) GetApp(name string) (models.Applicationable, error) {
 		return nil, microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, len(appList))
 	}
 	return appList[0], nil
+}
+
+func (a *Azure) GetSecret(app models.Applicationable, name string) (models.PasswordCredentialable, error) {
+	for _, c := range app.GetPasswordCredentials() {
+		if credentialName := c.GetDisplayName(); credentialName != nil {
+			if *credentialName == name {
+				return c, nil
+			}
+		}
+	}
+	return nil, microerror.Maskf(notFoundError, "Did not find credential %s.", name)
 }

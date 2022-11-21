@@ -7,6 +7,7 @@ import (
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
+	"reflect"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
@@ -89,7 +90,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 	{
 		// Get existing connectors from the dex config secret
-		oldConnectors, err := getOldConnectorsFromSecret(secret)
+		oldConnectors, err := getConnectorsFromSecret(secret)
 		if err != nil {
 			return microerror.Mask(err)
 		}
@@ -98,7 +99,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		dexConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
+		dexConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx)
 		if err != nil {
 			return microerror.Mask(err)
 		}
@@ -106,12 +107,18 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		// Create secret
 		secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace, data)
-		if err := s.Create(ctx, secret); err != nil {
+		// Get new connectors from the dex config secret
+		newConnectors, err := getConnectorsFromSecret(secret)
+		if err != nil {
 			return microerror.Mask(err)
 		}
-		s.log.Info("Created default dex config secret for dex app instance.")
+		if updateSecret := s.secretNeedsUpdate(oldConnectors, newConnectors); updateSecret {
+			if err := s.Create(ctx, secret); err != nil {
+				return microerror.Mask(err)
+			}
+			s.log.Info("Applied default dex config secret for dex app instance.")
+		}
 	}
 
 	// Add finalizer
@@ -163,7 +170,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context, oldConnectors map[string]dex.Connector) (dex.DexConfig, error) {
+func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context) (dex.DexConfig, error) {
 	dexConfig := dex.DexConfig{
 		Oidc: dex.DexOidc{
 			Giantswarm: dex.DexOidcOwner{},
@@ -172,7 +179,7 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 	}
 	for _, provider := range s.providers {
 		// Create the app on the identity provider
-		connector, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
+		connector, err := provider.CreateOrUpdateApp(appConfig, ctx)
 		if err != nil {
 			return dexConfig, err
 		}
@@ -185,7 +192,6 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 		default:
 			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
 		}
-		s.log.Info(fmt.Sprintf("Created app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 	}
 	return dexConfig, nil
 }
@@ -199,6 +205,33 @@ func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error 
 		s.log.Info(fmt.Sprintf("Deleted app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 	}
 	return nil
+}
+
+func (s *Service) secretNeedsUpdate(oldConnectors map[string]dex.Connector, newConnectors map[string]dex.Connector) bool {
+	needsUpdate := false
+	for provider, connector := range newConnectors {
+		oldConnector, exists := oldConnectors[provider]
+		// connector is newly added
+		if !exists {
+			needsUpdate = true
+			s.log.Info(fmt.Sprintf("Created app %s of type %s.", connector.Name, connector.Type))
+		} else {
+			// connector has changed
+			if !reflect.DeepEqual(oldConnector, connector) {
+				needsUpdate = true
+				s.log.Info(fmt.Sprintf("Updated app %s of type %s.", connector.Name, connector.Type))
+			}
+		}
+	}
+	for provider, connector := range oldConnectors {
+		_, exists := newConnectors[provider]
+		// connector was removed
+		if !exists {
+			needsUpdate = true
+			s.log.Info(fmt.Sprintf("App %s of type %s was removed. Please check provider for possible leftovers", connector.Name, connector.Type))
+		}
+	}
+	return needsUpdate
 }
 
 func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) {

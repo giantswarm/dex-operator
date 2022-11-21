@@ -10,7 +10,7 @@ import (
 )
 
 type Provider interface {
-	CreateOrUpdateApp(AppConfig, context.Context, dex.Connector) (dex.Connector, error)
+	CreateOrUpdateApp(AppConfig, context.Context) (dex.Connector, error)
 	DeleteApp(string, context.Context) error
 	GetName() string
 	GetOwner() string

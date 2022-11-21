@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
+	"reflect"
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
@@ -27,10 +28,63 @@ func ProviderScope() []string {
 	return []string{"https://graph.microsoft.com/.default"}
 }
 
-func getPermissionCreateRequestBody(parentApp models.Applicationable) []models.RequiredResourceAccessable {
-	return parentApp.GetRequiredResourceAccess()
+func computeAppUpdatePatch(config provider.AppConfig, app models.Applicationable, parentApp models.Applicationable) (bool, models.Applicationable) {
+	appPatch := models.NewApplication()
+	appNeedsUpdate := false
+
+	if needsUpdate, patch := computePermissionsUpdatePatch(app, parentApp); needsUpdate {
+		appNeedsUpdate = true
+		appPatch.SetRequiredResourceAccess(patch)
+	}
+
+	if needsUpdate, patch := computeRedirectURIUpdatePatch(app, config); needsUpdate {
+		appNeedsUpdate = true
+		appPatch.SetWeb(patch)
+	}
+
+	if needsUpdate, patch := computeClaimsUpdatePatch(app); needsUpdate {
+		appNeedsUpdate = true
+		appPatch.SetOptionalClaims(patch)
+	}
+
+	return appNeedsUpdate, appPatch
 }
 
+func computePermissionsUpdatePatch(app models.Applicationable, parentApp models.Applicationable) (bool, []models.RequiredResourceAccessable) {
+	var original, patch []models.RequiredResourceAccessable
+	{
+		original = app.GetRequiredResourceAccess()
+		patch = getPermissionCreateRequestBody(parentApp)
+	}
+	if reflect.DeepEqual(original, patch) {
+		return false, nil
+	}
+	return true, patch
+}
+
+func computeRedirectURIUpdatePatch(app models.Applicationable, config provider.AppConfig) (bool, models.WebApplicationable) {
+	var original, patch models.WebApplicationable
+	{
+		original = app.GetWeb()
+		patch = getRedirectURIsRequestBody([]string{config.RedirectURI})
+	}
+	if reflect.DeepEqual(original, patch) {
+		return false, nil
+	}
+	return true, patch
+}
+
+func computeClaimsUpdatePatch(app models.Applicationable) (bool, models.OptionalClaimsable) {
+	var original, patch models.OptionalClaimsable
+	{
+		original = app.GetOptionalClaims()
+		patch = getClaimsRequestBody()
+	}
+	if reflect.DeepEqual(original, patch) {
+		return false, nil
+	}
+	return true, patch
+}
 func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
 	headers := map[string]string{
 		"ConsistencyLevel": "eventual",
@@ -64,13 +118,17 @@ func getAppCreateRequestBody(config provider.AppConfig) *models.Application {
 	return app
 }
 
+func getPermissionCreateRequestBody(parentApp models.Applicationable) []models.RequiredResourceAccessable {
+	return parentApp.GetRequiredResourceAccess()
+}
+
 func getRedirectURIsRequestBody(redirectURIs []string) models.WebApplicationable {
 	web := models.NewWebApplication()
 	web.SetRedirectUris(redirectURIs)
 	return web
 }
 
-func getClaimsRequestBody() *models.OptionalClaims {
+func getClaimsRequestBody() models.OptionalClaimsable {
 	claimName := Claim
 	claim := models.NewOptionalClaim()
 	claim.SetName(&claimName)

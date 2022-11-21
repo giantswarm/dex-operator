@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added update logic and key rotation for identity providers.
 - Added finalizer management for default dex config secret.
 - Added `README.md`.
 - Added azure active directory provider.

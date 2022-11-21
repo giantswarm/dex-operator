@@ -4,6 +4,8 @@ import (
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"strconv"
 	"testing"
+
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 func TestGetRequestBody(t *testing.T) {
@@ -13,7 +15,7 @@ func TestGetRequestBody(t *testing.T) {
 	}{
 		{
 			name:   "case 0",
-			config: provider.AppConfig{RedirectURI: "hello.io", Name: "test"},
+			config: getTestConfig(),
 		},
 	}
 
@@ -38,4 +40,36 @@ func TestGetRequestBody(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComputeAppUpdatePatch(t *testing.T) {
+	testCases := []struct {
+		name         string
+		app          models.Applicationable
+		updateNeeded bool
+	}{
+		{
+			name:         "case 0",
+			app:          getAppCreateRequestBody(getTestConfig()),
+			updateNeeded: false,
+		},
+		{
+			name:         "case 1",
+			app:          models.NewApplication(),
+			updateNeeded: true,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			updateNeeded, _ := computeAppUpdatePatch(getTestConfig(), tc.app, models.NewApplication())
+			if updateNeeded != tc.updateNeeded {
+				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
+			}
+		})
+	}
+}
+
+func getTestConfig() provider.AppConfig {
+	return provider.AppConfig{RedirectURI: "hello.io", Name: "test"}
 }

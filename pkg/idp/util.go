@@ -47,7 +47,7 @@ func GetDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
 		Priority:  25}
 }
 
-func getOldConnectorsFromSecret(secret *corev1.Secret) (map[string]dex.Connector, error) {
+func getConnectorsFromSecret(secret *corev1.Secret) (map[string]dex.Connector, error) {
 	connectors := map[string]dex.Connector{}
 	configData, exists := secret.Data["default"]
 	if !exists {
