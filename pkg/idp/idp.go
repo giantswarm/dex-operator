@@ -99,7 +99,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		dexConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx)
+		dexConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
 		if err != nil {
 			return microerror.Mask(err)
 		}
@@ -170,7 +170,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context) (dex.DexConfig, error) {
+func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context, oldConnectors map[string]dex.Connector) (dex.DexConfig, error) {
 	dexConfig := dex.DexConfig{
 		Oidc: dex.DexOidc{
 			Giantswarm: dex.DexOidcOwner{},
@@ -179,7 +179,7 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 	}
 	for _, provider := range s.providers {
 		// Create the app on the identity provider
-		connector, err := provider.CreateOrUpdateApp(appConfig, ctx)
+		connector, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
 		if err != nil {
 			return dexConfig, err
 		}

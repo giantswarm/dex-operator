@@ -10,6 +10,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/dexidp/dex/connector/microsoft"
 	"github.com/giantswarm/microerror"
+	"github.com/go-logr/logr"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications/item/removepassword"
@@ -20,14 +21,18 @@ import (
 type Azure struct {
 	Name     string
 	Client   *msgraphsdk.GraphServiceClient
+	Log      *logr.Logger
 	Owner    string
 	TenantID string
 	Type     string
 }
 
-func New(p provider.ProviderCredential) (*Azure, error) {
+func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 	var tenantID, clientID, clientSecret string
 	{
+		if log == nil {
+			return nil, microerror.Maskf(invalidConfigError, "Logger must not be empty.")
+		}
 		if p.Name == "" {
 			return nil, microerror.Maskf(invalidConfigError, "Credential name must not be empty.")
 		}
@@ -65,6 +70,7 @@ func New(p provider.ProviderCredential) (*Azure, error) {
 	}
 	return &Azure{
 		Name:     key.GetProviderName(p.Owner, p.Name),
+		Log:      log,
 		Type:     ProviderConnectorType,
 		Client:   client,
 		Owner:    p.Owner,
@@ -84,34 +90,29 @@ func (a *Azure) GetOwner() string {
 	return a.Owner
 }
 
-func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
-	var clientId, clientSecret *string
-	{
-		// Create or update application registration
-		app, err := a.createOrUpdateApplication(config, ctx)
-		if err != nil {
-			return dex.Connector{}, microerror.Mask(err)
-		}
-		//Create or update secret
-		secret, err := a.createOrUpdateSecret(app, config, ctx)
-		if err != nil {
-			return dex.Connector{}, microerror.Mask(err)
-		}
-
-		//Get connector data
-		clientSecret = secret.GetSecretText()
-		if clientSecret == nil {
-			return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find client secret for app %s.", config.Name)
-		}
-		clientId = app.GetAppId()
-		if clientId == nil {
-			return dex.Connector{}, microerror.Maskf(notFoundError, "Could not find App ID of app %s.", config.Name)
-		}
+func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (dex.Connector, error) {
+	// Create or update application registration
+	id, err := a.createOrUpdateApplication(config, ctx)
+	if err != nil {
+		return dex.Connector{}, microerror.Mask(err)
 	}
+
+	// Retrieve old secret
+	oldSecret, err := getSecretFromConfig(oldConnector.Config)
+	if err != nil {
+		return dex.Connector{}, microerror.Mask(err)
+	}
+
+	//Create or update secret
+	clientId, clientSecret, err := a.createOrUpdateSecret(id, config, ctx, oldSecret)
+	if err != nil {
+		return dex.Connector{}, microerror.Mask(err)
+	}
+
 	// Write to connector
 	connectorConfig := &microsoft.Config{
-		ClientID:     *clientId,
-		ClientSecret: *clientSecret,
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
 		RedirectURI:  config.RedirectURI,
 		Tenant:       a.TenantID,
 	}
@@ -127,74 +128,100 @@ func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context
 	}, nil
 }
 
-func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context.Context) (models.Applicationable, error) {
+func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context.Context) (string, error) {
 	app, err := a.GetApp(config.Name)
 	if err != nil {
 		if !IsNotFound(err) {
-			return nil, microerror.Mask(err)
+			return "", microerror.Mask(err)
 		}
 		// Create app if it does not exist
 		app, err = a.Client.Applications().Post(ctx, getAppCreateRequestBody(config), nil)
 		if err != nil {
-			return nil, microerror.Maskf(requestFailedError, printOdataError(err))
+			return "", microerror.Maskf(requestFailedError, printOdataError(err))
 		}
+		a.Log.Info("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID)
 	}
+
 	//Update if needed
 	parentApp, err := a.GetApp(DefaultName)
 	if err != nil {
-		return nil, microerror.Mask(err)
-	}
-	if needsUpdate, patch := computeAppUpdatePatch(config, app, parentApp); needsUpdate {
-		id := app.GetId()
-		if id == nil {
-			return nil, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
-		}
-		app, err = a.Client.ApplicationsById(*id).Patch(ctx, patch, nil)
-		if err != nil {
-			return nil, microerror.Maskf(requestFailedError, printOdataError(err))
-		}
-	}
-	return app, nil
-}
-
-func (a *Azure) createOrUpdateSecret(app models.Applicationable, config provider.AppConfig, ctx context.Context) (models.PasswordCredentialable, error) {
-	var needsCreation bool
-	secret, err := a.GetSecret(app, config.Name)
-
-	if err != nil {
-		if !IsNotFound(err) {
-			return nil, microerror.Mask(err)
-		}
-		needsCreation = true
+		return "", microerror.Mask(err)
 	}
 
 	id := app.GetId()
 	if id == nil {
-		return nil, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
+		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
 	}
 
-	if !needsCreation && secretNeedsRenewal(secret) {
+	if needsUpdate, patch := computeAppUpdatePatch(config, app, parentApp); needsUpdate {
+		_, err = a.Client.ApplicationsById(*id).Patch(ctx, patch, nil)
+		if err != nil {
+			return "", microerror.Maskf(requestFailedError, printOdataError(err))
+		}
+		a.Log.Info("Updated %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID)
+	}
+	return *id, nil
+}
+
+func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx context.Context, oldSecret string) (string, string, error) {
+
+	app, err := a.Client.ApplicationsById(id).Get(ctx, nil)
+	if err != nil {
+		return "", "", microerror.Maskf(requestFailedError, printOdataError(err))
+	}
+
+	var needsCreation bool
+
+	// Secret needs to be created if no secret can be found
+	secret, err := a.GetSecret(app, config.Name)
+	if err != nil {
+		if !IsNotFound(err) {
+			return "", "", microerror.Mask(err)
+		}
+		needsCreation = true
+	}
+
+	// Check if we already have a key
+	keyPresent := oldSecret != ""
+
+	// We delete the secret in case it exists and is expired or in case we do not have the key anymore
+	if !needsCreation && (!keyPresent || secretExpired(secret)) {
 		requestBody := removepassword.NewRemovePasswordPostRequestBody()
 		requestBody.SetKeyId(secret.GetKeyId())
 
-		err = a.Client.ApplicationsById(*id).RemovePassword().Post(context.Background(), requestBody, nil)
+		err = a.Client.ApplicationsById(id).RemovePassword().Post(context.Background(), requestBody, nil)
 		if err != nil {
-			return nil, microerror.Maskf(requestFailedError, printOdataError(err))
+			return "", "", microerror.Maskf(requestFailedError, printOdataError(err))
 		}
+		a.Log.Info("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID)
 		needsCreation = true
 	}
 
 	// Create secret if it does not exist
 	if needsCreation {
-		secret, err = a.Client.ApplicationsById(*id).AddPassword().Post(ctx, getSecretCreateRequestBody(config), nil)
+		secret, err = a.Client.ApplicationsById(id).AddPassword().Post(ctx, getSecretCreateRequestBody(config), nil)
 		if err != nil {
-			return nil, microerror.Maskf(requestFailedError, printOdataError(err))
+			return "", "", microerror.Maskf(requestFailedError, printOdataError(err))
 		}
+		a.Log.Info("Created secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID)
 	}
-	return secret, nil
+	var clientSecret, clientId string
+	{
+		//Get connector data
+		if secret.GetSecretText() == nil || *secret.GetSecretText() == "" {
+			clientSecret = oldSecret
+		} else {
+			clientSecret = *secret.GetSecretText()
+		}
+		if app.GetAppId() == nil || *app.GetAppId() == "" {
+			return "", "", microerror.Maskf(notFoundError, "Could not find App ID of app %s.", config.Name)
+		}
+		clientId = *app.GetAppId()
+	}
+	return clientId, clientSecret, nil
 }
 
-func secretNeedsRenewal(secret models.PasswordCredentialable) bool {
+func secretExpired(secret models.PasswordCredentialable) bool {
 	bestBefore := secret.GetEndDateTime()
 	if bestBefore == nil {
 		return true
@@ -216,6 +243,7 @@ func (a *Azure) DeleteApp(name string, ctx context.Context) error {
 	if err := a.Client.ApplicationsById(appID).Delete(ctx, nil); err != nil {
 		return microerror.Maskf(requestFailedError, printOdataError(err))
 	}
+	a.Log.Info("Deleted %s app %s for %s in microsoft ad tenant %s", a.Type, name, a.Owner, a.TenantID)
 	return nil
 }
 
@@ -258,4 +286,16 @@ func (a *Azure) GetSecret(app models.Applicationable, name string) (models.Passw
 		}
 	}
 	return nil, microerror.Maskf(notFoundError, "Did not find credential %s.", name)
+}
+
+func getSecretFromConfig(config string) (string, error) {
+	if config == "" {
+		return "", nil
+	}
+	configData := []byte(config)
+	connectorConfig := &microsoft.Config{}
+	if err := yaml.Unmarshal(configData, connectorConfig); err != nil {
+		return "", microerror.Mask(err)
+	}
+	return connectorConfig.ClientSecret, nil
 }

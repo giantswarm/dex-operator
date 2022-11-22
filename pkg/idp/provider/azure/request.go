@@ -105,7 +105,7 @@ func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilde
 	}
 }
 
-func getAppCreateRequestBody(config provider.AppConfig) *models.Application {
+func getAppCreateRequestBody(config provider.AppConfig) models.Applicationable {
 	// Assemble request body
 	app := models.NewApplication()
 	app.SetDisplayName(&config.Name)

@@ -59,7 +59,7 @@ func TestCreateProviderApps(t *testing.T) {
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
 			}
-			_, err := s.CreateOrUpdateProviderApps(tc.appConfig, context.Background())
+			_, err := s.CreateOrUpdateProviderApps(tc.appConfig, context.Background(), map[string]dex.Connector{})
 			if err != nil && !tc.expectError {
 				t.Fatal(err)
 			}
@@ -194,7 +194,7 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
 			}
-			config, err := s.CreateOrUpdateProviderApps(appConfig, ctx)
+			config, err := s.CreateOrUpdateProviderApps(appConfig, ctx, map[string]dex.Connector{})
 			if err != nil {
 				t.Fatal(err)
 			}

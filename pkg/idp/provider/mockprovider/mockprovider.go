@@ -42,7 +42,7 @@ func (m *MockProvider) GetOwner() string {
 	return m.Owner
 }
 
-func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context) (dex.Connector, error) {
+func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (dex.Connector, error) {
 	connectorConfig := &mock.PasswordConfig{
 		Username: "test",
 		Password: "test",
