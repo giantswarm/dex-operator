@@ -88,6 +88,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			return microerror.Mask(err)
 		} else {
 			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace)
+			if err := s.Create(ctx, secret); err != nil {
+				return microerror.Mask(err)
+			}
+			s.log.Info("Applied default dex config secret for dex app instance.")
 		}
 	}
 	{
@@ -116,7 +120,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			return microerror.Mask(err)
 		}
 		if updateSecret := s.secretNeedsUpdate(oldConnectors, newConnectors); updateSecret {
-			if err := s.Create(ctx, secret); err != nil {
+			if err := s.Update(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}
 			s.log.Info("Applied default dex config secret for dex app instance.")
