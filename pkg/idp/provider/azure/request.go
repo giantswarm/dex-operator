@@ -49,6 +49,16 @@ func computeRedirectURIUpdatePatch(app models.Applicationable, config provider.A
 	if reflect.DeepEqual(original, patch) {
 		return false, nil
 	}
+	if original == nil {
+		return true, patch
+	}
+	uris := original.GetRedirectUris()
+	for _, uri := range uris {
+		if uri == config.RedirectURI {
+			return false, nil
+		}
+	}
+	patch.SetRedirectUris(append(uris, config.RedirectURI))
 	return true, patch
 }
 
@@ -61,8 +71,42 @@ func computeClaimsUpdatePatch(app models.Applicationable) (bool, models.Optional
 	if reflect.DeepEqual(original, patch) {
 		return false, nil
 	}
+	if original == nil {
+		return true, patch
+	}
+	update := false
+	{
+		needsUpdate, patchClaim := computeClaimUpdatePatch(original.GetAccessToken())
+		patch.SetAccessToken(patchClaim)
+		update = update || needsUpdate
+	}
+	{
+		needsUpdate, patchClaim := computeClaimUpdatePatch(original.GetIdToken())
+		patch.SetIdToken(patchClaim)
+		update = update || needsUpdate
+	}
+	{
+		needsUpdate, patchClaim := computeClaimUpdatePatch(original.GetSaml2Token())
+		patch.SetSaml2Token(patchClaim)
+		update = update || needsUpdate
+	}
+	if !update {
+		return false, nil
+	}
 	return true, patch
 }
+
+func computeClaimUpdatePatch(claims []models.OptionalClaimable) (bool, []models.OptionalClaimable) {
+	for _, claim := range claims {
+		if n := claim.GetName(); n != nil {
+			if *n == Claim {
+				return false, claims
+			}
+		}
+	}
+	return true, append(claims, getClaim())
+}
+
 func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
 	headers := map[string]string{
 		"ConsistencyLevel": "eventual",
@@ -107,14 +151,19 @@ func getRedirectURIsRequestBody(redirectURIs []string) models.WebApplicationable
 }
 
 func getClaimsRequestBody() models.OptionalClaimsable {
-	claimName := Claim
-	claim := models.NewOptionalClaim()
-	claim.SetName(&claimName)
+	claim := getClaim()
 	claims := models.NewOptionalClaims()
 	claims.SetAccessToken([]models.OptionalClaimable{claim})
 	claims.SetIdToken([]models.OptionalClaimable{claim})
 	claims.SetSaml2Token([]models.OptionalClaimable{claim})
 	return claims
+}
+
+func getClaim() *models.OptionalClaim {
+	claimName := Claim
+	claim := models.NewOptionalClaim()
+	claim.SetName(&claimName)
+	return claim
 }
 
 func getSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {
