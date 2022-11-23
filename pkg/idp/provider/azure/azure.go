@@ -2,6 +2,7 @@ package azure
 
 import (
 	"context"
+	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
@@ -139,7 +140,7 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 		if err != nil {
 			return "", microerror.Maskf(requestFailedError, printOdataError(err))
 		}
-		a.Log.Info("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID)
+		a.Log.Info(fmt.Sprintf("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 	}
 
 	//Update if needed
@@ -153,12 +154,12 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
 	}
 
-	if needsUpdate, patch := computeAppUpdatePatch(config, app, parentApp); needsUpdate {
+	if needsUpdate, patch := a.computeAppUpdatePatch(config, app, parentApp); needsUpdate {
 		_, err = a.Client.ApplicationsById(*id).Patch(ctx, patch, nil)
 		if err != nil {
 			return "", microerror.Maskf(requestFailedError, printOdataError(err))
 		}
-		a.Log.Info("Updated %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID)
+		a.Log.Info(fmt.Sprintf("Updated %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 	}
 	return *id, nil
 }
@@ -193,7 +194,7 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 		if err != nil {
 			return "", "", microerror.Maskf(requestFailedError, printOdataError(err))
 		}
-		a.Log.Info("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID)
+		a.Log.Info(fmt.Sprintf("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 		needsCreation = true
 	}
 
@@ -203,7 +204,7 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 		if err != nil {
 			return "", "", microerror.Maskf(requestFailedError, printOdataError(err))
 		}
-		a.Log.Info("Created secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID)
+		a.Log.Info(fmt.Sprintf("Created secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 	}
 	var clientSecret, clientId string
 	{
@@ -243,7 +244,7 @@ func (a *Azure) DeleteApp(name string, ctx context.Context) error {
 	if err := a.Client.ApplicationsById(appID).Delete(ctx, nil); err != nil {
 		return microerror.Maskf(requestFailedError, printOdataError(err))
 	}
-	a.Log.Info("Deleted %s app %s for %s in microsoft ad tenant %s", a.Type, name, a.Owner, a.TenantID)
+	a.Log.Info(fmt.Sprintf("Deleted %s app %s for %s in microsoft ad tenant %s", a.Type, name, a.Owner, a.TenantID))
 	return nil
 }
 
@@ -298,4 +299,28 @@ func getSecretFromConfig(config string) (string, error) {
 		return "", microerror.Mask(err)
 	}
 	return connectorConfig.ClientSecret, nil
+}
+func (a *Azure) computeAppUpdatePatch(config provider.AppConfig, app models.Applicationable, parentApp models.Applicationable) (bool, models.Applicationable) {
+	appPatch := models.NewApplication()
+	appNeedsUpdate := false
+
+	if needsUpdate, patch := computePermissionsUpdatePatch(app, parentApp); needsUpdate {
+		appNeedsUpdate = true
+		appPatch.SetRequiredResourceAccess(patch)
+		a.Log.Info(fmt.Sprintf("Permissions of %s app %s for %s in microsoft ad tenant %s need update.", a.Type, config.Name, a.Owner, a.TenantID))
+	}
+
+	if needsUpdate, patch := computeRedirectURIUpdatePatch(app, config); needsUpdate {
+		appNeedsUpdate = true
+		appPatch.SetWeb(patch)
+		a.Log.Info(fmt.Sprintf("Redirect URI of %s app %s for %s in microsoft ad tenant %s need update.", a.Type, config.Name, a.Owner, a.TenantID))
+	}
+
+	if needsUpdate, patch := computeClaimsUpdatePatch(app); needsUpdate {
+		appNeedsUpdate = true
+		appPatch.SetOptionalClaims(patch)
+		a.Log.Info(fmt.Sprintf("Claims of %s app %s for %s in microsoft ad tenant %s need update.", a.Type, config.Name, a.Owner, a.TenantID))
+	}
+
+	return appNeedsUpdate, appPatch
 }

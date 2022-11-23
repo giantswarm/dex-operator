@@ -5,7 +5,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func TestGetRequestBody(t *testing.T) {
@@ -62,7 +64,10 @@ func TestComputeAppUpdatePatch(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			updateNeeded, _ := computeAppUpdatePatch(getTestConfig(), tc.app, models.NewApplication())
+			a := Azure{
+				Log: getTestLogger(),
+			}
+			updateNeeded, _ := a.computeAppUpdatePatch(getTestConfig(), tc.app, models.NewApplication())
 			if updateNeeded != tc.updateNeeded {
 				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
 			}
@@ -72,4 +77,9 @@ func TestComputeAppUpdatePatch(t *testing.T) {
 
 func getTestConfig() provider.AppConfig {
 	return provider.AppConfig{RedirectURI: "hello.io", Name: "test"}
+}
+
+func getTestLogger() *logr.Logger {
+	l := ctrl.Log.WithName("test")
+	return &l
 }

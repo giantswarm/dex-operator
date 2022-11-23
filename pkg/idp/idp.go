@@ -86,6 +86,8 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return microerror.Mask(err)
+		} else {
+			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace)
 		}
 	}
 	{
@@ -107,7 +109,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace, data)
+		secret.Data["default"] = data
 		// Get new connectors from the dex config secret
 		newConnectors, err := getConnectorsFromSecret(secret)
 		if err != nil {
@@ -129,7 +131,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		}
 		s.log.Info("Added finalizer to default dex config secret.")
 	}
-	// TODO: update/rotation logic
 	return nil
 }
 
@@ -261,7 +262,7 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 	}, nil
 }
 
-func (s *Service) GetDefaultDexConfigSecret(name string, namespace string, data []byte) *corev1.Secret {
+func (s *Service) GetDefaultDexConfigSecret(name string, namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -275,6 +276,6 @@ func (s *Service) GetDefaultDexConfigSecret(name string, namespace string, data 
 			},
 		},
 		Type: "Opaque",
-		Data: map[string][]byte{"default": data},
+		Data: map[string][]byte{},
 	}
 }

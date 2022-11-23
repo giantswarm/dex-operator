@@ -202,7 +202,8 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			secret := s.GetDefaultDexConfigSecret("example", "test", data)
+			secret := s.GetDefaultDexConfigSecret("example", "test")
+			secret.Data["default"] = data
 			connectors, err := getConnectorsFromSecret(secret)
 			if err != nil {
 				t.Fatal(err)

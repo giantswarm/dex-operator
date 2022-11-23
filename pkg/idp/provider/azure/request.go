@@ -28,28 +28,6 @@ func ProviderScope() []string {
 	return []string{"https://graph.microsoft.com/.default"}
 }
 
-func computeAppUpdatePatch(config provider.AppConfig, app models.Applicationable, parentApp models.Applicationable) (bool, models.Applicationable) {
-	appPatch := models.NewApplication()
-	appNeedsUpdate := false
-
-	if needsUpdate, patch := computePermissionsUpdatePatch(app, parentApp); needsUpdate {
-		appNeedsUpdate = true
-		appPatch.SetRequiredResourceAccess(patch)
-	}
-
-	if needsUpdate, patch := computeRedirectURIUpdatePatch(app, config); needsUpdate {
-		appNeedsUpdate = true
-		appPatch.SetWeb(patch)
-	}
-
-	if needsUpdate, patch := computeClaimsUpdatePatch(app); needsUpdate {
-		appNeedsUpdate = true
-		appPatch.SetOptionalClaims(patch)
-	}
-
-	return appNeedsUpdate, appPatch
-}
-
 func computePermissionsUpdatePatch(app models.Applicationable, parentApp models.Applicationable) (bool, []models.RequiredResourceAccessable) {
 	var original, patch []models.RequiredResourceAccessable
 	{
