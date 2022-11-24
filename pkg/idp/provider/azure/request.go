@@ -28,6 +28,7 @@ func ProviderScope() []string {
 	return []string{"https://graph.microsoft.com/.default"}
 }
 
+// We compare the permissions set for the app to the permissions set on the parent app and ensure they are exactly the same
 func computePermissionsUpdatePatch(app models.Applicationable, parentApp models.Applicationable) (bool, []models.RequiredResourceAccessable) {
 	var original, patch []models.RequiredResourceAccessable
 	{

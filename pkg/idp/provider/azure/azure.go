@@ -11,6 +11,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/dexidp/dex/connector/microsoft"
+	"github.com/giantswarm/backoff"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
@@ -144,17 +145,19 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 		a.Log.Info(fmt.Sprintf("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 	}
 
-	//Update if needed
+	// We need to get the dex parent app to determine which permissions should be set.
+	// Because microsoft graph api does not allow for checking the permissions scope (in human readable form) of a given app or setting the scope via anything else than
+	// harcoding the permissions ids, we instead set them based on an existing app in the tenant.
 	parentApp, err := a.GetApp(DefaultName)
 	if err != nil {
 		return "", microerror.Mask(err)
 	}
-
 	id := app.GetId()
 	if id == nil {
 		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
 	}
 
+	//Update if needed
 	if needsUpdate, patch := a.computeAppUpdatePatch(config, app, parentApp); needsUpdate {
 		_, err = a.Client.ApplicationsById(*id).Patch(ctx, patch, nil)
 		if err != nil {
@@ -273,19 +276,29 @@ func (a *Azure) GetAppID(name string) (string, error) {
 }
 
 func (a *Azure) GetApp(name string) (models.Applicationable, error) {
-	result, err := a.Client.Applications().Get(context.Background(), getAppGetRequestConfig(name))
+	var appList []models.Applicationable
+
+	o := func() error {
+		result, err := a.Client.Applications().Get(context.Background(), getAppGetRequestConfig(name))
+		if err != nil {
+			return microerror.Maskf(requestFailedError, printOdataError(err))
+		}
+		count := result.GetOdataCount()
+		if *count == 0 {
+			return microerror.Maskf(notFoundError, "No application with name %s exists.", name)
+		} else if *count != 1 {
+			return microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, count)
+		}
+		appList = result.GetValue()
+		if len(appList) != 1 {
+			return microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, len(appList))
+		}
+		return nil
+	}
+	b := backoff.NewMaxRetries(20, 3*time.Second)
+	err := backoff.Retry(o, b)
 	if err != nil {
-		return nil, microerror.Maskf(requestFailedError, printOdataError(err))
-	}
-	count := result.GetOdataCount()
-	if *count == 0 {
-		return nil, microerror.Maskf(notFoundError, "No application with name %s exists.", name)
-	} else if *count != 1 {
-		return nil, microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, count)
-	}
-	appList := result.GetValue()
-	if len(appList) != 1 {
-		return nil, microerror.Maskf(notFoundError, "Expected 1 application %s, got %v.", name, len(appList))
+		return nil, microerror.Mask(err)
 	}
 	return appList[0], nil
 }
