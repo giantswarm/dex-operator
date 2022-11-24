@@ -113,7 +113,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		secret.Data["default"] = data
+		secret.Data = map[string][]byte{"default": data}
 		// Get new connectors from the dex config secret
 		newConnectors, err := getConnectorsFromSecret(secret)
 		if err != nil {
