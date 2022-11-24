@@ -6,6 +6,7 @@ import (
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -186,7 +187,7 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 	keyPresent := oldSecret != ""
 
 	// We delete the secret in case it exists and is expired or in case we do not have the key anymore
-	if !needsCreation && (!keyPresent || secretExpired(secret)) {
+	if !needsCreation && (!keyPresent || secretExpired(secret) || secretChanged(secret, oldSecret)) {
 		requestBody := removepassword.NewRemovePasswordPostRequestBody()
 		requestBody.SetKeyId(secret.GetKeyId())
 
@@ -228,6 +229,17 @@ func secretExpired(secret models.PasswordCredentialable) bool {
 		return true
 	}
 	if bestBefore.Before(time.Now().Add(24 * time.Hour)) {
+		return true
+	}
+	return false
+}
+
+func secretChanged(secret models.PasswordCredentialable, oldSecret string) bool {
+	hint := secret.GetHint()
+	if hint == nil {
+		return true
+	}
+	if !strings.HasPrefix(oldSecret, *hint) {
 		return true
 	}
 	return false
