@@ -147,7 +147,8 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 
 	// We need to get the dex parent app to determine which permissions should be set.
 	// Because microsoft graph api does not allow for checking the permissions scope (in human readable form) of a given app or setting the scope via anything else than
-	// harcoding the permissions ids, we instead set them based on an existing app in the tenant.
+	// hardcoding the permissions ids, we instead set them based on an existing app in the tenant.
+	// This way permissions can be set and revoked for child apps easily and we ensure that the right permissions are set.
 	parentApp, err := a.GetApp(DefaultName)
 	if err != nil {
 		return "", microerror.Mask(err)

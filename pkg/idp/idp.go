@@ -113,6 +113,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err != nil {
 			return microerror.Mask(err)
 		}
+		// Fetching the newest version of the secret. If we are here we assume that it exists.
+		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
+			return microerror.Mask(err)
+		}
 		secret.Data = map[string][]byte{"default": data}
 		// Get new connectors from the dex config secret
 		newConnectors, err := getConnectorsFromSecret(secret)
