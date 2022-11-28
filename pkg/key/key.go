@@ -16,10 +16,12 @@ const (
 	ClusterValuesConfigMapKey    = "values"
 	BaseDomainKey                = "baseDomain"
 	DexResourceURI               = "https://dex.giantswarm.io"
+	OwnerGiantswarm              = "giantswarm"
+	OwnerCustomer                = "customer"
 )
 
 const (
-	SecretValidityMonths = 6
+	SecretValidityMonths = 3
 )
 
 func DexLabelSelector() metav1.LabelSelector {
@@ -28,6 +30,9 @@ func DexLabelSelector() metav1.LabelSelector {
 			AppLabel: DexAppLabelValue,
 		},
 	}
+}
+func GetProviderName(owner string, name string) string {
+	return fmt.Sprintf("%s-%s", owner, name)
 }
 
 func GetIdpAppName(installation string, namespace string, name string) string {

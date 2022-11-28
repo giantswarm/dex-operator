@@ -20,8 +20,8 @@ Providers need to implement the `provider.Provider` interface.
 Configures app registration in an azure active directory tenant.
 To configure this identity provider, first [add two app registrations to the tenant](https://learn.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app).
 
-- Name: `giantswarm-dex`. It needs `delegated` Permissions `Directory.Read.All` and `User.Read`.
-- Name: `dex-operator`. It needs `Application` Permissions `Application.ReadWrite.All` and a client secret configured.
+- Name: `giantswarm-dex`. It needs `delegated` Permissions `Directory.Read.All` and `User.Read`. Delegated permissions set here will cascade to dex apps registered by the dex-operator.
+- Name: `dex-operator`. It needs `Application` Permissions `Application.ReadWrite.All` and a client secret for each management cluster the operator will run on.
 
 
 Then, add the following configuration to `values`:
@@ -38,6 +38,8 @@ oidc:
 - `$OWNER`: Owner of the azure tenant. `giantswarm` or `customer`.
 - `$TENANTID`: The ID of the azure tenant that should be used for the configuration.
 - `$CLIENTID`: ID of the client (application) configured in the tenant for `dex-operator`.
-- `$CLIENTSECRET`: Secret configured for `dex-operator` client.
+- `$CLIENTSECRET`: Secret configured for `dex-operator` client for the management cluster `dex-operator` runs on.
 
 When the configuration is added, a `microsoft` connector should be added to each installed `dex-app` and the application registration with callback URI should be visible in the active directory.
+The operator will automatically renew the client-secret in case it expires or is removed from a connector.
+It will also automatically update other configuration such as permissions, claims and redirect URI.

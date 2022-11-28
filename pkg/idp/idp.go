@@ -7,6 +7,7 @@ import (
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
+	"reflect"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
@@ -86,28 +87,50 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if !apierrors.IsNotFound(err) {
 			return microerror.Mask(err)
 		} else {
-
-			// Create apps for each provider and get dex config
-			appConfig, err := s.GetAppConfig(ctx)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-			dexConfig, err := s.CreateProviderApps(appConfig, ctx)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-			data, err := json.Marshal(dexConfig)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-			// Create secret
-			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace, data)
+			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace)
 			if err := s.Create(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}
-			s.log.Info("Created default dex config secret for dex app instance.")
+			s.log.Info("Applied default dex config secret for dex app instance.")
 		}
 	}
+	{
+		// Get existing connectors from the dex config secret
+		oldConnectors, err := getConnectorsFromSecret(secret)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		// Create apps for each provider and get dex config
+		appConfig, err := s.GetAppConfig(ctx)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		dexConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		data, err := json.Marshal(dexConfig)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		// Fetching the newest version of the secret. If we are here we assume that it exists.
+		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
+			return microerror.Mask(err)
+		}
+		secret.Data = map[string][]byte{"default": data}
+		// Get new connectors from the dex config secret
+		newConnectors, err := getConnectorsFromSecret(secret)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		if updateSecret := s.secretNeedsUpdate(oldConnectors, newConnectors); updateSecret {
+			if err := s.Update(ctx, secret); err != nil {
+				return microerror.Mask(err)
+			}
+			s.log.Info("Applied default dex config secret for dex app instance.")
+		}
+	}
+
 	// Add finalizer
 	if !controllerutil.ContainsFinalizer(secret, key.DexOperatorFinalizer) {
 		controllerutil.AddFinalizer(secret, key.DexOperatorFinalizer)
@@ -116,7 +139,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		}
 		s.log.Info("Added finalizer to default dex config secret.")
 	}
-	// TODO: update/rotation logic
 	return nil
 }
 
@@ -157,7 +179,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.Context) (dex.DexConfig, error) {
+func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context, oldConnectors map[string]dex.Connector) (dex.DexConfig, error) {
 	dexConfig := dex.DexConfig{
 		Oidc: dex.DexOidc{
 			Giantswarm: dex.DexOidcOwner{},
@@ -165,22 +187,20 @@ func (s *Service) CreateProviderApps(appConfig provider.AppConfig, ctx context.C
 		},
 	}
 	for _, provider := range s.providers {
-
 		// Create the app on the identity provider
-		connector, err := provider.CreateApp(appConfig, ctx)
+		connector, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
 		if err != nil {
 			return dexConfig, err
 		}
 		// Add connector configuration to config
 		switch provider.GetOwner() {
-		case "giantswarm":
+		case key.OwnerGiantswarm:
 			dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
-		case "customer":
+		case key.OwnerCustomer:
 			dexConfig.Oidc.Customer.Connectors = append(dexConfig.Oidc.Customer.Connectors, connector)
 		default:
 			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
 		}
-		s.log.Info(fmt.Sprintf("Created app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 	}
 	return dexConfig, nil
 }
@@ -194,6 +214,33 @@ func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error 
 		s.log.Info(fmt.Sprintf("Deleted app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
 	}
 	return nil
+}
+
+func (s *Service) secretNeedsUpdate(oldConnectors map[string]dex.Connector, newConnectors map[string]dex.Connector) bool {
+	needsUpdate := false
+	for provider, connector := range newConnectors {
+		oldConnector, exists := oldConnectors[provider]
+		// connector is newly added
+		if !exists {
+			needsUpdate = true
+			s.log.Info(fmt.Sprintf("Created app %s of type %s.", connector.Name, connector.Type))
+		} else {
+			// connector has changed
+			if !reflect.DeepEqual(oldConnector, connector) {
+				needsUpdate = true
+				s.log.Info(fmt.Sprintf("Updated app %s of type %s.", connector.Name, connector.Type))
+			}
+		}
+	}
+	for provider, connector := range oldConnectors {
+		_, exists := newConnectors[provider]
+		// connector was removed
+		if !exists {
+			needsUpdate = true
+			s.log.Info(fmt.Sprintf("App %s of type %s was removed. Please check provider for possible leftovers", connector.Name, connector.Type))
+		}
+	}
+	return needsUpdate
 }
 
 func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) {
@@ -223,7 +270,7 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 	}, nil
 }
 
-func (s *Service) GetDefaultDexConfigSecret(name string, namespace string, data []byte) *corev1.Secret {
+func (s *Service) GetDefaultDexConfigSecret(name string, namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -237,6 +284,6 @@ func (s *Service) GetDefaultDexConfigSecret(name string, namespace string, data 
 			},
 		},
 		Type: "Opaque",
-		Data: map[string][]byte{"default": data},
+		Data: map[string][]byte{},
 	}
 }

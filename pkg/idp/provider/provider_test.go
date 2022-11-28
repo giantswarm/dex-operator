@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"giantswarm/dex-operator/pkg/key"
 	"reflect"
 	"strconv"
 	"testing"
@@ -17,7 +18,7 @@ func TestReadCredentials(t *testing.T) {
 			name:     "case 0",
 			location: "test-data/credentials",
 			credentials: []ProviderCredential{
-				{Name: "mock", Owner: "giantswarm", Credentials: map[string]string{"hello": "hi"}},
+				{Name: "mock", Owner: key.OwnerGiantswarm, Credentials: map[string]string{"hello": "hi"}},
 			},
 		},
 	}

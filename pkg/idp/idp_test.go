@@ -2,9 +2,11 @@ package idp
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"testing"
 
+	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"giantswarm/dex-operator/pkg/key"
@@ -15,13 +17,14 @@ import (
 
 func TestCreateProviderApps(t *testing.T) {
 	testCases := []struct {
-		name      string
-		providers []provider.Provider
-		appConfig provider.AppConfig
+		name        string
+		providers   []provider.Provider
+		appConfig   provider.AppConfig
+		expectError bool
 	}{
 		{
 			name:      "case 0",
-			providers: []provider.Provider{getExampleProvider()},
+			providers: []provider.Provider{getExampleProvider(key.OwnerGiantswarm)},
 			appConfig: provider.AppConfig{
 				RedirectURI: `hello.com`,
 				Name:        "hello",
@@ -30,12 +33,23 @@ func TestCreateProviderApps(t *testing.T) {
 		{
 			name: "case 1",
 			providers: []provider.Provider{
-				getExampleProvider(),
-				getExampleProvider()},
+				getExampleProvider(key.OwnerGiantswarm),
+				getExampleProvider(key.OwnerCustomer)},
 			appConfig: provider.AppConfig{
 				RedirectURI: `hello.com`,
 				Name:        "hello",
 			},
+		},
+		{
+			name: "case 2",
+			providers: []provider.Provider{
+				getExampleProvider(key.OwnerGiantswarm),
+				getExampleProvider("somethingelse")},
+			appConfig: provider.AppConfig{
+				RedirectURI: `hello.com`,
+				Name:        "hello",
+			},
+			expectError: true,
 		},
 	}
 
@@ -45,9 +59,12 @@ func TestCreateProviderApps(t *testing.T) {
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
 			}
-			_, err := s.CreateProviderApps(tc.appConfig, context.Background())
-			if err != nil {
+			_, err := s.CreateOrUpdateProviderApps(tc.appConfig, context.Background(), map[string]dex.Connector{})
+			if err != nil && !tc.expectError {
 				t.Fatal(err)
+			}
+			if err == nil && tc.expectError {
+				t.Fatalf("Expected an error, got success.")
 			}
 		})
 	}
@@ -126,7 +143,184 @@ func TestGetBaseDomain(t *testing.T) {
 	}
 }
 
-func getExampleProvider() provider.Provider {
-	p, _ := mockprovider.New(provider.ProviderCredential{})
+func TestGetOldConnectorsFromSecret(t *testing.T) {
+	testCases := []struct {
+		name               string
+		providers          []provider.Provider
+		expectedConnectors []string
+	}{
+		{
+			// Nothing changed
+			name: "case 0",
+			providers: []provider.Provider{
+				getExampleProvider(key.OwnerGiantswarm),
+				getExampleProvider(key.OwnerCustomer)},
+			expectedConnectors: []string{"giantswarm-mock", "customer-mock"},
+		},
+		{
+			// Add connector
+			name: "case 1",
+			providers: []provider.Provider{
+				getExampleProvider(key.OwnerGiantswarm),
+				getExampleProvider(key.OwnerCustomer)},
+			expectedConnectors: []string{"giantswarm-mock", "customer-mock"},
+		},
+		{
+			// Remove connector
+			name: "case 2",
+			providers: []provider.Provider{
+				getExampleProvider(key.OwnerCustomer)},
+			expectedConnectors: []string{"customer-mock"},
+		},
+		{
+			// Empty first
+			name: "case 3",
+			providers: []provider.Provider{
+				getExampleProvider(key.OwnerCustomer)},
+			expectedConnectors: []string{"customer-mock"},
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			appConfig := provider.AppConfig{
+				RedirectURI: `hello.com`,
+				Name:        "hello",
+			}
+			ctx := context.Background()
+
+			//Initial reconcile, creating apps
+			s := Service{
+				providers: tc.providers,
+				log:       ctrl.Log.WithName("test"),
+			}
+			config, err := s.CreateOrUpdateProviderApps(appConfig, ctx, map[string]dex.Connector{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := json.Marshal(config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			secret := s.GetDefaultDexConfigSecret("example", "test")
+			secret.Data["default"] = data
+			connectors, err := getConnectorsFromSecret(secret)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			//Check configuration
+			if len(connectors) != len(tc.expectedConnectors) {
+				t.Fatalf("Expected %v connectors, got %v", len(tc.expectedConnectors), len(connectors))
+			}
+			for _, c := range tc.expectedConnectors {
+				if _, exists := connectors[c]; !exists {
+					t.Fatalf("Expected %v connector to exist.", c)
+				}
+			}
+		})
+	}
+}
+
+func TestSecretNeedsUpdate(t *testing.T) {
+	testCases := []struct {
+		name          string
+		oldConnectors map[string]dex.Connector
+		newConnectors map[string]dex.Connector
+		updateNeeded  bool
+	}{
+		{
+			// nothing changed
+			name: "case 0",
+			oldConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {},
+			},
+			newConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {},
+			},
+			updateNeeded: false,
+		},
+		{
+			// new connector
+			name: "case 1",
+			oldConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {},
+			},
+			newConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {},
+				"third":  {},
+			},
+			updateNeeded: true,
+		},
+		{
+			// connector removed
+			name: "case 2",
+			oldConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {},
+				"third":  {},
+			},
+			newConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {},
+			},
+			updateNeeded: true,
+		},
+		{
+			// updated config
+			name: "case 3",
+			oldConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {},
+			},
+			newConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {Config: "something"},
+			},
+			updateNeeded: true,
+		},
+		{
+			// updated various things
+			name: "case 4",
+			oldConnectors: map[string]dex.Connector{
+				"first":  {},
+				"second": {Config: "something"},
+				"fourth": {Name: "somethingelse"},
+			},
+			newConnectors: map[string]dex.Connector{
+				"first":  {Name: "something"},
+				"third":  {},
+				"fourth": {Config: "something"},
+			},
+			updateNeeded: true,
+		},
+		{
+			// empty case
+			name:          "case 4",
+			oldConnectors: map[string]dex.Connector{},
+			newConnectors: map[string]dex.Connector{},
+			updateNeeded:  false,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			s := Service{
+				log: ctrl.Log.WithName("test"),
+			}
+			updateNeeded := s.secretNeedsUpdate(tc.oldConnectors, tc.newConnectors)
+			if updateNeeded != tc.updateNeeded {
+				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
+			}
+		})
+	}
+}
+
+func getExampleProvider(owner string) provider.Provider {
+	p, _ := mockprovider.New(provider.ProviderCredential{Owner: owner})
 	return p
 }
