@@ -2,6 +2,7 @@ package azure
 
 import (
 	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/key"
 	"strconv"
 	"testing"
 
@@ -35,7 +36,7 @@ func TestGetRequestBody(t *testing.T) {
 			if uri[0] != tc.config.RedirectURI {
 				t.Fatalf("Expected %s, got %v", tc.config.RedirectURI, uri[0])
 			}
-			s := getSecretCreateRequestBody(tc.config)
+			s := GetSecretCreateRequestBody(tc.config.Name, key.SecretValidityMonths)
 			secretName := s.GetPasswordCredential().GetDisplayName()
 			if *secretName != tc.config.Name {
 				t.Fatalf("Expected %s, got %v", tc.config.Name, *secretName)

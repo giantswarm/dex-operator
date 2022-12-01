@@ -3,7 +3,6 @@ package azure
 import (
 	"fmt"
 	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/key"
 	"reflect"
 	"time"
 
@@ -108,7 +107,7 @@ func computeClaimUpdatePatch(claims []models.OptionalClaimable) (bool, []models.
 	return true, append(claims, getClaim())
 }
 
-func getAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
+func GetAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
 	headers := map[string]string{
 		"ConsistencyLevel": "eventual",
 	}
@@ -167,11 +166,11 @@ func getClaim() *models.OptionalClaim {
 	return claim
 }
 
-func getSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {
+func GetSecretCreateRequestBody(name string, secretValidityMonths int) *addpassword.AddPasswordPostRequestBody {
 	keyCredential := models.NewPasswordCredential()
-	keyCredential.SetDisplayName(&config.Name)
+	keyCredential.SetDisplayName(&name)
 
-	validUntil := time.Now().AddDate(0, key.SecretValidityMonths, 0)
+	validUntil := time.Now().AddDate(0, secretValidityMonths, 0)
 	keyCredential.SetEndDateTime(&validUntil)
 
 	secret := addpassword.NewAddPasswordPostRequestBody()

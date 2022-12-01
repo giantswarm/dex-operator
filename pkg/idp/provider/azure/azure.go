@@ -140,7 +140,7 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 		// Create app if it does not exist
 		app, err = a.Client.Applications().Post(ctx, getAppCreateRequestBody(config), nil)
 		if err != nil {
-			return "", microerror.Maskf(requestFailedError, printOdataError(err))
+			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 	}
@@ -162,7 +162,7 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 	if needsUpdate, patch := a.computeAppUpdatePatch(config, app, parentApp); needsUpdate {
 		_, err = a.Client.ApplicationsById(*id).Patch(ctx, patch, nil)
 		if err != nil {
-			return "", microerror.Maskf(requestFailedError, printOdataError(err))
+			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Updated %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 	}
@@ -173,13 +173,13 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 
 	app, err := a.Client.ApplicationsById(id).Get(ctx, nil)
 	if err != nil {
-		return "", "", microerror.Maskf(requestFailedError, printOdataError(err))
+		return "", "", microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
 
 	var needsCreation bool
 
 	// Secret needs to be created if no secret can be found
-	secret, err := a.GetSecret(app, config.Name)
+	secret, err := GetSecret(app, config.Name)
 	if err != nil {
 		if !IsNotFound(err) {
 			return "", "", microerror.Mask(err)
@@ -197,7 +197,7 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 
 		err = a.Client.ApplicationsById(id).RemovePassword().Post(context.Background(), requestBody, nil)
 		if err != nil {
-			return "", "", microerror.Maskf(requestFailedError, printOdataError(err))
+			return "", "", microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 		needsCreation = true
@@ -205,9 +205,9 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 
 	// Create secret if it does not exist
 	if needsCreation {
-		secret, err = a.Client.ApplicationsById(id).AddPassword().Post(ctx, getSecretCreateRequestBody(config), nil)
+		secret, err = a.Client.ApplicationsById(id).AddPassword().Post(ctx, GetSecretCreateRequestBody(config.Name, key.SecretValidityMonths), nil)
 		if err != nil {
-			return "", "", microerror.Maskf(requestFailedError, printOdataError(err))
+			return "", "", microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Created secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 	}
@@ -258,7 +258,7 @@ func (a *Azure) DeleteApp(name string, ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 	if err := a.Client.ApplicationsById(appID).Delete(ctx, nil); err != nil {
-		return microerror.Maskf(requestFailedError, printOdataError(err))
+		return microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
 	a.Log.Info(fmt.Sprintf("Deleted %s app %s for %s in microsoft ad tenant %s", a.Type, name, a.Owner, a.TenantID))
 	return nil
@@ -280,9 +280,9 @@ func (a *Azure) GetApp(name string) (models.Applicationable, error) {
 	var appList []models.Applicationable
 
 	o := func() error {
-		result, err := a.Client.Applications().Get(context.Background(), getAppGetRequestConfig(name))
+		result, err := a.Client.Applications().Get(context.Background(), GetAppGetRequestConfig(name))
 		if err != nil {
-			return microerror.Maskf(requestFailedError, printOdataError(err))
+			return microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
 		count := result.GetOdataCount()
 		if *count == 0 {
@@ -304,7 +304,7 @@ func (a *Azure) GetApp(name string) (models.Applicationable, error) {
 	return appList[0], nil
 }
 
-func (a *Azure) GetSecret(app models.Applicationable, name string) (models.PasswordCredentialable, error) {
+func GetSecret(app models.Applicationable, name string) (models.PasswordCredentialable, error) {
 	for _, c := range app.GetPasswordCredentials() {
 		if credentialName := c.GetDisplayName(); credentialName != nil {
 			if *credentialName == name {

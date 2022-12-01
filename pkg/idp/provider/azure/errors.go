@@ -34,7 +34,7 @@ func IsRequestFailed(err error) bool {
 	return microerror.Cause(err) == requestFailedError
 }
 
-func printOdataError(err error) string {
+func PrintOdataError(err error) string {
 	switch typed := err.(type) {
 	case *odataerrors.ODataError:
 		if terr := typed.GetError(); terr != nil {
