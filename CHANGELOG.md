@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added the script that was used to create dex-operator credentials.
 - Added update logic and key rotation for identity providers.
 - Added finalizer management for default dex config secret.
 - Added `README.md`.
