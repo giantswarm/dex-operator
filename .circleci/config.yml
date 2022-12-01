@@ -71,16 +71,15 @@ workflows:
           tags:
             only: /^v.*/
 
-# Disable collection updates temporarily to not break anything mistakenly
-#     - architect/push-to-app-collection:
-#         context: architect
-#         name: push-to-openstack-app-collection
-#         app_name: "dex-operator"
-#         app_collection_repo: "openstack-app-collection"
-#         requires:
-#         - push-to-app-catalog
-#         filters:
-#           branches:
-#             ignore: /.*/
-#           tags:
-#             only: /^v.*/
+    - architect/push-to-app-collection:
+        context: architect
+        name: push-to-azure-app-collection
+        app_name: "dex-operator"
+        app_collection_repo: "azure-app-collection"
+        requires:
+        - push-to-app-catalog
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /^v.*/
