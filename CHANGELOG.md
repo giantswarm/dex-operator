@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2021-12-15
+
 ### Added
 
 - Added the script that was used to create dex-operator credentials.
@@ -16,4 +18,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/tree/main
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/giantswarm/dex-operator/releases/tag/v0.1.0
