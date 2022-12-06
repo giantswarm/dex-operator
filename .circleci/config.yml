@@ -54,6 +54,19 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+    - architect/push-to-docker:
+          context: architect
+          name: push-dex-operator-to-aliyun
+          image: "registry-intl.cn-shanghai.aliyuncs.com/giantswarm/dex-operator"
+          username_envar: "ALIYUN_USERNAME"
+          password_envar: "ALIYUN_PASSWORD"
+          resource_class: xlarge
+          requires:
+            - go-build
+          # Needed to trigger job also on git tag.
+          filters:
+            tags:
+              only: /^v.*/
 
     # Ensure that for every commit
     # there is an app version in the test catalog.
@@ -89,6 +102,19 @@ workflows:
         name: push-to-aws-app-collection
         app_name: "dex-operator"
         app_collection_repo: "aws-app-collection"
+        requires:
+        - push-to-app-catalog
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /^v.*/
+
+    - architect/push-to-app-collection:
+        context: architect
+        name: push-to-kvm-app-collection
+        app_name: "dex-operator"
+        app_collection_repo: "kvm-app-collection"
         requires:
         - push-to-app-catalog
         filters:
