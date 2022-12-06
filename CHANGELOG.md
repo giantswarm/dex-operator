@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Push to kvm app collection.
+
 ## [0.1.1] - 2022-12-06
 
 ### Changed
