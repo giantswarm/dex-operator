@@ -43,3 +43,8 @@ oidc:
 When the configuration is added, a `microsoft` connector should be added to each installed `dex-app` and the application registration with callback URI should be visible in the active directory.
 The operator will automatically renew the client-secret in case it expires or is removed from a connector.
 It will also automatically update other configuration such as permissions, claims and redirect URI.
+
+### script to add azure ad credentials for gs installations
+
+In order to create `dex-operator` credentials for a new giant swarm management cluster, [this script](https://github.com/giantswarm/dex-operator/blob/main/scripts/dex-operator-azure-credentials.go) can be used.
+An existing set of `dex-operator` credentials as well as the azure active directory tenant are needed.
