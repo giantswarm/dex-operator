@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Push to CAPI provider app collections
+- Allow empty list of providers
+- Raise memory usage limit to 500Mi
+
 ## [0.1.2] - 2022-12-06
 
 ### Changed

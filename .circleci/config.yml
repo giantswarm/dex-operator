@@ -96,7 +96,6 @@ workflows:
             ignore: /.*/
           tags:
             only: /^v.*/
-
     - architect/push-to-app-collection:
         context: architect
         name: push-to-aws-app-collection
@@ -109,7 +108,6 @@ workflows:
             ignore: /.*/
           tags:
             only: /^v.*/
-
     - architect/push-to-app-collection:
         context: architect
         name: push-to-kvm-app-collection
@@ -117,6 +115,54 @@ workflows:
         app_collection_repo: "kvm-app-collection"
         requires:
         - push-to-app-catalog
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /^v.*/
+    - architect/push-to-app-collection:
+        context: architect
+        name: push-to-cloud-director-app-collection
+        app_name: "dex-operator"
+        app_collection_repo: cloud-director-app-collection
+        requires:
+          - push-to-app-catalog
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /^v.*/
+    - architect/push-to-app-collection:
+        context: architect
+        name: push-to-capa-app-collection
+        app_name: "dex-operator"
+        app_collection_repo: "capa-app-collection"
+        requires:
+          - push-to-app-catalog
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /^v.*/
+    - architect/push-to-app-collection:
+        context: architect
+        name: push-to-gcp-app-collection
+        app_name: "dex-operator"
+        app_collection_repo: "gcp-app-collection"
+        requires:
+          - push-to-app-catalog
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /^v.*/
+    - architect/push-to-app-collection:
+        context: architect
+        name: push-to-openstack-app-collection
+        app_name: "dex-operator"
+        app_collection_repo: "openstack-app-collection"
+        requires:
+          - push-to-app-catalog
         filters:
           branches:
             ignore: /.*/

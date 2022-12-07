@@ -39,7 +39,7 @@ spec:
             memory: 220Mi
           limits:
             cpu: 100m
-            memory: 220Mi
+            memory: 500Mi
         volumeMounts:
         - mountPath: /home/.idp
           name: credentials

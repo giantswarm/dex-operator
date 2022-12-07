@@ -157,7 +157,7 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 		return nil, microerror.Mask(err)
 	}
 
-	var providers []provider.Provider
+	providers := []provider.Provider{}
 	{
 		for _, p := range providerCredentials {
 			provider, err := r.NewProvider(p)
