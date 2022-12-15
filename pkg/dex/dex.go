@@ -10,7 +10,7 @@ type DexOidc struct {
 }
 
 type DexOidcOwner struct {
-	Connectors []Connector `json:"connectors"`
+	Connectors []Connector `json:"connectors,omitempty"`
 }
 
 type Connector struct {
