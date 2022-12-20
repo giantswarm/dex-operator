@@ -15,6 +15,9 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
@@ -26,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp"
 	"giantswarm/dex-operator/pkg/key"
 	//+kubebuilder:scaffold:imports
@@ -42,6 +46,9 @@ var _ = Describe("App controller", func() {
 		timeout  = time.Second * 10
 		duration = time.Second * 10
 		interval = time.Millisecond * 250
+
+		dexConfigSecretKey  = "default"
+		expectedContentFile = "test-data/default-dex-config.json"
 	)
 
 	Context("When reconciling an app", func() {
@@ -124,8 +131,20 @@ var _ = Describe("App controller", func() {
 				err := k8sClient.Get(ctx, secretLookupKey, createdSecret)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
+			Expect(createdSecret.Data).ShouldNot(BeNil())
+			Expect(createdSecret.Data).Should(HaveKey(dexConfigSecretKey))
+
+			expectedContent, err := os.ReadFile(expectedContentFile)
+			Expect(err).NotTo(HaveOccurred())
+
+			createdSecretDexConfigData := createdSecret.Data[dexConfigSecretKey]
+			Expect(createdSecretDexConfigData).Should(Equal([]byte(strings.TrimSpace(string(expectedContent)))))
+
+			var dexConfig dex.DexConfig
+			Expect(json.Unmarshal(createdSecretDexConfigData, &dexConfig)).To(Succeed())
+			Expect(dexConfig.Oidc.Giantswarm.Connectors).To(HaveLen(1))
+			Expect(dexConfig.Oidc.Customer.Connectors).To(BeEmpty())
 			// TODO check what is inside the secret
-			Expect(createdSecret.Data).ShouldNot(Equal(nil))
 
 			By("Deleting the app")
 			Expect(k8sClient.Delete(ctx, app)).Should(Succeed())
