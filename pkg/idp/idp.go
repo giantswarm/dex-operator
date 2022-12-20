@@ -213,6 +213,7 @@ func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error 
 			return microerror.Mask(err)
 		}
 		s.log.Info(fmt.Sprintf("Deleted app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
+		AppInfo.DeleteLabelValues(s.app.Name, s.app.Namespace, provider.GetOwner(), provider.GetType(), provider.GetName(), appName)
 	}
 	return nil
 }
