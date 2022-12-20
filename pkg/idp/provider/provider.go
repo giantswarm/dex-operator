@@ -4,13 +4,14 @@ import (
 	"context"
 	"giantswarm/dex-operator/pkg/dex"
 	"os"
+	"time"
 
 	"github.com/giantswarm/microerror"
 	"gopkg.in/yaml.v2"
 )
 
 type Provider interface {
-	CreateOrUpdateApp(AppConfig, context.Context, dex.Connector) (dex.Connector, error)
+	CreateOrUpdateApp(AppConfig, context.Context, dex.Connector) (ProviderApp, error)
 	DeleteApp(string, context.Context) error
 	GetName() string
 	GetOwner() string
@@ -27,6 +28,11 @@ type ProviderCredential struct {
 	Name        string            `yaml:"name"`
 	Owner       string            `yaml:"owner"`
 	Credentials map[string]string `yaml:"credentials"`
+}
+
+type ProviderApp struct {
+	Connector         dex.Connector
+	SecretEndDateTime time.Time
 }
 
 func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {

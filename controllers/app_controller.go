@@ -35,6 +35,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -178,4 +179,9 @@ func (r *AppReconciler) NewProvider(p provider.ProviderCredential) (provider.Pro
 		return azure.New(p, &r.Log)
 	}
 	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", p.Name)
+}
+
+func init() {
+	// Register custom metrics with the global prometheus registry
+	metrics.Registry.MustRegister(idp.AppInfo)
 }

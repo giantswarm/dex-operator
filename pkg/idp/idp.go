@@ -188,19 +188,20 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 	}
 	for _, provider := range s.providers {
 		// Create the app on the identity provider
-		connector, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
+		providerApp, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
 		if err != nil {
 			return dexConfig, err
 		}
 		// Add connector configuration to config
 		switch provider.GetOwner() {
 		case key.OwnerGiantswarm:
-			dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, connector)
+			dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, providerApp.Connector)
 		case key.OwnerCustomer:
-			dexConfig.Oidc.Customer.Connectors = append(dexConfig.Oidc.Customer.Connectors, connector)
+			dexConfig.Oidc.Customer.Connectors = append(dexConfig.Oidc.Customer.Connectors, providerApp.Connector)
 		default:
 			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
 		}
+		AppInfo.WithLabelValues(s.app.Name, s.app.Namespace, provider.GetOwner(), provider.GetType(), provider.GetName(), appConfig.Name).Set(float64(providerApp.SecretEndDateTime.Unix()))
 	}
 	return dexConfig, nil
 }
