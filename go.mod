@@ -116,5 +116,4 @@ replace (
 	golang.org/x/net => golang.org/x/net v0.4.0
 	golang.org/x/text => golang.org/x/text v0.3.8
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
-	k8s.io/apiserver v0.25.3 => k8s.io/apiserver v0.26.0
 )
