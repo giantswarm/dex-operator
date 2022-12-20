@@ -11,7 +11,9 @@ import (
 	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"giantswarm/dex-operator/pkg/key"
 
+	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -58,6 +60,7 @@ func TestCreateProviderApps(t *testing.T) {
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
+				app:       getExampleApp(),
 			}
 			_, err := s.CreateOrUpdateProviderApps(tc.appConfig, context.Background(), map[string]dex.Connector{})
 			if err != nil && !tc.expectError {
@@ -323,4 +326,13 @@ func TestSecretNeedsUpdate(t *testing.T) {
 func getExampleProvider(owner string) provider.Provider {
 	p, _ := mockprovider.New(provider.ProviderCredential{Owner: owner})
 	return p
+}
+
+func getExampleApp() *v1alpha1.App {
+	return &v1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "example",
+		},
+	}
 }
