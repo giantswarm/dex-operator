@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Omit empty lists of connectors from marshalled OIDC owner data
+
 ## [0.1.3] - 2022-12-07
 
 ### Changed
