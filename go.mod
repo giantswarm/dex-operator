@@ -115,4 +115,5 @@ replace (
 	github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.5
 	golang.org/x/text => golang.org/x/text v0.3.8
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
+	k8s.io/apiserver v0.25.3 => k8s.io/apiserver v0.26.0
 )
