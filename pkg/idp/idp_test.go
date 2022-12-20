@@ -196,6 +196,7 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
+				app:       getExampleApp(),
 			}
 			config, err := s.CreateOrUpdateProviderApps(appConfig, ctx, map[string]dex.Connector{})
 			if err != nil {
