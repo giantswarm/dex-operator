@@ -3,6 +3,7 @@ package idp
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strconv"
 	"testing"
 
@@ -209,6 +210,65 @@ func TestUserConfigMap(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			if userConfigMapPresent(tc.app) != tc.expectedResult {
 				t.Fatalf("expected result to be %v", tc.expectedResult)
+			}
+		})
+	}
+}
+
+func TestRemoveExtraConfig(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configBefore   []v1alpha1.AppExtraConfig
+		configAfter    []v1alpha1.AppExtraConfig
+		configToRemove v1alpha1.AppExtraConfig
+	}{
+		{
+			name:           "case 0",
+			configBefore:   nil,
+			configAfter:    nil,
+			configToRemove: GetDexSecretConfig("test"),
+		},
+		{
+			name: "case 2",
+			configBefore: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test2"),
+			},
+			configAfter: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test2"),
+			},
+			configToRemove: GetDexSecretConfig("test"),
+		},
+		{
+			name: "case 2",
+			configBefore: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test"),
+			},
+			configAfter:    []v1alpha1.AppExtraConfig{},
+			configToRemove: GetDexSecretConfig("test"),
+		},
+		{
+			name: "case 3",
+			configBefore: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test"),
+				GetDexSecretConfig("test2"),
+			},
+			configAfter: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test2"),
+			},
+			configToRemove: GetDexSecretConfig("test"),
+		},
+		{
+			name:           "case 3",
+			configBefore:   []v1alpha1.AppExtraConfig{},
+			configAfter:    []v1alpha1.AppExtraConfig{},
+			configToRemove: GetDexSecretConfig("test"),
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			if !reflect.DeepEqual(removeExtraConfig(tc.configBefore, tc.configToRemove), tc.configAfter) {
+				t.Fatalf("expected result to be %v", tc.configAfter)
 			}
 		})
 	}

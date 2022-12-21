@@ -26,6 +26,19 @@ func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExt
 	return false
 }
 
+func removeExtraConfig(extraConfigs []v1alpha1.AppExtraConfig, dexSecretConfig v1alpha1.AppExtraConfig) []v1alpha1.AppExtraConfig {
+	if extraConfigs == nil {
+		return extraConfigs
+	}
+	result := []v1alpha1.AppExtraConfig{}
+	for _, config := range extraConfigs {
+		if !reflect.DeepEqual(config, dexSecretConfig) {
+			result = append(result, config)
+		}
+	}
+	return result
+}
+
 func userConfigMapPresent(app *v1alpha1.App) bool {
 	if app.Spec.UserConfig.ConfigMap.Name == "" && app.Spec.UserConfig.ConfigMap.Namespace == "" {
 		return false

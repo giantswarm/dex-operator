@@ -179,6 +179,15 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 				s.log.Info("Deleted default dex config secret for dex app instance.")
 			}
 		}
+		// remove dex secret config
+		s.app.Spec.ExtraConfigs = removeExtraConfig(s.app.Spec.ExtraConfigs, dexSecretConfig)
+		if err := s.Update(ctx, s.app); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return microerror.Mask(err)
+			}
+		} else {
+			s.log.Info("Removed dex config secret reference from dex app instance.")
+		}
 	}
 	return nil
 }
