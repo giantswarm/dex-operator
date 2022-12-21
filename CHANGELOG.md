@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add prometheus metrics about dex-app registrations on identity providers
+
 ### Changed
 
 - Omit empty lists of connectors from marshalled OIDC owner data

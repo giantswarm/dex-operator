@@ -5,6 +5,7 @@ import (
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
+	"time"
 
 	"github.com/dexidp/dex/connector/mock"
 	"github.com/giantswarm/microerror"
@@ -42,20 +43,23 @@ func (m *MockProvider) GetOwner() string {
 	return m.Owner
 }
 
-func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (dex.Connector, error) {
+func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
 	connectorConfig := &mock.PasswordConfig{
 		Username: "test",
 		Password: "test",
 	}
 	data, err := yaml.Marshal(connectorConfig)
 	if err != nil {
-		return dex.Connector{}, microerror.Mask(err)
+		return provider.ProviderApp{}, microerror.Mask(err)
 	}
-	return dex.Connector{
-		Type:   m.Type,
-		ID:     m.Name,
-		Name:   key.GetConnectorDescription(ProviderConnectorType, m.Owner),
-		Config: string(data[:]),
+	return provider.ProviderApp{
+		Connector: dex.Connector{
+			Type:   m.Type,
+			ID:     m.Name,
+			Name:   key.GetConnectorDescription(ProviderConnectorType, m.Owner),
+			Config: string(data[:]),
+		},
+		SecretEndDateTime: time.Now().AddDate(0, 6, 0),
 	}, nil
 }
 

@@ -1,0 +1,89 @@
+package azure
+
+import (
+	"strings"
+	"time"
+
+	"github.com/dexidp/dex/connector/microsoft"
+	"github.com/giantswarm/microerror"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"gopkg.in/yaml.v2"
+)
+
+type azureSecret struct {
+	clientId     string
+	clientSecret string
+	endDateTime  time.Time
+}
+
+func getAzureSecret(secret models.PasswordCredentialable, app models.Applicationable, oldSecret string) (azureSecret, error) {
+	var clientSecret, clientId string
+	{
+		//Get connector data
+		if secret.GetSecretText() == nil || *secret.GetSecretText() == "" {
+			clientSecret = oldSecret
+		} else {
+			clientSecret = *secret.GetSecretText()
+		}
+		if app.GetAppId() == nil || *app.GetAppId() == "" {
+			return azureSecret{}, microerror.Maskf(notFoundError, "Could not find client ID for secret.")
+		}
+		clientId = *app.GetAppId()
+	}
+	var endDateTime *time.Time
+	{
+		if endDateTime = secret.GetEndDateTime(); endDateTime == nil {
+			return azureSecret{}, microerror.Maskf(notFoundError, "Could not find expiry time for secret.")
+		}
+	}
+	return azureSecret{
+		clientSecret: clientSecret,
+		clientId:     clientId,
+		endDateTime:  *endDateTime,
+	}, nil
+}
+
+func secretExpired(secret models.PasswordCredentialable) bool {
+	bestBefore := secret.GetEndDateTime()
+	if bestBefore == nil {
+		return true
+	}
+	if bestBefore.Before(time.Now().Add(24 * time.Hour)) {
+		return true
+	}
+	return false
+}
+
+func secretChanged(secret models.PasswordCredentialable, oldSecret string) bool {
+	hint := secret.GetHint()
+	if hint == nil {
+		return true
+	}
+	if !strings.HasPrefix(oldSecret, *hint) {
+		return true
+	}
+	return false
+}
+
+func GetSecret(app models.Applicationable, name string) (models.PasswordCredentialable, error) {
+	for _, c := range app.GetPasswordCredentials() {
+		if credentialName := c.GetDisplayName(); credentialName != nil {
+			if *credentialName == name {
+				return c, nil
+			}
+		}
+	}
+	return nil, microerror.Maskf(notFoundError, "Did not find credential %s.", name)
+}
+
+func getSecretFromConfig(config string) (string, error) {
+	if config == "" {
+		return "", nil
+	}
+	configData := []byte(config)
+	connectorConfig := &microsoft.Config{}
+	if err := yaml.Unmarshal(configData, connectorConfig); err != nil {
+		return "", microerror.Mask(err)
+	}
+	return connectorConfig.ClientSecret, nil
+}
