@@ -180,12 +180,9 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 }
 
 func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context, oldConnectors map[string]dex.Connector) (dex.DexConfig, error) {
-	dexConfig := dex.DexConfig{
-		Oidc: dex.DexOidc{
-			Giantswarm: dex.DexOidcOwner{},
-			Customer:   dex.DexOidcOwner{},
-		},
-	}
+	dexConfig := dex.DexConfig{}
+	customerOidcOwner := dex.DexOidcOwner{}
+	giantswarmOidcOwner := dex.DexOidcOwner{}
 	for _, provider := range s.providers {
 		// Create the app on the identity provider
 		providerApp, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
@@ -195,13 +192,19 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 		// Add connector configuration to config
 		switch provider.GetOwner() {
 		case key.OwnerGiantswarm:
-			dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, providerApp.Connector)
+			giantswarmOidcOwner.Connectors = append(giantswarmOidcOwner.Connectors, providerApp.Connector)
 		case key.OwnerCustomer:
-			dexConfig.Oidc.Customer.Connectors = append(dexConfig.Oidc.Customer.Connectors, providerApp.Connector)
+			customerOidcOwner.Connectors = append(customerOidcOwner.Connectors, providerApp.Connector)
 		default:
 			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
 		}
 		AppInfo.WithLabelValues(s.app.Name, s.app.Namespace, provider.GetOwner(), provider.GetType(), provider.GetName(), appConfig.Name).Set(float64(providerApp.SecretEndDateTime.Unix()))
+	}
+	if len(customerOidcOwner.Connectors) > 0 {
+		dexConfig.Oidc.Customer = &customerOidcOwner
+	}
+	if len(giantswarmOidcOwner.Connectors) > 0 {
+		dexConfig.Oidc.Giantswarm = &giantswarmOidcOwner
 	}
 	return dexConfig, nil
 }

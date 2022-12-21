@@ -58,11 +58,15 @@ func getConnectorsFromSecret(secret *corev1.Secret) (map[string]dex.Connector, e
 		return nil, microerror.Mask(err)
 	}
 
-	for _, connector := range config.Oidc.Customer.Connectors {
-		connectors[connector.ID] = connector
+	if config.Oidc.Customer != nil {
+		for _, connector := range config.Oidc.Customer.Connectors {
+			connectors[connector.ID] = connector
+		}
 	}
-	for _, connector := range config.Oidc.Giantswarm.Connectors {
-		connectors[connector.ID] = connector
+	if config.Oidc.Giantswarm != nil {
+		for _, connector := range config.Oidc.Giantswarm.Connectors {
+			connectors[connector.ID] = connector
+		}
 	}
 	return connectors, nil
 }

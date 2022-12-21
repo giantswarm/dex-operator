@@ -142,8 +142,9 @@ var _ = Describe("App controller", func() {
 
 			var dexConfig dex.DexConfig
 			Expect(json.Unmarshal(createdSecretDexConfigData, &dexConfig)).To(Succeed())
+			Expect(dexConfig.Oidc.Giantswarm).NotTo(BeNil())
 			Expect(dexConfig.Oidc.Giantswarm.Connectors).To(HaveLen(1))
-			Expect(dexConfig.Oidc.Customer.Connectors).To(BeEmpty())
+			Expect(dexConfig.Oidc.Customer).To(BeNil())
 			// TODO check what is inside the secret
 
 			By("Deleting the app")
