@@ -26,6 +26,13 @@ func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExt
 	return false
 }
 
+func userConfigMapPresent(app *v1alpha1.App) bool {
+	if app.Spec.UserConfig.ConfigMap.Name == "" && app.Spec.UserConfig.ConfigMap.Namespace == "" {
+		return false
+	}
+	return true
+}
+
 func clusterValuesIsPresent(app *v1alpha1.App) bool {
 	return strings.HasSuffix(app.Spec.Config.ConfigMap.Name, key.ClusterValuesConfigmapSuffix)
 }

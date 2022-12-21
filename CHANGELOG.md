@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Do not reconcile dex apps that have a user configmap specified and remove configuration in that case. This is to prevent a bug where connectors can be overwritten. 
 - Omit empty lists of connectors from marshalled OIDC owner data
 
 ## [0.1.3] - 2022-12-07

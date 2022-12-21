@@ -146,6 +146,74 @@ func TestGetBaseDomain(t *testing.T) {
 	}
 }
 
+func TestUserConfigMap(t *testing.T) {
+	testCases := []struct {
+		name           string
+		app            *v1alpha1.App
+		expectedResult bool
+	}{
+		{
+			name:           "case 0",
+			app:            getExampleApp(),
+			expectedResult: false,
+		},
+		{
+			name: "case 0",
+			app: &v1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "example",
+				},
+				Spec: v1alpha1.AppSpec{
+					UserConfig: v1alpha1.AppSpecUserConfig{},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "case 1",
+			app: &v1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "example",
+				},
+				Spec: v1alpha1.AppSpec{
+					UserConfig: v1alpha1.AppSpecUserConfig{
+						ConfigMap: v1alpha1.AppSpecUserConfigConfigMap{},
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "case 2",
+			app: &v1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "example",
+				},
+				Spec: v1alpha1.AppSpec{
+					UserConfig: v1alpha1.AppSpecUserConfig{
+						ConfigMap: v1alpha1.AppSpecUserConfigConfigMap{
+							Name:      "test",
+							Namespace: "test",
+						},
+					},
+				},
+			},
+			expectedResult: true,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			if userConfigMapPresent(tc.app) != tc.expectedResult {
+				t.Fatalf("expected result to be %v", tc.expectedResult)
+			}
+		})
+	}
+}
+
 func TestGetOldConnectorsFromSecret(t *testing.T) {
 	testCases := []struct {
 		name               string
