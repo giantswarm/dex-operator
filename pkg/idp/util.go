@@ -70,3 +70,30 @@ func getConnectorsFromSecret(secret *corev1.Secret) (map[string]dex.Connector, e
 	}
 	return connectors, nil
 }
+
+func getDexConfigFromSecret(secret *corev1.Secret) (dex.DexConfig, error) {
+	config := dex.DexConfig{}
+	configData, exists := secret.Data["default"]
+	if !exists {
+		return config, nil
+	}
+	if err := json.Unmarshal(configData, &config); err != nil {
+		return config, microerror.Mask(err)
+	}
+	return config, nil
+}
+
+func getConnectorsFromConfig(config dex.DexConfig) map[string]dex.Connector {
+	connectors := map[string]dex.Connector{}
+	if config.Oidc.Customer != nil {
+		for _, connector := range config.Oidc.Customer.Connectors {
+			connectors[connector.ID] = connector
+		}
+	}
+	if config.Oidc.Giantswarm != nil {
+		for _, connector := range config.Oidc.Giantswarm.Connectors {
+			connectors[connector.ID] = connector
+		}
+	}
+	return connectors
+}

@@ -96,34 +96,31 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 	{
 		// Get existing connectors from the dex config secret
-		oldConnectors, err := getConnectorsFromSecret(secret)
+		//oldConnectors, err := getConnectorsFromSecret(secret)
+		oldConfig, err := getDexConfigFromSecret(secret)
 		if err != nil {
 			return microerror.Mask(err)
 		}
+		oldConnectors := getConnectorsFromConfig(oldConfig)
 		// Create apps for each provider and get dex config
 		appConfig, err := s.GetAppConfig(ctx)
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		dexConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
+		newConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		data, err := json.Marshal(dexConfig)
+		data, err := json.Marshal(newConfig)
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		// Fetching the newest version of the secret. If we are here we assume that it exists.
-		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
-			return microerror.Mask(err)
-		}
-		secret.Data = map[string][]byte{"default": data}
-		// Get new connectors from the dex config secret
-		newConnectors, err := getConnectorsFromSecret(secret)
-		if err != nil {
-			return microerror.Mask(err)
-		}
-		if updateSecret := s.secretNeedsUpdate(oldConnectors, newConnectors); updateSecret {
+		if updateSecret := s.secretDataNeedsUpdate(oldConfig, newConfig); updateSecret {
+			// Fetching the newest version of the secret. If we are here we assume that it exists.
+			if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
+				return microerror.Mask(err)
+			}
+			secret.Data = map[string][]byte{"default": data}
 			if err := s.Update(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}
@@ -221,7 +218,22 @@ func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error 
 	return nil
 }
 
-func (s *Service) secretNeedsUpdate(oldConnectors map[string]dex.Connector, newConnectors map[string]dex.Connector) bool {
+func (s *Service) secretDataNeedsUpdate(oldData dex.DexConfig, newData dex.DexConfig) bool {
+	if !s.oidcOwnerNeedsUpdate(oldData.Oidc.Giantswarm, newData.Oidc.Giantswarm) && !s.oidcOwnerNeedsUpdate(oldData.Oidc.Customer, newData.Oidc.Customer) {
+		oldConnectors := getConnectorsFromConfig(oldData)
+		newConnectors := getConnectorsFromConfig(newData)
+		return s.connectorsNeedUpdate(oldConnectors, newConnectors)
+	}
+	return true
+}
+
+func (s *Service) oidcOwnerNeedsUpdate(oldOwner *dex.DexOidcOwner, newOwner *dex.DexOidcOwner) bool {
+	return (oldOwner != nil && newOwner == nil) ||
+		(oldOwner == nil && newOwner != nil) ||
+		(oldOwner != nil && newOwner != nil && len(oldOwner.Connectors) != len(newOwner.Connectors))
+}
+
+func (s *Service) connectorsNeedUpdate(oldConnectors map[string]dex.Connector, newConnectors map[string]dex.Connector) bool {
 	needsUpdate := false
 	for provider, connector := range newConnectors {
 		oldConnector, exists := oldConnectors[provider]

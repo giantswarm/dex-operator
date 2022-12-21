@@ -226,7 +226,199 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 	}
 }
 
-func TestSecretNeedsUpdate(t *testing.T) {
+func TestSecretDataNeedsUpdate(t *testing.T) {
+	testCases := []struct {
+		name         string
+		oldConfig    dex.DexConfig
+		newConfig    dex.DexConfig
+		updateNeeded bool
+	}{
+		{
+			name: "case 0: No changes",
+			oldConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second"},
+						},
+					},
+				},
+			},
+			newConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second"},
+						},
+					},
+				},
+			},
+			updateNeeded: false,
+		},
+		{
+			name: "case 1: New connector",
+			oldConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second"},
+						},
+					},
+				},
+			},
+			newConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second"},
+							{ID: "third"},
+						},
+					},
+				},
+			},
+			updateNeeded: true,
+		},
+		{
+			name: "case 2: Connector removed",
+			oldConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second"},
+							{ID: "third"},
+						},
+					},
+				},
+			},
+			newConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second"},
+						},
+					},
+				},
+			},
+			updateNeeded: true,
+		},
+		{
+			name: "case 3: Updated config",
+			oldConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second"},
+						},
+					},
+				},
+			},
+			newConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second", Config: "something"},
+						},
+					},
+				},
+			},
+			updateNeeded: true,
+		},
+		{
+			name: "case 4: Updated various things",
+			oldConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "second", Config: "something"},
+							{ID: "fourth", Config: "somethingelse"},
+						},
+					},
+				},
+			},
+			newConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "first", Config: "something"},
+							{ID: "third"},
+						},
+					},
+					Giantswarm: &dex.DexOidcOwner{
+						Connectors: []dex.Connector{
+							{ID: "fourth", Config: "something"},
+						},
+					},
+				},
+			},
+			updateNeeded: true,
+		},
+		{
+			name:         "case 5: Empty case",
+			oldConfig:    dex.DexConfig{},
+			newConfig:    dex.DexConfig{},
+			updateNeeded: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := Service{
+				log: ctrl.Log.WithName("test"),
+			}
+			updateNeeded := s.secretDataNeedsUpdate(tc.oldConfig, tc.newConfig)
+			if updateNeeded != tc.updateNeeded {
+				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
+			}
+		})
+	}
+}
+
+func TestConnectorsNeedUpdate(t *testing.T) {
 	testCases := []struct {
 		name          string
 		oldConnectors map[string]dex.Connector
@@ -316,7 +508,7 @@ func TestSecretNeedsUpdate(t *testing.T) {
 			s := Service{
 				log: ctrl.Log.WithName("test"),
 			}
-			updateNeeded := s.secretNeedsUpdate(tc.oldConnectors, tc.newConnectors)
+			updateNeeded := s.connectorsNeedUpdate(tc.oldConnectors, tc.newConnectors)
 			if updateNeeded != tc.updateNeeded {
 				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
 			}
