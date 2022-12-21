@@ -403,6 +403,26 @@ func TestSecretDataNeedsUpdate(t *testing.T) {
 			newConfig:    dex.DexConfig{},
 			updateNeeded: false,
 		},
+		{
+			name: "case 6: Update triggering empty case 1",
+			oldConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Customer: &dex.DexOidcOwner{},
+				},
+			},
+			newConfig:    dex.DexConfig{},
+			updateNeeded: true,
+		},
+		{
+			name:      "case 7: Update triggering empty case 2",
+			oldConfig: dex.DexConfig{},
+			newConfig: dex.DexConfig{
+				Oidc: dex.DexOidc{
+					Giantswarm: &dex.DexOidcOwner{},
+				},
+			},
+			updateNeeded: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -411,104 +431,6 @@ func TestSecretDataNeedsUpdate(t *testing.T) {
 				log: ctrl.Log.WithName("test"),
 			}
 			updateNeeded := s.secretDataNeedsUpdate(tc.oldConfig, tc.newConfig)
-			if updateNeeded != tc.updateNeeded {
-				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
-			}
-		})
-	}
-}
-
-func TestConnectorsNeedUpdate(t *testing.T) {
-	testCases := []struct {
-		name          string
-		oldConnectors map[string]dex.Connector
-		newConnectors map[string]dex.Connector
-		updateNeeded  bool
-	}{
-		{
-			// nothing changed
-			name: "case 0",
-			oldConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {},
-			},
-			newConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {},
-			},
-			updateNeeded: false,
-		},
-		{
-			// new connector
-			name: "case 1",
-			oldConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {},
-			},
-			newConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {},
-				"third":  {},
-			},
-			updateNeeded: true,
-		},
-		{
-			// connector removed
-			name: "case 2",
-			oldConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {},
-				"third":  {},
-			},
-			newConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {},
-			},
-			updateNeeded: true,
-		},
-		{
-			// updated config
-			name: "case 3",
-			oldConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {},
-			},
-			newConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {Config: "something"},
-			},
-			updateNeeded: true,
-		},
-		{
-			// updated various things
-			name: "case 4",
-			oldConnectors: map[string]dex.Connector{
-				"first":  {},
-				"second": {Config: "something"},
-				"fourth": {Name: "somethingelse"},
-			},
-			newConnectors: map[string]dex.Connector{
-				"first":  {Name: "something"},
-				"third":  {},
-				"fourth": {Config: "something"},
-			},
-			updateNeeded: true,
-		},
-		{
-			// empty case
-			name:          "case 4",
-			oldConnectors: map[string]dex.Connector{},
-			newConnectors: map[string]dex.Connector{},
-			updateNeeded:  false,
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			s := Service{
-				log: ctrl.Log.WithName("test"),
-			}
-			updateNeeded := s.connectorsNeedUpdate(tc.oldConnectors, tc.newConnectors)
 			if updateNeeded != tc.updateNeeded {
 				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
 			}
