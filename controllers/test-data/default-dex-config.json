@@ -1,1 +1,1 @@
-{"oidc":{"giantswarm":{"connectors":[{"connectorType":"mockCallback","connectorName":"mockCallback connector for giantswarm","id":"giantswarm-mock","connectorConfig":"username: test\npassword: test\n"}]},"customer":{}}}
+{"oidc":{"giantswarm":{"connectors":[{"connectorType":"mockCallback","connectorName":"mockCallback connector for giantswarm","id":"giantswarm-mock","connectorConfig":"username: test\npassword: test\n"}]}}}

@@ -26,6 +26,26 @@ func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExt
 	return false
 }
 
+func removeExtraConfig(extraConfigs []v1alpha1.AppExtraConfig, dexSecretConfig v1alpha1.AppExtraConfig) []v1alpha1.AppExtraConfig {
+	if extraConfigs == nil {
+		return extraConfigs
+	}
+	result := []v1alpha1.AppExtraConfig{}
+	for _, config := range extraConfigs {
+		if !reflect.DeepEqual(config, dexSecretConfig) {
+			result = append(result, config)
+		}
+	}
+	return result
+}
+
+func userConfigMapPresent(app *v1alpha1.App) bool {
+	if app.Spec.UserConfig.ConfigMap.Name == "" && app.Spec.UserConfig.ConfigMap.Namespace == "" {
+		return false
+	}
+	return true
+}
+
 func clusterValuesIsPresent(app *v1alpha1.App) bool {
 	return strings.HasSuffix(app.Spec.Config.ConfigMap.Name, key.ClusterValuesConfigmapSuffix)
 }
@@ -58,11 +78,42 @@ func getConnectorsFromSecret(secret *corev1.Secret) (map[string]dex.Connector, e
 		return nil, microerror.Mask(err)
 	}
 
-	for _, connector := range config.Oidc.Customer.Connectors {
-		connectors[connector.ID] = connector
+	if config.Oidc.Customer != nil {
+		for _, connector := range config.Oidc.Customer.Connectors {
+			connectors[connector.ID] = connector
+		}
 	}
-	for _, connector := range config.Oidc.Giantswarm.Connectors {
-		connectors[connector.ID] = connector
+	if config.Oidc.Giantswarm != nil {
+		for _, connector := range config.Oidc.Giantswarm.Connectors {
+			connectors[connector.ID] = connector
+		}
 	}
 	return connectors, nil
+}
+
+func getDexConfigFromSecret(secret *corev1.Secret) (dex.DexConfig, error) {
+	config := dex.DexConfig{}
+	configData, exists := secret.Data["default"]
+	if !exists {
+		return config, nil
+	}
+	if err := json.Unmarshal(configData, &config); err != nil {
+		return config, microerror.Mask(err)
+	}
+	return config, nil
+}
+
+func getConnectorsFromConfig(config dex.DexConfig) map[string]dex.Connector {
+	connectors := map[string]dex.Connector{}
+	if config.Oidc.Customer != nil {
+		for _, connector := range config.Oidc.Customer.Connectors {
+			connectors[connector.ID] = connector
+		}
+	}
+	if config.Oidc.Giantswarm != nil {
+		for _, connector := range config.Oidc.Giantswarm.Connectors {
+			connectors[connector.ID] = connector
+		}
+	}
+	return connectors
 }

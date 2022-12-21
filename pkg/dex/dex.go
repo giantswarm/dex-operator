@@ -5,8 +5,8 @@ type DexConfig struct {
 }
 
 type DexOidc struct {
-	Giantswarm DexOidcOwner `json:"giantswarm,omitempty"`
-	Customer   DexOidcOwner `json:"customer,omitempty"`
+	Giantswarm *DexOidcOwner `json:"giantswarm,omitempty"`
+	Customer   *DexOidcOwner `json:"customer,omitempty"`
 }
 
 type DexOidcOwner struct {

@@ -71,6 +71,13 @@ func New(c Config) (*Service, error) {
 }
 
 func (s *Service) Reconcile(ctx context.Context) error {
+	// We do not handle apps that have user configmaps set up due to a bug where configuration in secrets can be overwritten
+	//TODO: solve this gracefully
+	if userConfigMapPresent(s.app) {
+		s.log.Info("Dex app has a user configmap set up for configuration. Cancelling reconcillation. We recommend to move configuration to a user secret.")
+		return s.ReconcileDelete(ctx)
+	}
+
 	// Add secret config to app instance
 	dexSecretConfig := GetDexSecretConfig(s.app.Namespace)
 	if !dexSecretConfigIsPresent(s.app, dexSecretConfig) {
@@ -96,34 +103,31 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 	{
 		// Get existing connectors from the dex config secret
-		oldConnectors, err := getConnectorsFromSecret(secret)
+		oldConfig, err := getDexConfigFromSecret(secret)
 		if err != nil {
 			return microerror.Mask(err)
 		}
+		oldConnectors := getConnectorsFromConfig(oldConfig)
 		// Create apps for each provider and get dex config
 		appConfig, err := s.GetAppConfig(ctx)
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		dexConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
+		newConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		data, err := json.Marshal(dexConfig)
-		if err != nil {
-			return microerror.Mask(err)
-		}
-		// Fetching the newest version of the secret. If we are here we assume that it exists.
-		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
-			return microerror.Mask(err)
-		}
-		secret.Data = map[string][]byte{"default": data}
-		// Get new connectors from the dex config secret
-		newConnectors, err := getConnectorsFromSecret(secret)
-		if err != nil {
-			return microerror.Mask(err)
-		}
-		if updateSecret := s.secretNeedsUpdate(oldConnectors, newConnectors); updateSecret {
+
+		if updateSecret := s.secretDataNeedsUpdate(oldConfig, newConfig); updateSecret {
+			data, err := json.Marshal(newConfig)
+			if err != nil {
+				return microerror.Mask(err)
+			}
+			// Fetching the newest version of the secret. If we are here we assume that it exists.
+			if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
+				return microerror.Mask(err)
+			}
+			secret.Data = map[string][]byte{"default": data}
 			if err := s.Update(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}
@@ -175,17 +179,23 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 				s.log.Info("Deleted default dex config secret for dex app instance.")
 			}
 		}
+		// remove dex secret config
+		s.app.Spec.ExtraConfigs = removeExtraConfig(s.app.Spec.ExtraConfigs, dexSecretConfig)
+		if err := s.Update(ctx, s.app); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return microerror.Mask(err)
+			}
+		} else {
+			s.log.Info("Removed dex config secret reference from dex app instance.")
+		}
 	}
 	return nil
 }
 
 func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context, oldConnectors map[string]dex.Connector) (dex.DexConfig, error) {
-	dexConfig := dex.DexConfig{
-		Oidc: dex.DexOidc{
-			Giantswarm: dex.DexOidcOwner{},
-			Customer:   dex.DexOidcOwner{},
-		},
-	}
+	dexConfig := dex.DexConfig{}
+	customerOidcOwner := dex.DexOidcOwner{}
+	giantswarmOidcOwner := dex.DexOidcOwner{}
 	for _, provider := range s.providers {
 		// Create the app on the identity provider
 		providerApp, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
@@ -195,13 +205,19 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 		// Add connector configuration to config
 		switch provider.GetOwner() {
 		case key.OwnerGiantswarm:
-			dexConfig.Oidc.Giantswarm.Connectors = append(dexConfig.Oidc.Giantswarm.Connectors, providerApp.Connector)
+			giantswarmOidcOwner.Connectors = append(giantswarmOidcOwner.Connectors, providerApp.Connector)
 		case key.OwnerCustomer:
-			dexConfig.Oidc.Customer.Connectors = append(dexConfig.Oidc.Customer.Connectors, providerApp.Connector)
+			customerOidcOwner.Connectors = append(customerOidcOwner.Connectors, providerApp.Connector)
 		default:
 			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
 		}
 		AppInfo.WithLabelValues(s.app.Name, s.app.Namespace, provider.GetOwner(), provider.GetType(), provider.GetName(), appConfig.Name).Set(float64(providerApp.SecretEndDateTime.Unix()))
+	}
+	if len(customerOidcOwner.Connectors) > 0 {
+		dexConfig.Oidc.Customer = &customerOidcOwner
+	}
+	if len(giantswarmOidcOwner.Connectors) > 0 {
+		dexConfig.Oidc.Giantswarm = &giantswarmOidcOwner
 	}
 	return dexConfig, nil
 }
@@ -218,7 +234,22 @@ func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error 
 	return nil
 }
 
-func (s *Service) secretNeedsUpdate(oldConnectors map[string]dex.Connector, newConnectors map[string]dex.Connector) bool {
+func (s *Service) secretDataNeedsUpdate(oldData dex.DexConfig, newData dex.DexConfig) bool {
+	if !s.oidcOwnerNeedsUpdate(oldData.Oidc.Giantswarm, newData.Oidc.Giantswarm) && !s.oidcOwnerNeedsUpdate(oldData.Oidc.Customer, newData.Oidc.Customer) {
+		oldConnectors := getConnectorsFromConfig(oldData)
+		newConnectors := getConnectorsFromConfig(newData)
+		return s.connectorsNeedUpdate(oldConnectors, newConnectors)
+	}
+	return true
+}
+
+func (s *Service) oidcOwnerNeedsUpdate(oldOwner *dex.DexOidcOwner, newOwner *dex.DexOidcOwner) bool {
+	return (oldOwner != nil && newOwner == nil) ||
+		(oldOwner == nil && newOwner != nil) ||
+		(oldOwner != nil && newOwner != nil && len(oldOwner.Connectors) != len(newOwner.Connectors))
+}
+
+func (s *Service) connectorsNeedUpdate(oldConnectors map[string]dex.Connector, newConnectors map[string]dex.Connector) bool {
 	needsUpdate := false
 	for provider, connector := range newConnectors {
 		oldConnector, exists := oldConnectors[provider]
