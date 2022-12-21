@@ -3,6 +3,7 @@ package idp
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strconv"
 	"testing"
 
@@ -141,6 +142,133 @@ func TestGetBaseDomain(t *testing.T) {
 			baseDomain := getBaseDomainFromClusterValues(cm)
 			if baseDomain != tc.expectedDomain {
 				t.Fatalf("Expected %v to be equal to %v", baseDomain, tc.expectedDomain)
+			}
+		})
+	}
+}
+
+func TestUserConfigMap(t *testing.T) {
+	testCases := []struct {
+		name           string
+		app            *v1alpha1.App
+		expectedResult bool
+	}{
+		{
+			name:           "case 0",
+			app:            getExampleApp(),
+			expectedResult: false,
+		},
+		{
+			name: "case 0",
+			app: &v1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "example",
+				},
+				Spec: v1alpha1.AppSpec{
+					UserConfig: v1alpha1.AppSpecUserConfig{},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "case 1",
+			app: &v1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "example",
+				},
+				Spec: v1alpha1.AppSpec{
+					UserConfig: v1alpha1.AppSpecUserConfig{
+						ConfigMap: v1alpha1.AppSpecUserConfigConfigMap{},
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "case 2",
+			app: &v1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "example",
+				},
+				Spec: v1alpha1.AppSpec{
+					UserConfig: v1alpha1.AppSpecUserConfig{
+						ConfigMap: v1alpha1.AppSpecUserConfigConfigMap{
+							Name:      "test",
+							Namespace: "test",
+						},
+					},
+				},
+			},
+			expectedResult: true,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			if userConfigMapPresent(tc.app) != tc.expectedResult {
+				t.Fatalf("expected result to be %v", tc.expectedResult)
+			}
+		})
+	}
+}
+
+func TestRemoveExtraConfig(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configBefore   []v1alpha1.AppExtraConfig
+		configAfter    []v1alpha1.AppExtraConfig
+		configToRemove v1alpha1.AppExtraConfig
+	}{
+		{
+			name:           "case 0",
+			configBefore:   nil,
+			configAfter:    nil,
+			configToRemove: GetDexSecretConfig("test"),
+		},
+		{
+			name: "case 2",
+			configBefore: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test2"),
+			},
+			configAfter: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test2"),
+			},
+			configToRemove: GetDexSecretConfig("test"),
+		},
+		{
+			name: "case 2",
+			configBefore: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test"),
+			},
+			configAfter:    []v1alpha1.AppExtraConfig{},
+			configToRemove: GetDexSecretConfig("test"),
+		},
+		{
+			name: "case 3",
+			configBefore: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test"),
+				GetDexSecretConfig("test2"),
+			},
+			configAfter: []v1alpha1.AppExtraConfig{
+				GetDexSecretConfig("test2"),
+			},
+			configToRemove: GetDexSecretConfig("test"),
+		},
+		{
+			name:           "case 3",
+			configBefore:   []v1alpha1.AppExtraConfig{},
+			configAfter:    []v1alpha1.AppExtraConfig{},
+			configToRemove: GetDexSecretConfig("test"),
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			if !reflect.DeepEqual(removeExtraConfig(tc.configBefore, tc.configToRemove), tc.configAfter) {
+				t.Fatalf("expected result to be %v", tc.configAfter)
 			}
 		})
 	}

@@ -71,6 +71,13 @@ func New(c Config) (*Service, error) {
 }
 
 func (s *Service) Reconcile(ctx context.Context) error {
+	// We do not handle apps that have user configmaps set up due to a bug where configuration in secrets can be overwritten
+	//TODO: solve this gracefully
+	if userConfigMapPresent(s.app) {
+		s.log.Info("Dex app has a user configmap set up for configuration. Cancelling reconcillation. We recommend to move configuration to a user secret.")
+		return s.ReconcileDelete(ctx)
+	}
+
 	// Add secret config to app instance
 	dexSecretConfig := GetDexSecretConfig(s.app.Namespace)
 	if !dexSecretConfigIsPresent(s.app, dexSecretConfig) {
@@ -171,6 +178,15 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 			} else {
 				s.log.Info("Deleted default dex config secret for dex app instance.")
 			}
+		}
+		// remove dex secret config
+		s.app.Spec.ExtraConfigs = removeExtraConfig(s.app.Spec.ExtraConfigs, dexSecretConfig)
+		if err := s.Update(ctx, s.app); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return microerror.Mask(err)
+			}
+		} else {
+			s.log.Info("Removed dex config secret reference from dex app instance.")
 		}
 	}
 	return nil
