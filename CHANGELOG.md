@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Added a new config parameter for issuer address
-- Adjusted creation of callback URL to prefer issuer address over base domain if possibe
+- Adjusted creation of callback URL to prefer issuer address over base domain if possible
 
 ## [0.1.4] - 2022-12-21
 
