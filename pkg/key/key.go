@@ -44,7 +44,7 @@ func GetConnectorDescription(connectorType string, owner string) string {
 }
 
 func GetRedirectURI(issuerAddress string) string {
-	return fmt.Sprintf("%s/callback", issuerAddress)
+	return fmt.Sprintf("https://%s/callback", issuerAddress)
 }
 
 func GetIdentifierURI(name string) string {
@@ -52,7 +52,7 @@ func GetIdentifierURI(name string) string {
 }
 
 func GetIssuerAddress(clusterDomain string) string {
-	return fmt.Sprintf("https://dex.%s", clusterDomain)
+	return fmt.Sprintf("dex.%s", clusterDomain)
 }
 
 func GetVintageClusterDomain(baseDomain string) string {

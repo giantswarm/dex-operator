@@ -583,7 +583,7 @@ func TestGetAppConfig(t *testing.T) {
 			name:                           "case 0: Get issuer URL from cluster config values",
 			managementClusterName:          "testcluster",
 			managementClusterBaseDomain:    "base.domain.io",
-			managementClusterIssuerAddress: "https://issuer.cluster.base.domain.io",
+			managementClusterIssuerAddress: "issuer.cluster.base.domain.io",
 			app:                            getExampleApp(),
 			clusterValuesConfigMap:         getClusterValuesConfigMap("baseDomain: wc.cluster.domain.io"),
 			expectedAppConfig: provider.AppConfig{
@@ -596,7 +596,7 @@ func TestGetAppConfig(t *testing.T) {
 			name:                           "case 1: Get issuer URL from management cluster issuer URL property",
 			managementClusterName:          "testcluster",
 			managementClusterBaseDomain:    "base.domain.io",
-			managementClusterIssuerAddress: "https://issuer.cluster.domain.io",
+			managementClusterIssuerAddress: "issuer.cluster.domain.io",
 			app:                            getExampleApp(),
 			expectedAppConfig: provider.AppConfig{
 				Name:          "testcluster-example-test",
