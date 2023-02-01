@@ -113,8 +113,8 @@ func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context
 
 	// Write to connector
 	connectorConfig := &microsoft.Config{
-		ClientID:     secret.clientId,
-		ClientSecret: secret.clientSecret,
+		ClientID:     secret.ClientId,
+		ClientSecret: secret.ClientSecret,
 		RedirectURI:  config.RedirectURI,
 		Tenant:       a.TenantID,
 	}
@@ -129,7 +129,7 @@ func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context
 			Name:   key.GetConnectorDescription(ProviderConnectorType, a.Owner),
 			Config: string(data[:]),
 		},
-		SecretEndDateTime: secret.endDateTime,
+		SecretEndDateTime: secret.EndDateTime,
 	}, nil
 }
 
@@ -171,11 +171,11 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 	return *id, nil
 }
 
-func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx context.Context, oldSecret string) (azureSecret, error) {
+func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx context.Context, oldSecret string) (provider.ProviderSecret, error) {
 
 	app, err := a.Client.ApplicationsById(id).Get(ctx, nil)
 	if err != nil {
-		return azureSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
+		return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
 
 	var needsCreation bool
@@ -184,7 +184,7 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 	secret, err := GetSecret(app, config.Name)
 	if err != nil {
 		if !IsNotFound(err) {
-			return azureSecret{}, microerror.Mask(err)
+			return provider.ProviderSecret{}, microerror.Mask(err)
 		}
 		needsCreation = true
 	}
@@ -199,7 +199,7 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 
 		err = a.Client.ApplicationsById(id).RemovePassword().Post(context.Background(), requestBody, nil)
 		if err != nil {
-			return azureSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 		needsCreation = true
@@ -209,7 +209,7 @@ func (a *Azure) createOrUpdateSecret(id string, config provider.AppConfig, ctx c
 	if needsCreation {
 		secret, err = a.Client.ApplicationsById(id).AddPassword().Post(ctx, GetSecretCreateRequestBody(config.Name, key.SecretValidityMonths), nil)
 		if err != nil {
-			return azureSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Created secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 	}

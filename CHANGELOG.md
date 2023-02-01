@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add github provider
 - Add use of runtime/default seccomp profile.
 
 ## [0.1.4] - 2022-12-21
