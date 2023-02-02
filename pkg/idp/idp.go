@@ -22,21 +22,23 @@ import (
 )
 
 type Config struct {
-	Client                      client.Client
-	Log                         *logr.Logger
-	App                         *v1alpha1.App
-	Providers                   []provider.Provider
-	ManagementClusterBaseDomain string
-	ManagementClusterName       string
+	Client                         client.Client
+	Log                            *logr.Logger
+	App                            *v1alpha1.App
+	Providers                      []provider.Provider
+	ManagementClusterBaseDomain    string
+	ManagementClusterName          string
+	ManagementClusterIssuerAddress string
 }
 
 type Service struct {
 	client.Client
-	log                         logr.Logger
-	app                         *v1alpha1.App
-	providers                   []provider.Provider
-	managementClusterBaseDomain string
-	managementClusterName       string
+	log                            logr.Logger
+	app                            *v1alpha1.App
+	providers                      []provider.Provider
+	managementClusterBaseDomain    string
+	managementClusterName          string
+	managementClusterIssuerAddress string
 }
 
 func New(c Config) (*Service, error) {
@@ -59,12 +61,13 @@ func New(c Config) (*Service, error) {
 		return nil, microerror.Maskf(invalidConfigError, "no management cluster name given")
 	}
 	s := &Service{
-		Client:                      c.Client,
-		app:                         c.App,
-		log:                         *c.Log,
-		providers:                   c.Providers,
-		managementClusterBaseDomain: c.ManagementClusterBaseDomain,
-		managementClusterName:       c.ManagementClusterName,
+		Client:                         c.Client,
+		app:                            c.App,
+		log:                            *c.Log,
+		providers:                      c.Providers,
+		managementClusterBaseDomain:    c.ManagementClusterBaseDomain,
+		managementClusterName:          c.ManagementClusterName,
+		managementClusterIssuerAddress: c.ManagementClusterIssuerAddress,
 	}
 
 	return s, nil
@@ -277,9 +280,9 @@ func (s *Service) connectorsNeedUpdate(oldConnectors map[string]dex.Connector, n
 }
 
 func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) {
-	var baseDomain string
+	var issuerAddress string
 	{
-		// Get the cluster values configmap if present
+		// Get the cluster values configmap if present (workload cluster format)
 		if clusterValuesIsPresent(s.app) {
 			clusterValuesConfigmap := &corev1.ConfigMap{}
 			if err := s.Get(ctx, types.NamespacedName{
@@ -289,16 +292,28 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 				return provider.AppConfig{}, err
 			}
 			// Get the base domain
-			baseDomain = getBaseDomainFromClusterValues(clusterValuesConfigmap)
+			baseDomain := getBaseDomainFromClusterValues(clusterValuesConfigmap)
+
+			// Derive issuer address from it if it exists
+			if baseDomain != "" {
+				issuerAddress = key.GetIssuerAddress(baseDomain)
+			}
 		}
-		// Vintage management cluster case
-		if baseDomain == "" {
-			baseDomain = s.managementClusterBaseDomain
+
+		// Otherwise fall back to management cluster issuer address if present
+		if issuerAddress == "" {
+			issuerAddress = s.managementClusterIssuerAddress
+		}
+
+		// If all else fails, fall back to the base domain (only works in vintage)
+		if issuerAddress == "" {
+			clusterDomain := key.GetVintageClusterDomain(s.managementClusterBaseDomain)
+			issuerAddress = key.GetIssuerAddress(clusterDomain)
 		}
 	}
 	return provider.AppConfig{
 		Name:          key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
-		RedirectURI:   key.GetRedirectURI(baseDomain),
+		RedirectURI:   key.GetRedirectURI(issuerAddress),
 		IdentifierURI: key.GetIdentifierURI(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name)),
 	}, nil
 }

@@ -43,10 +43,18 @@ func GetConnectorDescription(connectorType string, owner string) string {
 	return fmt.Sprintf("%s connector for %s", connectorType, owner)
 }
 
-func GetRedirectURI(baseDomain string) string {
-	return fmt.Sprintf("https://dex.g8s.%s/callback", baseDomain)
+func GetRedirectURI(issuerAddress string) string {
+	return fmt.Sprintf("https://%s/callback", issuerAddress)
 }
 
 func GetIdentifierURI(name string) string {
 	return fmt.Sprintf("https://dex.giantswarm.io/%s", name)
+}
+
+func GetIssuerAddress(clusterDomain string) string {
+	return fmt.Sprintf("dex.%s", clusterDomain)
+}
+
+func GetVintageClusterDomain(baseDomain string) string {
+	return fmt.Sprintf("g8s.%s", baseDomain)
 }
