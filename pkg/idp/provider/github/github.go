@@ -5,10 +5,12 @@ import (
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
+	"time"
 
 	githubconnector "github.com/dexidp/dex/connector/github"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
+	githubclient "github.com/google/go-github/v50/github"
 	"gopkg.in/yaml.v2"
 )
 
@@ -22,7 +24,7 @@ const (
 )
 
 type Github struct {
-	Client       string
+	Client       *githubclient.Client
 	Log          *logr.Logger
 	Name         string
 	Type         string
@@ -56,9 +58,9 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
 			return nil, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientSecretKey)
 		}
 	}
-	var client string
+	var client *githubclient.Client
 	{
-		client = ""
+		client = githubclient.NewClient(nil)
 	}
 	return &Github{
 		Name:         key.GetProviderName(p.Owner, p.Name),
@@ -84,20 +86,8 @@ func (g *Github) GetOwner() string {
 }
 
 func (g *Github) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
-	// Create or update application registration
-	id, err := g.createOrUpdateApplication(config, ctx)
-	if err != nil {
-		return provider.ProviderApp{}, microerror.Mask(err)
-	}
-
-	// Retrieve old secret
-	oldSecret, err := getSecretFromConfig(oldConnector.Config)
-	if err != nil {
-		return provider.ProviderApp{}, microerror.Mask(err)
-	}
-
-	//Create or update secret
-	secret, err := g.createOrUpdateSecret(id, config, ctx, oldSecret)
+	//Create application registration if needed
+	secret, err := g.createApp(config, ctx, oldConnector)
 	if err != nil {
 		return provider.ProviderApp{}, microerror.Mask(err)
 	}
@@ -132,10 +122,43 @@ func (g *Github) DeleteApp(name string, ctx context.Context) error {
 	return nil
 }
 
-func (g *Github) createOrUpdateApplication(config provider.AppConfig, ctx context.Context) (string, error) {
-	return "", nil
+func (g *Github) createApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderSecret, error) {
+	// get app
+	app, _, err := g.Client.Apps.Get(ctx, config.Name)
+	if err != nil {
+		if !IsNotFound(err) {
+			return provider.ProviderSecret{}, microerror.Mask(err)
+		}
+		//create the app
+		appConfig, _, err := g.Client.Apps.CompleteAppManifest(ctx, "")
+		if err != nil {
+			return provider.ProviderSecret{}, microerror.Mask(err)
+		}
+		return provider.ProviderSecret{
+			ClientSecret: appConfig.GetClientSecret(),
+			ClientId:     appConfig.GetClientID(),
+			EndDateTime:  time.Now().AddDate(0, 6, 0),
+		}, nil
+	}
+
+	if err := g.checkForUpdate(app, config); err != nil {
+		return provider.ProviderSecret{}, microerror.Mask(err)
+	}
+	// Retrieve old id and secret
+	oldID, oldSecret, err := getSecretFromConfig(oldConnector.Config)
+	if err != nil {
+		return provider.ProviderSecret{}, microerror.Mask(err)
+	}
+
+	return provider.ProviderSecret{
+		EndDateTime:  app.GetCreatedAt().AddDate(0, 6, 0),
+		ClientId:     oldID,
+		ClientSecret: oldSecret,
+	}, nil
 }
 
-func (g *Github) createOrUpdateSecret(id string, config provider.AppConfig, ctx context.Context, oldSecret string) (provider.ProviderSecret, error) {
-	return provider.ProviderSecret{}, nil
+func (g *Github) checkForUpdate(app *githubclient.App, config provider.AppConfig) error {
+	//Compute if update needed
+	//Somehow communicate a needed update
+	return nil
 }

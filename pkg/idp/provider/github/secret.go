@@ -6,14 +6,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func getSecretFromConfig(config string) (string, error) {
+func getSecretFromConfig(config string) (string, string, error) {
 	if config == "" {
-		return "", nil
+		return "", "", nil
 	}
 	configData := []byte(config)
 	connectorConfig := &githubconnector.Config{}
 	if err := yaml.Unmarshal(configData, connectorConfig); err != nil {
-		return "", microerror.Mask(err)
+		return "", "", microerror.Mask(err)
 	}
-	return connectorConfig.ClientSecret, nil
+	return connectorConfig.ClientID, connectorConfig.ClientSecret, nil
 }
