@@ -24,9 +24,9 @@ const (
 	OrganizationKey       = "organization"
 	TeamKey               = "team"
 	AppIDKey              = "app-id"
-	AppSecretKey          = "app-secret"
-	InstallationIDKey     = "installation-id"
 	PrivateKeyKey         = "private-key"
+	ClientIDKey           = "client-id"
+	ClientSecretKey       = "client-secret"
 )
 
 type Github struct {
@@ -42,12 +42,12 @@ type Github struct {
 }
 
 type config struct {
-	organization   string
-	team           string
-	appID          int
-	installationID int
-	privateKey     []byte
-	appSecret      string
+	organization string
+	team         string
+	appID        int64
+	privateKey   []byte
+	clientID     string
+	clientSecret string
 }
 
 func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
@@ -59,7 +59,7 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
 	}
 
 	// get the client
-	itr, err := ghinstallation.New(http.DefaultTransport, int64(c.appID), int64(c.installationID), c.privateKey)
+	itr, err := ghinstallation.NewAppsTransport(http.DefaultTransport, c.appID, c.privateKey)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
@@ -73,8 +73,8 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
 		Owner:        p.Owner,
 		Organization: c.organization,
 		Team:         c.team,
-		id:           strconv.Itoa(c.appID),
-		secret:       c.appSecret,
+		id:           c.clientID,
+		secret:       c.clientSecret,
 	}, nil
 }
 
@@ -89,7 +89,7 @@ func newGithubConfig(p provider.ProviderCredential, log *logr.Logger) (config, e
 		return config{}, microerror.Maskf(invalidConfigError, "Credential owner must not be empty.")
 	}
 
-	var organization, team, appSecret string
+	var organization, team, clientSecret, clientID string
 	{
 		if organization = p.Credentials[OrganizationKey]; organization == "" {
 			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", OrganizationKey)
@@ -97,12 +97,15 @@ func newGithubConfig(p provider.ProviderCredential, log *logr.Logger) (config, e
 		if team = p.Credentials[TeamKey]; team == "" {
 			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", TeamKey)
 		}
-		if appSecret = p.Credentials[AppSecretKey]; appSecret == "" {
-			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", AppSecretKey)
+		if clientSecret = p.Credentials[ClientSecretKey]; clientSecret == "" {
+			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientSecretKey)
+		}
+		if clientID = p.Credentials[ClientIDKey]; clientID == "" {
+			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientIDKey)
 		}
 	}
 
-	var appID, installationID int
+	var appID int
 	{
 		var err error
 		if appIDvalue := p.Credentials[AppIDKey]; appIDvalue == "" {
@@ -110,13 +113,6 @@ func newGithubConfig(p provider.ProviderCredential, log *logr.Logger) (config, e
 		} else {
 			if appID, err = strconv.Atoi(appIDvalue); err != nil {
 				return config{}, microerror.Maskf(invalidConfigError, "%s is not a valid value for %s: %v", appIDvalue, AppIDKey, err)
-			}
-		}
-		if installationIDvalue := p.Credentials[InstallationIDKey]; installationIDvalue == "" {
-			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", InstallationIDKey)
-		} else {
-			if installationID, err = strconv.Atoi(installationIDvalue); err != nil {
-				return config{}, microerror.Maskf(invalidConfigError, "%s is not a valid value for %s: %v", installationIDvalue, InstallationIDKey, err)
 			}
 		}
 	}
@@ -131,12 +127,12 @@ func newGithubConfig(p provider.ProviderCredential, log *logr.Logger) (config, e
 	}
 
 	return config{
-		organization:   organization,
-		team:           team,
-		appID:          appID,
-		installationID: installationID,
-		privateKey:     privateKey,
-		appSecret:      appSecret,
+		organization: organization,
+		team:         team,
+		appID:        int64(appID),
+		privateKey:   privateKey,
+		clientSecret: clientSecret,
+		clientID:     clientID,
 	}, nil
 }
 
@@ -247,7 +243,7 @@ func (g *Github) UpdateNeeded(app *githubclient.App, config provider.AppConfig) 
 
 func permissionsUpdateNeeded(app *githubclient.App) bool {
 	permissions := app.GetPermissions()
-	return permissions.GetEmails() == "" || permissions.GetMembers() == ""
+	return !(permissions.GetEmails() == "read" && permissions.GetMembers() == "read")
 }
 
 func callbackURIPresent(app *githubclient.App, config provider.AppConfig) bool {
