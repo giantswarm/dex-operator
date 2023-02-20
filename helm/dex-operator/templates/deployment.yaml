@@ -36,6 +36,7 @@ spec:
         - --leader-elect
         - --base-domain={{ .Values.baseDomain }}
         - --management-cluster={{ .Values.managementCluster }}
+        - --issuer-address={{ .Values.issuerAddress }}
         ports:
         - containerPort: 8080
           name: metrics
