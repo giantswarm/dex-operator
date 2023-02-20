@@ -22,6 +22,15 @@ func IsNotFound(err error) bool {
 	return microerror.Cause(err) == notFoundError
 }
 
+var missingCallbackURIError = &microerror.Error{
+	Kind: "missingCallbackURIError",
+}
+
+// IsMissingCallbackURI asserts missingCallbackURIError.
+func IsMissingCallbackURI(err error) bool {
+	return microerror.Cause(err) == missingCallbackURIError
+}
+
 var requestFailedError = &microerror.Error{
 	Kind: "requestFailedError",
 }

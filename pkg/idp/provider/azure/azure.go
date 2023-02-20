@@ -29,31 +29,23 @@ type Azure struct {
 	Type     string
 }
 
+type config struct {
+	tenantID     string
+	clientID     string
+	clientSecret string
+}
+
 func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
-	var tenantID, clientID, clientSecret string
-	{
-		if log == nil {
-			return nil, microerror.Maskf(invalidConfigError, "Logger must not be empty.")
-		}
-		if p.Name == "" {
-			return nil, microerror.Maskf(invalidConfigError, "Credential name must not be empty.")
-		}
-		if p.Owner == "" {
-			return nil, microerror.Maskf(invalidConfigError, "Credential owner must not be empty.")
-		}
-		if tenantID = p.Credentials[TenantIDKey]; tenantID == "" {
-			return nil, microerror.Maskf(invalidConfigError, "%s must not be empty.", TenantIDKey)
-		}
-		if clientID = p.Credentials[ClientIDKey]; clientID == "" {
-			return nil, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientIDKey)
-		}
-		if clientSecret = p.Credentials[ClientSecretKey]; clientSecret == "" {
-			return nil, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientSecretKey)
-		}
+
+	// get configuration from credentials
+	c, err := newAzureConfig(p, log)
+	if err != nil {
+		return nil, microerror.Mask(err)
 	}
+
 	var client *msgraphsdk.GraphServiceClient
 	{
-		cred, err := azidentity.NewClientSecretCredential(tenantID, clientID, clientSecret, nil)
+		cred, err := azidentity.NewClientSecretCredential(c.tenantID, c.clientID, c.clientSecret, nil)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
@@ -76,7 +68,38 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 		Type:     ProviderConnectorType,
 		Client:   client,
 		Owner:    p.Owner,
-		TenantID: tenantID,
+		TenantID: c.tenantID,
+	}, nil
+}
+
+func newAzureConfig(p provider.ProviderCredential, log *logr.Logger) (config, error) {
+	if log == nil {
+		return config{}, microerror.Maskf(invalidConfigError, "Logger must not be empty.")
+	}
+	if p.Name == "" {
+		return config{}, microerror.Maskf(invalidConfigError, "Credential name must not be empty.")
+	}
+	if p.Owner == "" {
+		return config{}, microerror.Maskf(invalidConfigError, "Credential owner must not be empty.")
+	}
+
+	var tenantID, clientID, clientSecret string
+	{
+		if tenantID = p.Credentials[TenantIDKey]; tenantID == "" {
+			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", TenantIDKey)
+		}
+		if clientID = p.Credentials[ClientIDKey]; clientID == "" {
+			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientIDKey)
+		}
+		if clientSecret = p.Credentials[ClientSecretKey]; clientSecret == "" {
+			return config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientSecretKey)
+		}
+	}
+
+	return config{
+		tenantID:     tenantID,
+		clientID:     clientID,
+		clientSecret: clientSecret,
 	}, nil
 }
 
