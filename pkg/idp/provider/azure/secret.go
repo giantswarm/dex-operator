@@ -48,7 +48,7 @@ func secretExpired(secret models.PasswordCredentialable) bool {
 	if bestBefore == nil {
 		return true
 	}
-	if bestBefore.Before(time.Now().Add(24 * time.Hour)) {
+	if bestBefore.Before(time.Now().Add(10 * 24 * time.Hour)) {
 		return true
 	}
 	return false

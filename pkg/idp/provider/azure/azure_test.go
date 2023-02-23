@@ -5,6 +5,7 @@ import (
 	"giantswarm/dex-operator/pkg/key"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -71,6 +72,45 @@ func TestComputeAppUpdatePatch(t *testing.T) {
 			updateNeeded, _ := a.computeAppUpdatePatch(getTestConfig(), tc.app, models.NewApplication())
 			if updateNeeded != tc.updateNeeded {
 				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
+			}
+		})
+	}
+}
+
+func TestSecretExpired(t *testing.T) {
+	testCases := []struct {
+		name           string
+		expirationDate time.Time
+		expired        bool
+	}{
+		{
+			name:           "case 0",
+			expirationDate: time.Now(),
+			expired:        true,
+		},
+		{
+			name:           "case 1",
+			expirationDate: time.Now().Add(7 * 24 * time.Hour),
+			expired:        true,
+		},
+		{
+			name:           "case 2",
+			expirationDate: time.Now().Add(14 * 24 * time.Hour),
+			expired:        false,
+		},
+		{
+			name:           "case 3",
+			expirationDate: time.Now().Add(-1 * 24 * time.Hour),
+			expired:        true,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			s := models.NewPasswordCredential()
+			s.SetEndDateTime(&tc.expirationDate)
+			if secretExpired(s) != tc.expired {
+				t.Fatalf("Expected %v, got %v", tc.expired, secretExpired(s))
 			}
 		})
 	}
