@@ -2,6 +2,7 @@ package mockprovider
 
 import (
 	"context"
+	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
@@ -64,5 +65,15 @@ func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.
 }
 
 func (m *MockProvider) DeleteApp(name string, ctx context.Context) error {
+	return nil
+}
+
+func (m *MockProvider) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (string, error) {
+	return fmt.Sprintf(`
+    - credentials: |-
+        mock: test
+      name: %s`, ProviderName), nil
+}
+func (m *MockProvider) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
 	return nil
 }

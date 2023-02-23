@@ -21,6 +21,7 @@ const (
 	DefaultName           = "giantswarm-dex"
 	Claim                 = "groups"
 	Audience              = "AzureADMyOrg"
+	AppName               = "dex-operator"
 )
 
 func ProviderScope() []string {
@@ -166,11 +167,11 @@ func getClaim() *models.OptionalClaim {
 	return claim
 }
 
-func GetSecretCreateRequestBody(name string, secretValidityMonths int) *addpassword.AddPasswordPostRequestBody {
+func GetSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {
 	keyCredential := models.NewPasswordCredential()
-	keyCredential.SetDisplayName(&name)
+	keyCredential.SetDisplayName(&config.Name)
 
-	validUntil := time.Now().AddDate(0, secretValidityMonths, 0)
+	validUntil := time.Now().AddDate(0, config.SecretValidityMonths, 0)
 	keyCredential.SetEndDateTime(&validUntil)
 
 	secret := addpassword.NewAddPasswordPostRequestBody()

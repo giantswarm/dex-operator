@@ -31,30 +31,21 @@ func TestCreateProviderApps(t *testing.T) {
 		{
 			name:      "case 0",
 			providers: []provider.Provider{getExampleProvider(key.OwnerGiantswarm)},
-			appConfig: provider.AppConfig{
-				RedirectURI: `hello.com`,
-				Name:        "hello",
-			},
+			appConfig: provider.GetTestConfig(),
 		},
 		{
 			name: "case 1",
 			providers: []provider.Provider{
 				getExampleProvider(key.OwnerGiantswarm),
 				getExampleProvider(key.OwnerCustomer)},
-			appConfig: provider.AppConfig{
-				RedirectURI: `hello.com`,
-				Name:        "hello",
-			},
+			appConfig: provider.GetTestConfig(),
 		},
 		{
 			name: "case 2",
 			providers: []provider.Provider{
 				getExampleProvider(key.OwnerGiantswarm),
 				getExampleProvider("somethingelse")},
-			appConfig: provider.AppConfig{
-				RedirectURI: `hello.com`,
-				Name:        "hello",
-			},
+			appConfig:   provider.GetTestConfig(),
 			expectError: true,
 		},
 	}
@@ -587,9 +578,10 @@ func TestGetAppConfig(t *testing.T) {
 			app:                            getExampleApp(),
 			clusterValuesConfigMap:         getClusterValuesConfigMap("baseDomain: wc.cluster.domain.io"),
 			expectedAppConfig: provider.AppConfig{
-				Name:          "testcluster-example-test",
-				RedirectURI:   "https://dex.wc.cluster.domain.io/callback",
-				IdentifierURI: "https://dex.giantswarm.io/testcluster-example-test",
+				Name:                 "testcluster-example-test",
+				RedirectURI:          "https://dex.wc.cluster.domain.io/callback",
+				IdentifierURI:        "https://dex.giantswarm.io/testcluster-example-test",
+				SecretValidityMonths: key.SecretValidityMonths,
 			},
 		},
 		{
@@ -599,9 +591,10 @@ func TestGetAppConfig(t *testing.T) {
 			managementClusterIssuerAddress: "issuer.cluster.domain.io",
 			app:                            getExampleApp(),
 			expectedAppConfig: provider.AppConfig{
-				Name:          "testcluster-example-test",
-				RedirectURI:   "https://issuer.cluster.domain.io/callback",
-				IdentifierURI: "https://dex.giantswarm.io/testcluster-example-test",
+				Name:                 "testcluster-example-test",
+				RedirectURI:          "https://issuer.cluster.domain.io/callback",
+				IdentifierURI:        "https://dex.giantswarm.io/testcluster-example-test",
+				SecretValidityMonths: key.SecretValidityMonths,
 			},
 		},
 		{
@@ -610,9 +603,10 @@ func TestGetAppConfig(t *testing.T) {
 			managementClusterBaseDomain: "base.domain.io",
 			app:                         getExampleApp(),
 			expectedAppConfig: provider.AppConfig{
-				Name:          "testcluster-example-test",
-				RedirectURI:   "https://dex.g8s.base.domain.io/callback",
-				IdentifierURI: "https://dex.giantswarm.io/testcluster-example-test",
+				Name:                 "testcluster-example-test",
+				RedirectURI:          "https://dex.g8s.base.domain.io/callback",
+				IdentifierURI:        "https://dex.giantswarm.io/testcluster-example-test",
+				SecretValidityMonths: key.SecretValidityMonths,
 			},
 		},
 	}
