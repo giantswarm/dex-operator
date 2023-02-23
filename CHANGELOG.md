@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Rotate azure credentials 10 days before expiry
 - Added a new config parameter for issuer address
 - Adjusted creation of callback URL to prefer issuer address over base domain if possible
+- Allowed more volumes in the PSP to sync with restricted.
 
 ## [0.1.4] - 2022-12-21
 
