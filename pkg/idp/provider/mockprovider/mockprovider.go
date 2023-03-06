@@ -2,7 +2,6 @@ package mockprovider
 
 import (
 	"context"
-	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/key"
@@ -34,6 +33,10 @@ func New(p provider.ProviderCredential) (*MockProvider, error) {
 
 func (m *MockProvider) GetName() string {
 	return m.Name
+}
+
+func (m *MockProvider) GetProviderName() string {
+	return ProviderName
 }
 
 func (m *MockProvider) GetType() string {
@@ -69,10 +72,8 @@ func (m *MockProvider) DeleteApp(name string, ctx context.Context) error {
 }
 
 func (m *MockProvider) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (string, error) {
-	return fmt.Sprintf(`
-    - credentials: |-
-        mock: test
-      name: %s`, ProviderName), nil
+	return `client-id: abc
+client-secret: test`, nil
 }
 func (m *MockProvider) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
 	return nil

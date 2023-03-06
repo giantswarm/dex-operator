@@ -17,6 +17,7 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications/item/removepassword"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/skratchdot/open-golang/open"
 	"gopkg.in/yaml.v2"
 )
 
@@ -107,6 +108,10 @@ func newAzureConfig(p provider.ProviderCredential, log *logr.Logger) (Config, er
 
 func (a *Azure) GetName() string {
 	return a.Name
+}
+
+func (a *Azure) GetProviderName() string {
+	return ProviderName
 }
 
 func (a *Azure) GetType() string {
@@ -336,44 +341,78 @@ func (a *Azure) computeAppUpdatePatch(config provider.AppConfig, app models.Appl
 // improve output
 // include new service principal creation
 func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (string, error) {
-	app, err := a.GetApp(AppName)
+	ctx := context.Background()
+	app, err := a.GetApp(config.Name)
 	if err != nil {
-		return "", microerror.Mask(err)
+		if !IsNotFound(err) {
+			return "", microerror.Mask(err)
+		}
+		// Create app if it does not exist
+		app = models.NewApplication()
+		app.SetDisplayName(&config.Name)
+
+		// Set permissions from parent app
+		parentApp, err := a.GetApp(DexOperatorName)
+		if err != nil {
+			return "", microerror.Mask(err)
+		}
+		if needsUpdate, patch := computePermissionsUpdatePatch(app, parentApp); needsUpdate {
+			app.SetRequiredResourceAccess(patch)
+		}
+		fmt.Print("creating app")
+		app, err = a.Client.Applications().Post(ctx, app, nil)
+		if err != nil {
+			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
+		}
+		a.Log.Info(fmt.Sprintf("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
+		if app.GetAppId() == nil {
+			return "", microerror.Maskf(notFoundError, "Could not find client ID of app %s.", config.Name)
+		}
+		fmt.Print("created app")
+		consentURL := getAdminConsentUrl(a.TenantID, *app.GetAppId())
+		a.Log.Info(fmt.Sprintf("Admin consent is needed. Please grant under the following URL: %s", consentURL))
+		a.Log.Info("Please be aware that it can take a while for the app to become available. Wait a moment before logging in and granting consent.")
+		err = open.Start(consentURL)
+		if err != nil {
+			return "", microerror.Mask(err)
+		}
 	}
+
 	id := app.GetId()
 	if id == nil {
-		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", AppName)
+		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
 	}
-	secret, err := a.CreateOrUpdateSecret(*id, config, context.Background(), "", true)
+	fmt.Print("create secret")
+	secret, err := a.CreateOrUpdateSecret(*id, config, ctx, "", true)
 	if err != nil {
 		return "", microerror.Mask(err)
 	}
-	return fmt.Sprintf(`oidc:
-  giantswarm:
-    providers:
-    - credentials: |-
-        client-id: %s
-        client-secret: %s
-        tenant-id: %s
-      name: %s`, secret.ClientId, secret.ClientSecret, a.TenantID, ProviderName), nil
+	return fmt.Sprintf(`client-id: %s
+client-secret: %s
+tenant-id: %s`, secret.ClientId, secret.ClientSecret, a.TenantID), nil
 }
 
 func (a *Azure) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
-	app, err := a.GetApp(AppName)
-	if err != nil {
-		return microerror.Mask(err)
-	}
-	id := app.GetId()
-	if id == nil {
-		return microerror.Maskf(notFoundError, "Could not find ID of app %s.", AppName)
-	}
-	for _, c := range app.GetPasswordCredentials() {
-		if credentialName := c.GetDisplayName(); credentialName != nil {
-			if *credentialName == config.Name && secretChanged(c, a.clientSecret) {
-				if err = a.DeleteSecret(context.Background(), c.GetKeyId(), *id); err != nil {
-					return microerror.Mask(err)
+	for _, name := range []string{config.Name, DexOperatorName} {
+		app, err := a.GetApp(name)
+		if err != nil {
+			if !IsNotFound(err) {
+				return microerror.Mask(err)
+			}
+			continue
+		}
+		id := app.GetId()
+		if id == nil {
+			return microerror.Maskf(notFoundError, "Could not find ID of app %s.", name)
+		}
+		for _, c := range app.GetPasswordCredentials() {
+			if credentialName := c.GetDisplayName(); credentialName != nil {
+				if *credentialName == config.Name && secretChanged(c, a.clientSecret) {
+					if err = a.DeleteSecret(context.Background(), c.GetKeyId(), *id); err != nil {
+						return microerror.Mask(err)
+					}
+					a.Log.Info(fmt.Sprintf("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", c.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 				}
-				a.Log.Info(fmt.Sprintf("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", c.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 			}
 		}
 	}

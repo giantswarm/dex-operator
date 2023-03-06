@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"os"
 	"time"
@@ -17,6 +16,7 @@ type Provider interface {
 	GetCredentialsForAuthenticatedApp(AppConfig) (string, error)
 	CleanCredentialsForAuthenticatedApp(AppConfig) error
 	GetName() string
+	GetProviderName() string
 	GetOwner() string
 	GetType() string
 }
@@ -58,24 +58,4 @@ func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 	}
 
 	return *credentials, nil
-}
-
-func GetConfigCredentialsForProviders(config AppConfig, providers []Provider) error {
-	for _, p := range providers {
-		credentials, err := p.GetCredentialsForAuthenticatedApp(config)
-		if err != nil {
-			return err
-		}
-		fmt.Print(credentials)
-	}
-	return nil
-}
-func CleanConfigCredentialsForProviders(config AppConfig, providers []Provider) error {
-	for _, p := range providers {
-		err := p.CleanCredentialsForAuthenticatedApp(config)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

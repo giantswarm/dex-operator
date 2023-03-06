@@ -4,99 +4,184 @@ import (
 	"fmt"
 	"giantswarm/dex-operator/controllers"
 	"giantswarm/dex-operator/pkg/idp/provider"
+
 	"os"
 
 	"github.com/giantswarm/microerror"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 )
 
 const (
 	IncludeAll   = "all"
 	CleanAction  = "clean"
+	UpdateAction = "update"
 	CreateAction = "create"
 )
 
-type Config struct {
-	Oidc Oidc `json:"oidc"`
-}
-type Oidc struct {
-	Giantswarm *OidcOwner `json:"giantswarm,omitempty"`
-	Customer   *OidcOwner `json:"customer,omitempty"`
-}
-type OidcOwner struct {
-	Providers []OidcOwnerProvider `json:"providers,omitempty"`
-}
-type OidcOwnerProvider struct {
-	Name        string `yaml:"name"`
-	Credentials string `yaml:"credentials"`
+type SetupConfig struct {
+	Installation   string
+	CredentialFile string
+	OutputFile     string
+	Provider       string
+	Action         string
 }
 
 type Setup struct {
-	Installation   string
-	CredentialFile string
-	Provider       string
-	Action         string
-	AppName        string
+	providers  []provider.Provider
+	appConfig  provider.AppConfig
+	config     Config
+	action     string
+	outputFile string
+	log        logr.Logger
 }
 
-func getProvidersFromConfig(fileLocation string, include string) ([]provider.Provider, error) {
-	credentials := &Config{}
-
-	file, err := os.ReadFile(fileLocation)
+func New(setup SetupConfig) (*Setup, error) {
+	zapLogger, err := zap.NewProduction()
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
+	log := zapr.NewLogger(zapLogger)
 
-	if err := yaml.Unmarshal(file, credentials); err != nil {
+	config, err := GetConfigFromFile(setup.CredentialFile)
+	if err != nil {
 		return nil, microerror.Mask(err)
 	}
+	providers, err := getProvidersFromConfig(config, setup.Provider, log)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	appConfig := getAppConfigForInstallation(setup.Installation)
+
+	return &Setup{
+		providers:  providers,
+		appConfig:  appConfig,
+		action:     setup.Action,
+		config:     config,
+		outputFile: setup.OutputFile,
+		log:        log,
+	}, nil
+
+}
+
+func (s *Setup) Run() error {
+	switch s.action {
+	case CleanAction:
+		err := s.CleanConfigCredentialsForProviders()
+		if err != nil {
+			microerror.Mask(err)
+		}
+		return nil
+	case UpdateAction:
+		err := s.GetConfigCredentialsForProviders()
+		if err != nil {
+			microerror.Mask(err)
+		}
+		err = s.WriteToFile()
+		if err != nil {
+			microerror.Mask(err)
+		}
+	case CreateAction:
+		err := s.GetConfigCredentialsForProviders()
+		if err != nil {
+			microerror.Mask(err)
+		}
+		err = s.WriteToFile()
+		if err != nil {
+			microerror.Mask(err)
+		}
+	default:
+		return fmt.Errorf("action %s is not known", s.action)
+	}
+	return nil
+}
+
+func (s *Setup) GetConfigCredentialsForProviders() error {
+	config := []OidcOwnerProvider{}
+	for _, p := range s.providers {
+		credentials, err := p.GetCredentialsForAuthenticatedApp(s.appConfig)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		config = append(config, OidcOwnerProvider{Name: p.GetProviderName(), Credentials: credentials})
+	}
+	if s.action == UpdateAction {
+		s.updateConfig(config)
+	}
+	if s.action == CreateAction {
+		s.createConfig(config)
+	}
+	return nil
+}
+func (s *Setup) CleanConfigCredentialsForProviders() error {
+	for _, p := range s.providers {
+		err := p.CleanCredentialsForAuthenticatedApp(s.appConfig)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+	}
+	return nil
+}
+
+func (s *Setup) WriteToFile() error {
+	data, err := yaml.Marshal(s.config)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	return os.WriteFile(s.outputFile, data, 0644)
+}
+
+func getProvidersFromConfig(credentials Config, include string, log logr.Logger) ([]provider.Provider, error) {
 
 	providers := []provider.Provider{}
-	{
-		for _, p := range credentials.Oidc.Giantswarm.Providers {
-			if include == IncludeAll || include == p.Name {
-				c := map[string]string{}
-				if err := yaml.Unmarshal([]byte(p.Credentials), &c); err != nil {
-					return nil, microerror.Mask(err)
-				}
-				provider, err := controllers.NewProvider(provider.ProviderCredential{Name: p.Name, Owner: "giantswarm", Credentials: c}, provider.GetTestLogger())
-				if err != nil {
-					return nil, microerror.Mask(err)
-				}
-				providers = append(providers, provider)
+	// We are only returning the giantswarm providers. Either all or a specific one.
+	for _, p := range credentials.Oidc.Giantswarm.Providers {
+		if include == IncludeAll || include == p.Name {
+			c := map[string]string{}
+			if err := yaml.Unmarshal([]byte(p.Credentials), &c); err != nil {
+				return nil, microerror.Mask(err)
 			}
+			provider, err := controllers.NewProvider(provider.ProviderCredential{Name: p.Name, Owner: "giantswarm", Credentials: c}, &log)
+			if err != nil {
+				return nil, microerror.Mask(err)
+			}
+			if providerAlreadyPresent(providers, provider) {
+				return nil, microerror.Mask(fmt.Errorf("more than one provider with name %s", provider.GetName()))
+			}
+			providers = append(providers, provider)
 		}
 	}
 	return providers, nil
 }
 
-func CredentialSetup(setup Setup) error {
-	providers, err := getProvidersFromConfig(setup.CredentialFile, setup.Provider)
-	if err != nil {
-		return err
-	}
-	config := getAppConfig(setup.AppName, setup.Installation)
-	switch setup.Action {
-	case CleanAction:
-		err = provider.CleanConfigCredentialsForProviders(config, providers)
-		if err != nil {
-			return err
+func (s *Setup) updateConfig(newCredentials []OidcOwnerProvider) {
+	for i, p := range s.config.Oidc.Giantswarm.Providers {
+		for _, c := range newCredentials {
+			if p.Name == c.Name {
+				s.config.Oidc.Giantswarm.Providers[i].Credentials = c.Credentials
+			}
 		}
-		return nil
-	case CreateAction:
-		err = provider.GetConfigCredentialsForProviders(config, providers)
-		if err != nil {
-			return err
-		}
-		return nil
-	default:
-		return fmt.Errorf("action %s is not known.", setup.Action)
 	}
 }
+func (s *Setup) createConfig(newCredentials []OidcOwnerProvider) {
+	s.config = Config{}
+	s.config.Oidc.Giantswarm.Providers = newCredentials
+}
 
-func getAppConfig(appName string, installation string) provider.AppConfig {
+func providerAlreadyPresent(providers []provider.Provider, provider provider.Provider) bool {
+	for _, p := range providers {
+		if p.GetName() == provider.GetName() {
+			return true
+		}
+	}
+	return false
+}
+
+func getAppConfigForInstallation(installation string) provider.AppConfig {
 	return provider.AppConfig{
-		Name:                 fmt.Sprintf("%s-%s", appName, installation),
+		Name:                 fmt.Sprintf("dex-operator-%s", installation),
 		SecretValidityMonths: 6,
 	}
 }

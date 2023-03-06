@@ -11,12 +11,14 @@ require (
 	github.com/giantswarm/k8smetadata v0.15.0
 	github.com/giantswarm/microerror v0.4.0
 	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/zapr v1.2.3
 	github.com/google/go-github/v50 v50.0.0
 	github.com/microsoft/kiota-authentication-azure-go v0.5.0
 	github.com/microsoftgraph/msgraph-sdk-go v0.44.0
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
 	github.com/prometheus/client_golang v1.13.0
+	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	go.uber.org/zap v1.23.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.25.3
@@ -49,7 +51,6 @@ require (
 	github.com/go-kit/log v0.2.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect

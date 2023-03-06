@@ -140,6 +140,10 @@ func (g *Github) GetName() string {
 	return g.Name
 }
 
+func (g *Github) GetProviderName() string {
+	return ProviderName
+}
+
 func (g *Github) GetType() string {
 	return g.Type
 }
@@ -254,15 +258,12 @@ func callbackURIPresent(app *githubclient.App, config provider.AppConfig) bool {
 func (g *Github) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (string, error) {
 	// TODO: manifest flow
 	c := Config{}
-	return fmt.Sprintf(`
-    - credentials: |-
-        client-id: %s
-        client-secret: %s
-        organization: %s
-        team: %s
-        app-id: %v
-        private-key: %s
-      name: github`, c.ClientID, c.ClientSecret, c.Organization, c.Team, c.AppID, c.PrivateKey), nil
+	return fmt.Sprintf(`client-id: %s
+client-secret: %s
+organization: %s
+team: %s
+app-id: %v
+private-key: %s`, c.ClientID, c.ClientSecret, c.Organization, c.Team, c.AppID, c.PrivateKey), nil
 }
 func (g *Github) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
 	// TODO open for deletion?

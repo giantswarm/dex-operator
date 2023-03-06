@@ -21,7 +21,7 @@ const (
 	DefaultName           = "giantswarm-dex"
 	Claim                 = "groups"
 	Audience              = "AzureADMyOrg"
-	AppName               = "dex-operator"
+	DexOperatorName       = "dex-operator"
 )
 
 func ProviderScope() []string {
@@ -178,4 +178,8 @@ func GetSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPassw
 	secret.SetPasswordCredential(keyCredential)
 
 	return secret
+}
+
+func getAdminConsentUrl(organization string, clientID string) string {
+	return fmt.Sprintf("https://login.microsoftonline.com/%s/adminconsent?client_id=%s", organization, clientID)
 }
