@@ -71,26 +71,26 @@ func (s *Setup) Run() error {
 	case CleanAction:
 		err := s.CleanConfigCredentialsForProviders()
 		if err != nil {
-			microerror.Mask(err)
+			return microerror.Mask(err)
 		}
 		return nil
 	case UpdateAction:
 		err := s.GetConfigCredentialsForProviders()
 		if err != nil {
-			microerror.Mask(err)
+			return microerror.Mask(err)
 		}
 		err = s.WriteToFile()
 		if err != nil {
-			microerror.Mask(err)
+			return microerror.Mask(err)
 		}
 	case CreateAction:
 		err := s.GetConfigCredentialsForProviders()
 		if err != nil {
-			microerror.Mask(err)
+			return microerror.Mask(err)
 		}
 		err = s.WriteToFile()
 		if err != nil {
-			microerror.Mask(err)
+			return microerror.Mask(err)
 		}
 	default:
 		return fmt.Errorf("action %s is not known", s.action)
@@ -130,7 +130,7 @@ func (s *Setup) WriteToFile() error {
 	if err != nil {
 		return microerror.Mask(err)
 	}
-	return os.WriteFile(s.outputFile, data, 0644)
+	return os.WriteFile(s.outputFile, data, 0600)
 }
 
 func getProvidersFromConfig(credentials Config, include string, log logr.Logger) ([]provider.Provider, error) {

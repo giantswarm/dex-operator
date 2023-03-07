@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `setup` package with functionality to create dex-operator credentials
+- Add credential creation, update and cleanup functionality to azure provider
 - Add github provider
 - Add use of runtime/default seccomp profile.
 

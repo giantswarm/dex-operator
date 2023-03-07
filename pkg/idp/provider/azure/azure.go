@@ -359,7 +359,6 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (st
 		if needsUpdate, patch := computePermissionsUpdatePatch(app, parentApp); needsUpdate {
 			app.SetRequiredResourceAccess(patch)
 		}
-		fmt.Print("creating app")
 		app, err = a.Client.Applications().Post(ctx, app, nil)
 		if err != nil {
 			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
@@ -368,7 +367,6 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (st
 		if app.GetAppId() == nil {
 			return "", microerror.Maskf(notFoundError, "Could not find client ID of app %s.", config.Name)
 		}
-		fmt.Print("created app")
 		consentURL := getAdminConsentUrl(a.TenantID, *app.GetAppId())
 		a.Log.Info(fmt.Sprintf("Admin consent is needed. Please grant under the following URL: %s", consentURL))
 		a.Log.Info("Please be aware that it can take a while for the app to become available. Wait a moment before logging in and granting consent.")
@@ -382,7 +380,6 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (st
 	if id == nil {
 		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
 	}
-	fmt.Print("create secret")
 	secret, err := a.CreateOrUpdateSecret(*id, config, ctx, "", true)
 	if err != nil {
 		return "", microerror.Mask(err)
