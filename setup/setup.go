@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"giantswarm/dex-operator/controllers"
 	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/key"
 
 	"os"
 
@@ -27,6 +28,7 @@ type SetupConfig struct {
 	OutputFile     string
 	Provider       string
 	Action         string
+	Domain         string
 }
 
 type Setup struct {
@@ -53,7 +55,7 @@ func New(setup SetupConfig) (*Setup, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	appConfig := getAppConfigForInstallation(setup.Installation)
+	appConfig := getAppConfigForInstallation(setup.Installation, setup.Domain)
 
 	return &Setup{
 		providers:  providers,
@@ -179,9 +181,11 @@ func providerAlreadyPresent(providers []provider.Provider, provider provider.Pro
 	return false
 }
 
-func getAppConfigForInstallation(installation string) provider.AppConfig {
+func getAppConfigForInstallation(installation string, domain string) provider.AppConfig {
 	return provider.AppConfig{
-		Name:                 fmt.Sprintf("dex-operator-%s", installation),
+		Name:                 key.GetDexOperatorName(installation),
 		SecretValidityMonths: 6,
+		IdentifierURI:        key.GetIdentifierURI(key.GetDexOperatorName(installation)),
+		RedirectURI:          key.GetRedirectURI(key.GetIssuerAddress(domain)),
 	}
 }

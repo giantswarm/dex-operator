@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/idp/provider/github/manifest"
 	"giantswarm/dex-operator/pkg/key"
 	"net/http"
 	"strconv"
@@ -255,9 +256,31 @@ func callbackURIPresent(app *githubclient.App, config provider.AppConfig) bool {
 	return true
 }
 
+func (g *Github) CreateApp(config provider.AppConfig) (*githubclient.AppConfig, error) {
+	c := manifest.Config{
+		AppConfig:    config,
+		Port:         0,
+		Host:         "github.com",
+		Organization: g.Organization,
+	}
+	return manifest.CreateGithubApp(c)
+}
+func (g *Github) GetAppData(app *githubclient.AppConfig) Config {
+	return Config{
+		ClientID:     app.GetClientID(),
+		ClientSecret: app.GetClientSecret(),
+		PrivateKey:   []byte(app.GetPEM()),
+		AppID:        app.GetID(),
+		Organization: g.Organization,
+		Team:         g.Team,
+	}
+}
 func (g *Github) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (string, error) {
-	// TODO: manifest flow
-	c := Config{}
+	app, err := g.CreateApp(config)
+	if err != nil {
+		return "", microerror.Mask(err)
+	}
+	c := g.GetAppData(app)
 	return fmt.Sprintf(`client-id: %s
 client-secret: %s
 organization: %s

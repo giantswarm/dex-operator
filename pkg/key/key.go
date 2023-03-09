@@ -58,3 +58,7 @@ func GetIssuerAddress(clusterDomain string) string {
 func GetVintageClusterDomain(baseDomain string) string {
 	return fmt.Sprintf("g8s.%s", baseDomain)
 }
+
+func GetDexOperatorName(installation string) string {
+	return fmt.Sprintf("dex-operator-%s", installation)
+}

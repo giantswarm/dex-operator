@@ -1,0 +1,7 @@
+{{ define "content" }}
+<form action="{{ .URL }}" method="post">
+  <label>Create a GitHub App Manifest:</label>
+  <textarea cols="72" rows="25" name="manifest" id="manifest">{{ .Content }}</textarea><br>
+ <input type="submit" value="Submit">
+</form>
+{{ end }}
