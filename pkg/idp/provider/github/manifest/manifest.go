@@ -5,20 +5,25 @@ import (
 )
 
 type Manifest struct {
-	Name        string            `json:"name"`
-	Permissions map[string]string `json:"default_permissions,omitempty"`
-	RedirectURL string            `json:"redirect_url"`
-	URL         string            `json:"url"`
+	Name         string            `json:"name"`
+	Permissions  map[string]string `json:"default_permissions,omitempty"`
+	RedirectURL  string            `json:"redirect_url"`
+	CallbackURLs []string          `json:"callback_urls"`
+	URL          string            `json:"url"`
 }
 
 func NewManifest(config provider.AppConfig) Manifest {
 	return Manifest{
-		Name:        config.Name,
-		Permissions: getPermissions(),
-		URL:         config.IdentifierURI,
+		Name:         config.Name,
+		Permissions:  getPermissions(),
+		URL:          config.IdentifierURI,
+		CallbackURLs: []string{config.RedirectURI},
 	}
 }
 
 func getPermissions() map[string]string {
-	return map[string]string{}
+	return map[string]string{
+		"members": "read",
+		"emails":  "read",
+	}
 }

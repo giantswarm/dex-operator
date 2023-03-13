@@ -5,10 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"giantswarm/dex-operator/pkg/idp/provider"
-
 	"net"
+	"time"
+
 	"net/http"
 	"net/url"
 
@@ -17,19 +19,21 @@ import (
 )
 
 type Config struct {
-	AppConfig    provider.AppConfig
-	Port         int
-	Host         string
-	Organization string
+	AppConfig         provider.AppConfig
+	Port              int
+	Host              string
+	ReadHeaderTimeout time.Duration
+	Organization      string
 }
 
 type Flow struct {
-	manifest Manifest
-	url      url.URL
-	state    string
-	result   *githubclient.AppConfig
-	renderer *Renderer
-	port     int
+	manifest          Manifest
+	url               url.URL
+	state             string
+	readHeaderTimeout time.Duration
+	result            *githubclient.AppConfig
+	renderer          *Renderer
+	port              int
 }
 
 func newFlow(c Config) (*Flow, error) {
@@ -38,12 +42,20 @@ func newFlow(c Config) (*Flow, error) {
 		return nil, err
 	}
 
+	if c.Port == 0 {
+		c.Port, err = findAvailablePort()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Flow{
-		state:    state,
-		url:      getURL(c.Host, c.Organization, state),
-		manifest: NewManifest(c.AppConfig),
-		renderer: newRenderer(),
-		port:     c.Port,
+		state:             state,
+		url:               getURL(c.Host, c.Organization, state),
+		manifest:          NewManifest(c.AppConfig),
+		renderer:          newRenderer(),
+		port:              c.Port,
+		readHeaderTimeout: c.ReadHeaderTimeout,
 	}, nil
 }
 
@@ -60,71 +72,80 @@ func CreateGithubApp(c Config) (*githubclient.AppConfig, error) {
 }
 
 func (f *Flow) run() error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", f.port))
-	if err != nil {
-		return err
-	}
-	serverURL := "http://" + listener.Addr().String()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Create a form with the app manifest that is to be submitted to github by the user
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// After the manifest is created in github we need to redirect back to complete the flow
-		f.manifest.RedirectURL = fmt.Sprintf("http://%s/retrieve", r.Host)
+	var server *http.Server
+	{
+		mux := http.NewServeMux()
+		// Create a form with the app manifest that is to be submitted to github by the user
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			// After the manifest is created in github we need to redirect back to complete the flow
+			f.manifest.RedirectURL = fmt.Sprintf("http://%s/retrieve", r.Host)
 
-		jsonManifest, err := json.MarshalIndent(f.manifest, "", "  ")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		template := Template{
-			URL:     f.url.String(),
-			Content: string(jsonManifest),
-		}
-		err = f.renderer.Render("submit.tmpl", w, template)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
-	// Retrieves the app code after redirecting back to the local server
-	http.HandleFunc("/retrieve", func(w http.ResponseWriter, r *http.Request) {
-		if f.state != r.URL.Query().Get("state") {
-			http.Error(w, "state does not match", http.StatusInternalServerError)
-			return
-		}
-		code := r.URL.Query().Get("code")
-		if code == "" {
-			http.Error(w, "code was not found", http.StatusInternalServerError)
-			return
-		}
-		client := githubclient.NewClient(nil)
-		app, resp, err := client.Apps.CompleteAppManifest(ctx, code)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to complete github app manifest: %v", err.Error()), http.StatusInternalServerError)
-		}
-		if resp.StatusCode != http.StatusCreated {
-			http.Error(w, fmt.Sprintf("failed to complete github app manifest. Got response %v", resp), http.StatusInternalServerError)
-		}
-		f.result = app
-		http.Redirect(w, r, "/complete", http.StatusFound)
-	})
-	// The flow is completed, show the user some sort of success and cancel the context
-	http.HandleFunc("/complete", func(w http.ResponseWriter, r *http.Request) {
-		template := Template{
-			Content: f.manifest.Name,
-		}
-		if err := f.renderer.Render("complete.tmpl", w, template); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		cancel()
-	})
+			jsonManifest, err := json.MarshalIndent(f.manifest, "", "  ")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			template := Template{
+				URL:     f.url.String(),
+				Content: string(jsonManifest),
+			}
+			err = f.renderer.Render("submit.tmpl", w, template)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		})
+		// Retrieves the app code after redirecting back to the local server
+		mux.HandleFunc("/retrieve", func(w http.ResponseWriter, r *http.Request) {
+			if f.state != r.URL.Query().Get("state") {
+				http.Error(w, "state does not match", http.StatusInternalServerError)
+				return
+			}
+			code := r.URL.Query().Get("code")
+			if code == "" {
+				http.Error(w, "code was not found", http.StatusInternalServerError)
+				return
+			}
+			client := githubclient.NewClient(nil)
+			app, resp, err := client.Apps.CompleteAppManifest(ctx, code)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("failed to complete github app manifest: %v", err.Error()), http.StatusInternalServerError)
+			}
+			if resp.StatusCode != http.StatusCreated {
+				http.Error(w, fmt.Sprintf("failed to complete github app manifest. Got response %v", resp), http.StatusInternalServerError)
+			}
+			f.result = app
+			http.Redirect(w, r, "/complete", http.StatusFound)
+		})
+		// The flow is completed, show the user some sort of success and cancel the context
+		mux.HandleFunc("/complete", func(w http.ResponseWriter, r *http.Request) {
+			template := Template{
+				Content: f.manifest.Name,
+			}
+			if err := f.renderer.Render("complete.tmpl", w, template); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			cancel()
+		})
 
-	err = browser.OpenURL(serverURL)
+		server = &http.Server{
+			Addr:              fmt.Sprintf("localhost:%d", f.port),
+			Handler:           mux,
+			ReadHeaderTimeout: f.readHeaderTimeout,
+		}
+	}
+	err := browser.OpenURL(fmt.Sprintf("http://%s", server.Addr))
 	if err != nil {
 		return err
 	}
 
 	go func() {
-		err = http.Serve(listener, nil)
+		err = server.ListenAndServe()
+		if errors.Is(err, http.ErrServerClosed) {
+			// All good.
+		} else if err != nil {
+			cancel()
+		}
 	}()
 
 	<-ctx.Done()
@@ -147,4 +168,21 @@ func getURL(host string, org string, state string) url.URL {
 		Path:     fmt.Sprintf("/organizations/%s/settings/apps/new", org),
 		RawQuery: fmt.Sprintf("state=%s", state),
 	}
+}
+
+func findAvailablePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return -1, err
+	}
+
+	ln, err := net.Listen("tcp", addr.String())
+	if err != nil {
+		return -1, err
+	}
+	defer ln.Close()
+
+	port := ln.Addr().(*net.TCPAddr).Port
+
+	return port, nil
 }
