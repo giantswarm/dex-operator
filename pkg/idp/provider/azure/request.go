@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
-	"github.com/microsoftgraph/msgraph-sdk-go/applications/item/addpassword"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
@@ -109,9 +109,8 @@ func computeClaimUpdatePatch(claims []models.OptionalClaimable) (bool, []models.
 }
 
 func GetAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
-	headers := map[string]string{
-		"ConsistencyLevel": "eventual",
-	}
+	headers := abstractions.NewRequestHeaders()
+	headers.Add("ConsistencyLevel", "eventual")
 	requestFilter := fmt.Sprintf("displayName eq '%s'", name)
 	requestCount := true
 	requestTop := int32(1)
@@ -167,14 +166,14 @@ func getClaim() *models.OptionalClaim {
 	return claim
 }
 
-func GetSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {
+func GetSecretCreateRequestBody(config provider.AppConfig) *applications.ItemAddPasswordPostRequestBody {
 	keyCredential := models.NewPasswordCredential()
 	keyCredential.SetDisplayName(&config.Name)
 
 	validUntil := time.Now().AddDate(0, config.SecretValidityMonths, 0)
 	keyCredential.SetEndDateTime(&validUntil)
 
-	secret := addpassword.NewAddPasswordPostRequestBody()
+	secret := applications.NewItemAddPasswordPostRequestBody()
 	secret.SetPasswordCredential(keyCredential)
 
 	return secret

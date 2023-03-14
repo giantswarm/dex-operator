@@ -13,9 +13,10 @@ import (
 	"github.com/giantswarm/backoff"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/applications/item/removepassword"
+	"github.com/microsoftgraph/msgraph-sdk-go/applications"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/skratchdot/open-golang/open"
 	"gopkg.in/yaml.v2"
@@ -246,8 +247,8 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 	return getAzureSecret(secret, app, oldSecret)
 }
 
-func (a *Azure) DeleteSecret(ctx context.Context, secretID *string, appID string) error {
-	requestBody := removepassword.NewRemovePasswordPostRequestBody()
+func (a *Azure) DeleteSecret(ctx context.Context, secretID *uuid.UUID, appID string) error {
+	requestBody := applications.NewItemRemovePasswordPostRequestBody()
 	requestBody.SetKeyId(secretID)
 
 	err := a.Client.ApplicationsById(appID).RemovePassword().Post(ctx, requestBody, nil)

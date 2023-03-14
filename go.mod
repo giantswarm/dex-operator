@@ -13,36 +13,31 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/zapr v1.2.3
 	github.com/google/go-github/v50 v50.0.0
-	github.com/microsoft/kiota-authentication-azure-go v0.5.0
-	github.com/microsoftgraph/msgraph-sdk-go v0.44.0
-	github.com/onsi/ginkgo/v2 v2.1.6
-	github.com/onsi/gomega v1.20.1
+	github.com/google/uuid v1.3.0
+	github.com/microsoft/kiota-abstractions-go v0.17.2
+	github.com/microsoft/kiota-authentication-azure-go v0.6.0
+	github.com/microsoftgraph/msgraph-sdk-go v0.57.0
+	github.com/onsi/ginkgo/v2 v2.4.0
+	github.com/onsi/gomega v1.23.0
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
-	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/client_golang v1.14.0
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	go.uber.org/zap v1.23.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.25.3
-	k8s.io/apimachinery v0.25.3
-	k8s.io/client-go v0.25.3
+	k8s.io/api v0.26.2
+	k8s.io/apimachinery v0.26.2
+	k8s.io/client-go v0.26.2
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 
 require (
-	cloud.google.com/go/compute v1.10.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.1.4 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.1 // indirect
-	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
-	github.com/Azure/go-autorest/autorest v0.11.28 // indirect
-	github.com/Azure/go-autorest/autorest/adal v0.9.21 // indirect
-	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
-	github.com/Azure/go-autorest/logger v0.2.1 // indirect
-	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.4.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.2.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v0.7.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/cjlapao/common-go v0.0.27 // indirect
+	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cjlapao/common-go v0.0.38 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
@@ -65,7 +60,6 @@ require (
 	github.com/google/go-github/v45 v45.2.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -73,11 +67,11 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
-	github.com/microsoft/kiota-abstractions-go v0.12.0 // indirect
-	github.com/microsoft/kiota-http-go v0.9.0 // indirect
-	github.com/microsoft/kiota-serialization-json-go v0.7.2 // indirect
-	github.com/microsoft/kiota-serialization-text-go v0.6.0 // indirect
-	github.com/microsoftgraph/msgraph-sdk-go-core v0.30.0 // indirect
+	github.com/microsoft/kiota-http-go v0.16.0 // indirect
+	github.com/microsoft/kiota-serialization-form-go v0.9.0 // indirect
+	github.com/microsoft/kiota-serialization-json-go v0.8.2 // indirect
+	github.com/microsoft/kiota-serialization-text-go v0.7.0 // indirect
+	github.com/microsoftgraph/msgraph-sdk-go-core v0.34.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -89,15 +83,15 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.8.0 // indirect
+	github.com/stretchr/testify v1.8.2 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
-	go.opentelemetry.io/otel v1.11.1 // indirect
-	go.opentelemetry.io/otel/trace v1.11.1 // indirect
+	go.opentelemetry.io/otel v1.14.0 // indirect
+	go.opentelemetry.io/otel/trace v1.14.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/oauth2 v0.1.0 // indirect
+	golang.org/x/oauth2 v0.4.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
@@ -107,11 +101,11 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.25.3 // indirect
-	k8s.io/component-base v0.25.3 // indirect
+	k8s.io/apiextensions-apiserver v0.26.2 // indirect
+	k8s.io/component-base v0.26.2 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
-	k8s.io/utils v0.0.0-20221012122500-cfd413dd9e85 // indirect
+	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
@@ -121,5 +115,6 @@ replace (
 	github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.5
 	golang.org/x/net => golang.org/x/net v0.7.0
 	golang.org/x/text => golang.org/x/text v0.3.8
-	google.golang.org/grpc => google.golang.org/grpc v1.26.0
+	google.golang.org/grpc => google.golang.org/grpc v1.53.0
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.26.2
 )
