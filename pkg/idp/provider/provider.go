@@ -13,7 +13,7 @@ import (
 type Provider interface {
 	CreateOrUpdateApp(AppConfig, context.Context, dex.Connector) (ProviderApp, error)
 	DeleteApp(string, context.Context) error
-	GetCredentialsForAuthenticatedApp(AppConfig) (string, error)
+	GetCredentialsForAuthenticatedApp(AppConfig) (map[string]string, error)
 	CleanCredentialsForAuthenticatedApp(AppConfig) error
 	GetName() string
 	GetProviderName() string

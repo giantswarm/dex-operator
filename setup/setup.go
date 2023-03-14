@@ -141,11 +141,7 @@ func getProvidersFromConfig(credentials Config, include string, log logr.Logger)
 	// We are only returning the giantswarm providers. Either all or a specific one.
 	for _, p := range credentials.Oidc.Giantswarm.Providers {
 		if include == IncludeAll || include == p.Name {
-			c := map[string]string{}
-			if err := yaml.Unmarshal([]byte(p.Credentials), &c); err != nil {
-				return nil, microerror.Mask(err)
-			}
-			provider, err := controllers.NewProvider(provider.ProviderCredential{Name: p.Name, Owner: "giantswarm", Credentials: c}, &log)
+			provider, err := controllers.NewProvider(provider.ProviderCredential{Name: p.Name, Owner: "giantswarm", Credentials: p.Credentials}, &log)
 			if err != nil {
 				return nil, microerror.Mask(err)
 			}
