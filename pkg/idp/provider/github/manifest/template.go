@@ -23,8 +23,6 @@ type Renderer struct {
 }
 
 func newRenderer() *Renderer {
-	fs := http.FileServer(http.FS(embedded))
-	http.Handle("/static/", noCache(fs))
 	return &Renderer{fs: embedded}
 }
 
