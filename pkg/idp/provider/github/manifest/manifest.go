@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"giantswarm/dex-operator/pkg/idp/provider"
+	"strings"
 )
 
 type Manifest struct {
@@ -17,7 +18,7 @@ func NewManifest(config provider.AppConfig) Manifest {
 		Name:         config.Name,
 		Permissions:  getPermissions(),
 		URL:          config.IdentifierURI,
-		CallbackURLs: []string{config.RedirectURI},
+		CallbackURLs: strings.Split(config.RedirectURI, ","),
 	}
 }
 
