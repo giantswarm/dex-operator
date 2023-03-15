@@ -38,12 +38,6 @@ type Config struct {
 	ClientSecret string
 }
 
-type config struct {
-	tenantID     string
-	clientID     string
-	clientSecret string
-}
-
 func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 
 	// get configuration from credentials
