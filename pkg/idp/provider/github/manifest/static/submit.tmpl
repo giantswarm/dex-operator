@@ -1,7 +1,9 @@
 {{ define "content" }}
-<form action="{{ .URL }}" method="post">
-  <label>Create a GitHub App Manifest:</label>
-  <textarea cols="72" rows="25" name="manifest" id="manifest">{{ .Content }}</textarea><br>
- <input type="submit" value="Submit">
+
+<form action="{{ .URL }}" method="post" class="container creation-form">
+  <h1>Create a GitHub App Manifest</h1>
+  <textarea cols="50" rows="12" name="manifest" id="manifest">{{ .Content }}</textarea>
+  <button class="theme-btn--primary" type="submit">Submit</button>
 </form>
+
 {{ end }}
