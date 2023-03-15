@@ -35,6 +35,12 @@ type ProviderApp struct {
 	SecretEndDateTime time.Time
 }
 
+type ProviderSecret struct {
+	ClientId     string
+	ClientSecret string
+	EndDateTime  time.Time
+}
+
 func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 	credentials := &[]ProviderCredential{}
 

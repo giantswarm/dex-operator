@@ -21,6 +21,7 @@ import (
 	"giantswarm/dex-operator/pkg/idp"
 	"giantswarm/dex-operator/pkg/idp/provider"
 	"giantswarm/dex-operator/pkg/idp/provider/azure"
+	"giantswarm/dex-operator/pkg/idp/provider/github"
 	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"giantswarm/dex-operator/pkg/key"
 	"time"
@@ -179,6 +180,8 @@ func (r *AppReconciler) NewProvider(p provider.ProviderCredential) (provider.Pro
 		return mockprovider.New(p)
 	case azure.ProviderName:
 		return azure.New(p, &r.Log)
+	case github.ProviderName:
+		return github.New(p, &r.Log)
 	}
 	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", p.Name)
 }

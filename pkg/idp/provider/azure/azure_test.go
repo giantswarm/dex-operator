@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func TestGetRequestBody(t *testing.T) {
@@ -19,7 +18,7 @@ func TestGetRequestBody(t *testing.T) {
 	}{
 		{
 			name:   "case 0",
-			config: getTestConfig(),
+			config: provider.GetTestConfig(),
 		},
 	}
 
@@ -54,7 +53,7 @@ func TestComputeAppUpdatePatch(t *testing.T) {
 	}{
 		{
 			name:         "case 0",
-			app:          getAppCreateRequestBody(getTestConfig()),
+			app:          getAppCreateRequestBody(provider.GetTestConfig()),
 			updateNeeded: false,
 		},
 		{
@@ -67,11 +66,70 @@ func TestComputeAppUpdatePatch(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			a := Azure{
-				Log: getTestLogger(),
+				Log: provider.GetTestLogger(),
 			}
-			updateNeeded, _ := a.computeAppUpdatePatch(getTestConfig(), tc.app, models.NewApplication())
+			updateNeeded, _ := a.computeAppUpdatePatch(provider.GetTestConfig(), tc.app, models.NewApplication())
 			if updateNeeded != tc.updateNeeded {
 				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
+			}
+		})
+	}
+}
+
+func TestNewConfig(t *testing.T) {
+	testCases := []struct {
+		name        string
+		credentials provider.ProviderCredential
+		log         *logr.Logger
+		expectError bool
+	}{
+		{
+			name:        "case 0",
+			expectError: true,
+		},
+		{
+			name:        "case 1",
+			credentials: provider.GetTestCredential(),
+			log:         provider.GetTestLogger(),
+			expectError: true,
+		},
+		{
+			name: "case 2",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "test",
+				Credentials: map[string]string{
+					ClientIDKey:     "abc",
+					ClientSecretKey: "xyz",
+					TenantIDKey:     "123",
+				},
+			},
+			log:         provider.GetTestLogger(),
+			expectError: false,
+		},
+		{
+			name: "case 3",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "test",
+				Credentials: map[string]string{
+					ClientIDKey:     "abc",
+					ClientSecretKey: "xyz",
+					TenantIDKey:     "123",
+				},
+			},
+			expectError: true,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			_, err := newAzureConfig(tc.credentials, tc.log)
+			if err != nil && !tc.expectError {
+				t.Fatal(err)
+			}
+			if err == nil && tc.expectError {
+				t.Fatalf("Expected an error, got success.")
 			}
 		})
 	}
@@ -114,13 +172,4 @@ func TestSecretExpired(t *testing.T) {
 			}
 		})
 	}
-}
-
-func getTestConfig() provider.AppConfig {
-	return provider.AppConfig{RedirectURI: "hello.io", Name: "test"}
-}
-
-func getTestLogger() *logr.Logger {
-	l := ctrl.Log.WithName("test")
-	return &l
 }

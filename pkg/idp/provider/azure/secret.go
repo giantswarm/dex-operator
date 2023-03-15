@@ -1,6 +1,7 @@
 package azure
 
 import (
+	"giantswarm/dex-operator/pkg/idp/provider"
 	"strings"
 	"time"
 
@@ -10,13 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type azureSecret struct {
-	clientId     string
-	clientSecret string
-	endDateTime  time.Time
-}
-
-func getAzureSecret(secret models.PasswordCredentialable, app models.Applicationable, oldSecret string) (azureSecret, error) {
+func getAzureSecret(secret models.PasswordCredentialable, app models.Applicationable, oldSecret string) (provider.ProviderSecret, error) {
 	var clientSecret, clientId string
 	{
 		//Get connector data
@@ -26,20 +21,20 @@ func getAzureSecret(secret models.PasswordCredentialable, app models.Application
 			clientSecret = *secret.GetSecretText()
 		}
 		if app.GetAppId() == nil || *app.GetAppId() == "" {
-			return azureSecret{}, microerror.Maskf(notFoundError, "Could not find client ID for secret.")
+			return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Could not find client ID for secret.")
 		}
 		clientId = *app.GetAppId()
 	}
 	var endDateTime *time.Time
 	{
 		if endDateTime = secret.GetEndDateTime(); endDateTime == nil {
-			return azureSecret{}, microerror.Maskf(notFoundError, "Could not find expiry time for secret.")
+			return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Could not find expiry time for secret.")
 		}
 	}
-	return azureSecret{
-		clientSecret: clientSecret,
-		clientId:     clientId,
-		endDateTime:  *endDateTime,
+	return provider.ProviderSecret{
+		ClientSecret: clientSecret,
+		ClientId:     clientId,
+		EndDateTime:  *endDateTime,
 	}, nil
 }
 
