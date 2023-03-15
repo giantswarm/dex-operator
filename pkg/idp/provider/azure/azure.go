@@ -38,6 +38,12 @@ type Config struct {
 	ClientSecret string
 }
 
+type config struct {
+	tenantID     string
+	clientID     string
+	clientSecret string
+}
+
 func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 
 	// get configuration from credentials
@@ -48,6 +54,7 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 
 	var client *msgraphsdk.GraphServiceClient
 	{
+
 		cred, err := azidentity.NewClientSecretCredential(c.TenantID, c.ClientID, c.ClientSecret, nil)
 		if err != nil {
 			return nil, microerror.Mask(err)
@@ -66,6 +73,7 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 		}
 	}
 	return &Azure{
+
 		Name:         key.GetProviderName(p.Owner, p.Name),
 		Log:          log,
 		Type:         ProviderConnectorType,
