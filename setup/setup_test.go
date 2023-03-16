@@ -285,16 +285,20 @@ func getNewprovider() OidcOwner {
 	}
 }
 
-func getOldCredential() map[string]string {
-	return map[string]string{
-		"client-id":     "xyz",
-		"client-secret": "test",
-	}
+func getOldCredential() string {
+	return `client-id: xyz
+client-secret: test
+`
 }
 
-func getNewCredential() map[string]string {
-	return map[string]string{
-		"client-id":     "abc",
-		"client-secret": "test",
-	}
+func getNewCredential() string {
+	return `cert: |-
+  -----BEGIN MOCK CERT-----
+  mock
+  cert
+  hello
+  -----END MOCK CERT-----
+client-id: abc
+client-secret: test
+`
 }

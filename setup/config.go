@@ -18,8 +18,8 @@ type OidcOwner struct {
 	Providers []OidcOwnerProvider `json:"providers"`
 }
 type OidcOwnerProvider struct {
-	Name        string            `json:"name"`
-	Credentials map[string]string `json:"credentials"`
+	Name        string `json:"name"`
+	Credentials string `json:"credentials"`
 }
 
 func GetConfigFromFile(fileLocation string) (Config, error) {

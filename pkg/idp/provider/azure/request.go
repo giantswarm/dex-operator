@@ -76,6 +76,7 @@ func computeClaimsUpdatePatch(app models.Applicationable) (bool, models.Optional
 		return true, patch
 	}
 	update := false
+	patch = models.NewOptionalClaims()
 	{
 		needsUpdate, patchClaim := computeClaimUpdatePatch(original.GetAccessToken())
 		patch.SetAccessToken(patchClaim)
@@ -161,6 +162,12 @@ func getClaimsRequestBody() models.OptionalClaimsable {
 
 func getClaim() *models.OptionalClaim {
 	claimName := Claim
+	claim := models.NewOptionalClaim()
+	claim.SetName(&claimName)
+	return claim
+}
+
+func getClaimFromName(claimName string) *models.OptionalClaim {
 	claim := models.NewOptionalClaim()
 	claim.SetName(&claimName)
 	return claim
