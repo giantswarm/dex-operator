@@ -1,4 +1,4 @@
-module giantswarm/dex-operator
+module github.com/giantswarm/dex-operator
 
 go 1.19
 
