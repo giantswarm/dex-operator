@@ -164,7 +164,7 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 	providers := []provider.Provider{}
 	{
 		for _, p := range providerCredentials {
-			provider, err := r.NewProvider(p)
+			provider, err := NewProvider(p, &r.Log)
 			if err != nil {
 				return nil, microerror.Mask(err)
 			}
@@ -174,14 +174,14 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 	return providers, nil
 }
 
-func (r *AppReconciler) NewProvider(p provider.ProviderCredential) (provider.Provider, error) {
+func NewProvider(p provider.ProviderCredential, log *logr.Logger) (provider.Provider, error) {
 	switch p.Name {
 	case mockprovider.ProviderName:
 		return mockprovider.New(p)
 	case azure.ProviderName:
-		return azure.New(p, &r.Log)
+		return azure.New(p, log)
 	case github.ProviderName:
-		return github.New(p, &r.Log)
+		return github.New(p, log)
 	}
 	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", p.Name)
 }

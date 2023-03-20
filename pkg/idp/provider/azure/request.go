@@ -21,6 +21,7 @@ const (
 	DefaultName           = "giantswarm-dex"
 	Claim                 = "groups"
 	Audience              = "AzureADMyOrg"
+	DexOperatorName       = "dex-operator"
 )
 
 func ProviderScope() []string {
@@ -166,15 +167,19 @@ func getClaim() *models.OptionalClaim {
 	return claim
 }
 
-func GetSecretCreateRequestBody(name string, secretValidityMonths int) *addpassword.AddPasswordPostRequestBody {
+func GetSecretCreateRequestBody(config provider.AppConfig) *addpassword.AddPasswordPostRequestBody {
 	keyCredential := models.NewPasswordCredential()
-	keyCredential.SetDisplayName(&name)
+	keyCredential.SetDisplayName(&config.Name)
 
-	validUntil := time.Now().AddDate(0, secretValidityMonths, 0)
+	validUntil := time.Now().AddDate(0, config.SecretValidityMonths, 0)
 	keyCredential.SetEndDateTime(&validUntil)
 
 	secret := addpassword.NewAddPasswordPostRequestBody()
 	secret.SetPasswordCredential(keyCredential)
 
 	return secret
+}
+
+func getAdminConsentUrl(organization string, clientID string) string {
+	return fmt.Sprintf("https://login.microsoftonline.com/%s/adminconsent?client_id=%s", organization, clientID)
 }

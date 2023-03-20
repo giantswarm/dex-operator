@@ -21,10 +21,10 @@ Configures app registration in an azure active directory tenant.
 To configure this identity provider, first [add two app registrations to the tenant](https://learn.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app).
 
 - Name: `giantswarm-dex`. It needs `delegated` Permissions `Directory.Read.All` and `User.Read`. Delegated permissions set here will cascade to dex apps registered by the dex-operator.
-- Name: `dex-operator`. It needs `Application` Permissions `Application.ReadWrite.All` and a client secret for each management cluster the operator will run on.
+- Name: `dex-operator`. It needs `Application` Permissions `Application.ReadWrite.All`. Permissions set here will cascade to dex-operator instances registered by the user.
 
 
-Then, add the following configuration to `values`:
+The following configuration is needed in `values`:
 ```
 oidc:
   $OWNER:
@@ -44,7 +44,8 @@ When the configuration is added, a `microsoft` connector should be added to each
 The operator will automatically renew the client-secret in case it expires or is removed from a connector.
 It will also automatically update other configuration such as permissions, claims and redirect URI.
 
-### script to add azure ad credentials for gs installations
+### adding azure ad credentials for gs installations
 
-In order to create `dex-operator` credentials for a new giant swarm management cluster, [this script](https://github.com/giantswarm/dex-operator/blob/main/scripts/dex-operator-azure-credentials.go) can be used.
 An existing set of `dex-operator` credentials as well as the azure active directory tenant are needed.
+Each `dex-operator` instance should have its own credentials and service principal. Utility to easily create, update and clean up credentials can be found in the `setup` package.
+[this script](https://github.com/giantswarm/dex-operator/blob/main/scripts/dex-operator-azure-credentials.go) can be used to call it for azure.

@@ -35,6 +35,10 @@ func (m *MockProvider) GetName() string {
 	return m.Name
 }
 
+func (m *MockProvider) GetProviderName() string {
+	return ProviderName
+}
+
 func (m *MockProvider) GetType() string {
 	return m.Type
 }
@@ -64,5 +68,13 @@ func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.
 }
 
 func (m *MockProvider) DeleteApp(name string, ctx context.Context) error {
+	return nil
+}
+
+func (m *MockProvider) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (string, error) {
+	return `client-id: abc
+client-secret: test`, nil
+}
+func (m *MockProvider) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
 	return nil
 }
