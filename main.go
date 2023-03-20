@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"giantswarm/dex-operator/controllers"
-	"giantswarm/dex-operator/pkg/key"
+	"github.com/giantswarm/dex-operator/controllers"
+	"github.com/giantswarm/dex-operator/pkg/key"
 	//+kubebuilder:scaffold:imports
 )
 
