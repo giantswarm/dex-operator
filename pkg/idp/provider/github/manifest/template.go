@@ -33,10 +33,3 @@ func (r *Renderer) Render(location string, w http.ResponseWriter, data any) erro
 	}
 	return tpl.ExecuteTemplate(w, "layout", data)
 }
-
-func noCache(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache, private, max-age=0")
-		h.ServeHTTP(w, r)
-	})
-}

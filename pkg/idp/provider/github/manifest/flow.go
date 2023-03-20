@@ -28,7 +28,8 @@ type Config struct {
 
 type Flow struct {
 	manifest          Manifest
-	url               url.URL
+	createURL         url.URL
+	installLink       string
 	state             string
 	readHeaderTimeout time.Duration
 	result            *githubclient.AppConfig
@@ -51,7 +52,8 @@ func newFlow(c Config) (*Flow, error) {
 
 	return &Flow{
 		state:             state,
-		url:               getURL(c.Host, c.Organization, state),
+		createURL:         getCreateURL(c.Host, c.Organization, state),
+		installLink:       getInstallLink(c.Host, c.Organization, c.AppConfig.Name),
 		manifest:          NewManifest(c.AppConfig),
 		renderer:          newRenderer(),
 		port:              c.Port,
@@ -87,7 +89,7 @@ func (f *Flow) run() error {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 			template := Template{
-				URL:     f.url.String(),
+				URL:     f.createURL.String(),
 				Content: string(jsonManifest),
 			}
 			err = f.renderer.Render("submit.tmpl", w, template)
@@ -117,14 +119,9 @@ func (f *Flow) run() error {
 			f.result = app
 			http.Redirect(w, r, "/complete", http.StatusFound)
 		})
-		// The flow is completed, show the user some sort of success and cancel the context
+		// The flow is completed, redirect to install
 		mux.HandleFunc("/complete", func(w http.ResponseWriter, r *http.Request) {
-			template := Template{
-				Content: f.manifest.Name,
-			}
-			if err := f.renderer.Render("complete.tmpl", w, template); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+			http.Redirect(w, r, f.installLink, http.StatusFound)
 			cancel()
 		})
 
@@ -163,13 +160,17 @@ func newState() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-func getURL(host string, org string, state string) url.URL {
+func getCreateURL(host string, org string, state string) url.URL {
 	return url.URL{
 		Scheme:   "https",
 		Host:     host,
 		Path:     fmt.Sprintf("/organizations/%s/settings/apps/new", org),
 		RawQuery: fmt.Sprintf("state=%s", state),
 	}
+}
+
+func getInstallLink(host string, organization string, slug string) string {
+	return fmt.Sprintf("https://%s/organizations/%s/settings/apps/%s/installations", host, organization, slug)
 }
 
 func findAvailablePort() (int, error) {
