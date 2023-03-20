@@ -1,8 +1,9 @@
 package manifest
 
 import (
-	"giantswarm/dex-operator/pkg/idp/provider"
 	"strings"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 )
 
 type Manifest struct {

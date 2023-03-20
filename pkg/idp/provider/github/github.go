@@ -3,13 +3,14 @@ package github
 import (
 	"context"
 	"fmt"
-	"giantswarm/dex-operator/pkg/dex"
-	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/idp/provider/github/manifest"
-	"giantswarm/dex-operator/pkg/key"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/github/manifest"
+	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	githubconnector "github.com/dexidp/dex/connector/github"

@@ -18,13 +18,14 @@ package controllers
 
 import (
 	"context"
-	"giantswarm/dex-operator/pkg/idp"
-	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/idp/provider/azure"
-	"giantswarm/dex-operator/pkg/idp/provider/github"
-	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
-	"giantswarm/dex-operator/pkg/key"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/idp"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/github"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/microerror"

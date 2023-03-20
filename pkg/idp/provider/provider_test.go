@@ -1,10 +1,11 @@
 package provider
 
 import (
-	"giantswarm/dex-operator/pkg/key"
 	"reflect"
 	"strconv"
 	"testing"
+
+	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
 func TestReadCredentials(t *testing.T) {

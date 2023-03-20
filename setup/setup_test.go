@@ -1,13 +1,14 @@
 package setup
 
 import (
-	"giantswarm/dex-operator/pkg/idp/provider/github"
-	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"os"
 	"path"
 	"reflect"
 	"strconv"
 	"testing"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/github"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 )
 
 func TestSetupConfig(t *testing.T) {

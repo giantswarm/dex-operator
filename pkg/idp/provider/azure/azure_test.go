@@ -1,10 +1,11 @@
 package azure
 
 import (
-	"giantswarm/dex-operator/pkg/idp/provider"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 
 	"github.com/go-logr/logr"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"

@@ -29,9 +29,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"giantswarm/dex-operator/pkg/dex"
-	"giantswarm/dex-operator/pkg/idp"
-	"giantswarm/dex-operator/pkg/key"
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/idp"
+	"github.com/giantswarm/dex-operator/pkg/key"
 	//+kubebuilder:scaffold:imports
 )
 
