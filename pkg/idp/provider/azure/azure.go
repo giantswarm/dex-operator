@@ -13,9 +13,10 @@ import (
 	"github.com/giantswarm/backoff"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/applications/item/removepassword"
+	"github.com/microsoftgraph/msgraph-sdk-go/applications"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/skratchdot/open-golang/open"
 	"gopkg.in/yaml.v2"
@@ -35,12 +36,6 @@ type Config struct {
 	TenantID     string
 	ClientID     string
 	ClientSecret string
-}
-
-type config struct {
-	tenantID     string
-	clientID     string
-	clientSecret string
 }
 
 func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
@@ -254,8 +249,8 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 	return getAzureSecret(secret, app, oldSecret)
 }
 
-func (a *Azure) DeleteSecret(ctx context.Context, secretID *string, appID string) error {
-	requestBody := removepassword.NewRemovePasswordPostRequestBody()
+func (a *Azure) DeleteSecret(ctx context.Context, secretID *uuid.UUID, appID string) error {
+	requestBody := applications.NewItemRemovePasswordPostRequestBody()
 	requestBody.SetKeyId(secretID)
 
 	err := a.Client.ApplicationsById(appID).RemovePassword().Post(ctx, requestBody, nil)
@@ -348,12 +343,12 @@ func (a *Azure) computeAppUpdatePatch(config provider.AppConfig, app models.Appl
 // TODO
 // improve output
 // include new service principal creation
-func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (string, error) {
+func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (map[string]string, error) {
 	ctx := context.Background()
 	app, err := a.GetApp(config.Name)
 	if err != nil {
 		if !IsNotFound(err) {
-			return "", microerror.Mask(err)
+			return nil, microerror.Mask(err)
 		}
 		// Create app if it does not exist
 		app = models.NewApplication()
@@ -362,39 +357,41 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (st
 		// Set permissions from parent app
 		parentApp, err := a.GetApp(DexOperatorName)
 		if err != nil {
-			return "", microerror.Mask(err)
+			return nil, microerror.Mask(err)
 		}
 		if needsUpdate, patch := computePermissionsUpdatePatch(app, parentApp); needsUpdate {
 			app.SetRequiredResourceAccess(patch)
 		}
 		app, err = a.Client.Applications().Post(ctx, app, nil)
 		if err != nil {
-			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return nil, microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 		if app.GetAppId() == nil {
-			return "", microerror.Maskf(notFoundError, "Could not find client ID of app %s.", config.Name)
+			return nil, microerror.Maskf(notFoundError, "Could not find client ID of app %s.", config.Name)
 		}
 		consentURL := getAdminConsentUrl(a.TenantID, *app.GetAppId())
 		a.Log.Info(fmt.Sprintf("Admin consent is needed. Please grant under the following URL: %s", consentURL))
 		a.Log.Info("Please be aware that it can take a while for the app to become available. Wait a moment before logging in and granting consent.")
 		err = open.Start(consentURL)
 		if err != nil {
-			return "", microerror.Mask(err)
+			return nil, microerror.Mask(err)
 		}
 	}
 
 	id := app.GetId()
 	if id == nil {
-		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
+		return nil, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
 	}
 	secret, err := a.CreateOrUpdateSecret(*id, config, ctx, "", true)
 	if err != nil {
-		return "", microerror.Mask(err)
+		return nil, microerror.Mask(err)
 	}
-	return fmt.Sprintf(`client-id: %s
-client-secret: %s
-tenant-id: %s`, secret.ClientId, secret.ClientSecret, a.TenantID), nil
+	return map[string]string{
+		ClientIDKey:     secret.ClientId,
+		ClientSecretKey: secret.ClientSecret,
+		TenantIDKey:     a.TenantID,
+	}, nil
 }
 
 func (a *Azure) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {

@@ -287,10 +287,18 @@ func getNewprovider() OidcOwner {
 
 func getOldCredential() string {
 	return `client-id: xyz
-client-secret: test`
+client-secret: test
+`
 }
 
 func getNewCredential() string {
-	return `client-id: abc
-client-secret: test`
+	return `cert: |-
+  -----BEGIN MOCK CERT-----
+  mock
+  cert
+  hello
+  -----END MOCK CERT-----
+client-id: abc
+client-secret: test
+`
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"giantswarm/dex-operator/pkg/dex"
 	"giantswarm/dex-operator/pkg/idp/provider"
+	"giantswarm/dex-operator/pkg/idp/provider/github/manifest"
 	"giantswarm/dex-operator/pkg/key"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	githubclient "github.com/google/go-github/v50/github"
+	"github.com/skratchdot/open-golang/open"
 	"gopkg.in/yaml.v2"
 )
 
@@ -27,6 +29,7 @@ const (
 	PrivateKeyKey         = "private-key"
 	ClientIDKey           = "client-id"
 	ClientSecretKey       = "client-secret"
+	DefaultHost           = "github.com"
 )
 
 type Github struct {
@@ -255,17 +258,80 @@ func callbackURIPresent(app *githubclient.App, config provider.AppConfig) bool {
 	return true
 }
 
-func (g *Github) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (string, error) {
-	// TODO: manifest flow
-	c := Config{}
-	return fmt.Sprintf(`client-id: %s
-client-secret: %s
-organization: %s
-team: %s
-app-id: %v
-private-key: %s`, c.ClientID, c.ClientSecret, c.Organization, c.Team, c.AppID, c.PrivateKey), nil
+func (g *Github) CreateApp(config provider.AppConfig) (*githubclient.AppConfig, error) {
+	c := manifest.Config{
+		AppConfig:         config,
+		Port:              0,
+		Host:              DefaultHost,
+		Organization:      g.Organization,
+		ReadHeaderTimeout: time.Minute,
+	}
+	return manifest.CreateGithubApp(c)
+}
+func (g *Github) GetAppData(app *githubclient.AppConfig) Config {
+	return Config{
+		ClientID:     app.GetClientID(),
+		ClientSecret: app.GetClientSecret(),
+		PrivateKey:   []byte(app.GetPEM()),
+		AppID:        app.GetID(),
+		Organization: g.Organization,
+		Team:         g.Team,
+	}
+}
+func (g *Github) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (map[string]string, error) {
+	// check if the app is already present
+	oldApp, resp, err := g.Client.Apps.Get(context.Background(), "")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, microerror.Maskf(requestFailedError, "request returned not ok status %v", resp)
+	}
+	if oldApp.GetSlug() == config.Name {
+		g.Log.Info(fmt.Sprintf("app %s in github organization %s already exists. We recommend renaming it to %s-old before submitting the new app manifest and deleting it after the new github credentials have been applied to the installation.", config.Name, g.Organization, config.Name))
+		appURL := getAppURL(DefaultHost, g.Organization, config.Name)
+		g.Log.Info(fmt.Sprintf("Opening the old app under the following URL: %s", appURL))
+		err = open.Start(appURL)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+	app, err := g.CreateApp(config)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	c := g.GetAppData(app)
+	return map[string]string{
+		ClientIDKey:     c.ClientID,
+		ClientSecretKey: c.ClientSecret,
+		OrganizationKey: c.Organization,
+		TeamKey:         c.Team,
+		AppIDKey:        fmt.Sprint(c.AppID),
+		PrivateKeyKey:   string(c.PrivateKey),
+	}, nil
 }
 func (g *Github) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
-	// TODO open for deletion?
+	app, resp, err := g.Client.Apps.Get(context.Background(), "")
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return microerror.Maskf(requestFailedError, "request returned not ok status %v", resp)
+	}
+	g.Log.Info(fmt.Sprintf("github does not allow deletion of apps via automation. Attempting to open deletion page for %s-old so user can manually delete it.", app.GetSlug()))
+	appURL := getDeletionURLForOldApp(DefaultHost, g.Organization, app.GetSlug())
+	g.Log.Info(fmt.Sprintf("Opening the old app under the following URL: %s", appURL))
+	err = open.Start(appURL)
+	if err != nil {
+		return microerror.Mask(err)
+	}
 	return nil
+}
+
+func getAppURL(host string, organization string, slug string) string {
+	return fmt.Sprintf("https://%s/organizations/%s/settings/apps/%s", host, organization, slug)
+}
+
+func getDeletionURLForOldApp(host string, organization string, slug string) string {
+	return fmt.Sprintf("https://%s/organizations/%s/settings/apps/%s-old/advanced", host, organization, slug)
 }
