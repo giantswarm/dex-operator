@@ -128,6 +128,8 @@ func (f *Flow) run() error {
 			cancel()
 		})
 
+		mux.Handle("/static/", http.FileServer(http.FS(f.renderer.fs)))
+
 		server = &http.Server{
 			Addr:              fmt.Sprintf("localhost:%d", f.port),
 			Handler:           mux,
