@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Make dex operator modules exportable
+
 ## [0.3.0] - 2023-03-20
 
 ### Added
