@@ -7,6 +7,8 @@
 *.dylib
 bin
 scripts/tmp
+setup/tmp
+setup/tmp_test.go
 testbin/*
 Dockerfile.cross
 

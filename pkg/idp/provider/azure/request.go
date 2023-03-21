@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
-	"github.com/microsoftgraph/msgraph-sdk-go/applications/item/addpassword"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
@@ -21,6 +21,7 @@ const (
 	DefaultName           = "giantswarm-dex"
 	Claim                 = "groups"
 	Audience              = "AzureADMyOrg"
+	DexOperatorName       = "dex-operator"
 )
 
 func ProviderScope() []string {
@@ -75,6 +76,7 @@ func computeClaimsUpdatePatch(app models.Applicationable) (bool, models.Optional
 		return true, patch
 	}
 	update := false
+	patch = models.NewOptionalClaims()
 	{
 		needsUpdate, patchClaim := computeClaimUpdatePatch(original.GetAccessToken())
 		patch.SetAccessToken(patchClaim)
@@ -108,9 +110,8 @@ func computeClaimUpdatePatch(claims []models.OptionalClaimable) (bool, []models.
 }
 
 func GetAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
-	headers := map[string]string{
-		"ConsistencyLevel": "eventual",
-	}
+	headers := abstractions.NewRequestHeaders()
+	headers.Add("ConsistencyLevel", "eventual")
 	requestFilter := fmt.Sprintf("displayName eq '%s'", name)
 	requestCount := true
 	requestTop := int32(1)
@@ -166,15 +167,25 @@ func getClaim() *models.OptionalClaim {
 	return claim
 }
 
-func GetSecretCreateRequestBody(name string, secretValidityMonths int) *addpassword.AddPasswordPostRequestBody {
-	keyCredential := models.NewPasswordCredential()
-	keyCredential.SetDisplayName(&name)
+func getClaimFromName(claimName string) *models.OptionalClaim {
+	claim := models.NewOptionalClaim()
+	claim.SetName(&claimName)
+	return claim
+}
 
-	validUntil := time.Now().AddDate(0, secretValidityMonths, 0)
+func GetSecretCreateRequestBody(config provider.AppConfig) *applications.ItemAddPasswordPostRequestBody {
+	keyCredential := models.NewPasswordCredential()
+	keyCredential.SetDisplayName(&config.Name)
+
+	validUntil := time.Now().AddDate(0, config.SecretValidityMonths, 0)
 	keyCredential.SetEndDateTime(&validUntil)
 
-	secret := addpassword.NewAddPasswordPostRequestBody()
+	secret := applications.NewItemAddPasswordPostRequestBody()
 	secret.SetPasswordCredential(keyCredential)
 
 	return secret
+}
+
+func getAdminConsentUrl(organization string, clientID string) string {
+	return fmt.Sprintf("https://login.microsoftonline.com/%s/adminconsent?client_id=%s", organization, clientID)
 }

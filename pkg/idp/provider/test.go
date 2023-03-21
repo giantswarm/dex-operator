@@ -6,7 +6,7 @@ import (
 )
 
 func GetTestConfig() AppConfig {
-	return AppConfig{RedirectURI: "hello.io", Name: "test"}
+	return AppConfig{RedirectURI: "hello.io", Name: "test", SecretValidityMonths: 6}
 }
 
 func GetTestCredential() ProviderCredential {

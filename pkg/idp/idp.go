@@ -312,9 +312,10 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 		}
 	}
 	return provider.AppConfig{
-		Name:          key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
-		RedirectURI:   key.GetRedirectURI(issuerAddress),
-		IdentifierURI: key.GetIdentifierURI(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name)),
+		Name:                 key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
+		RedirectURI:          key.GetRedirectURI(issuerAddress),
+		IdentifierURI:        key.GetIdentifierURI(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name)),
+		SecretValidityMonths: key.SecretValidityMonths,
 	}, nil
 }
 

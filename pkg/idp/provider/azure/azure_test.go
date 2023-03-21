@@ -2,7 +2,6 @@ package azure
 
 import (
 	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/key"
 	"strconv"
 	"testing"
 	"time"
@@ -36,7 +35,7 @@ func TestGetRequestBody(t *testing.T) {
 			if uri[0] != tc.config.RedirectURI {
 				t.Fatalf("Expected %s, got %v", tc.config.RedirectURI, uri[0])
 			}
-			s := GetSecretCreateRequestBody(tc.config.Name, key.SecretValidityMonths)
+			s := GetSecretCreateRequestBody(tc.config)
 			secretName := s.GetPasswordCredential().GetDisplayName()
 			if *secretName != tc.config.Name {
 				t.Fatalf("Expected %s, got %v", tc.config.Name, *secretName)
@@ -74,6 +73,92 @@ func TestComputeAppUpdatePatch(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComputeClaimsUpdatePatch(t *testing.T) {
+	testCases := []struct {
+		name         string
+		claims       models.OptionalClaimsable
+		updateNeeded bool
+	}{
+		{
+			name:         "case 0",
+			claims:       getClaimsRequestBody(),
+			updateNeeded: false,
+		},
+		{
+			name:         "case 1",
+			claims:       nil,
+			updateNeeded: true,
+		},
+		{
+			name:         "case 2",
+			claims:       getTestClaimGroups(),
+			updateNeeded: true,
+		},
+		{
+			name:         "case 3",
+			claims:       getTestClaimEmail(),
+			updateNeeded: true,
+		},
+		{
+			name:         "case 4",
+			claims:       getTestClaimEmailGroups(),
+			updateNeeded: true,
+		},
+		{
+			name:         "case 4",
+			claims:       getTestClaimEmailGroupsComplete(),
+			updateNeeded: false,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			app := models.NewApplication()
+			app.SetOptionalClaims(tc.claims)
+			updateNeeded, _ := computeClaimsUpdatePatch(app)
+			if updateNeeded != tc.updateNeeded {
+				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
+			}
+		})
+	}
+}
+
+func getTestClaimGroups() models.OptionalClaimsable {
+	claims := models.NewOptionalClaims()
+	claim := getClaim()
+	claims.SetSaml2Token([]models.OptionalClaimable{claim})
+
+	return claims
+}
+
+func getTestClaimEmail() models.OptionalClaimsable {
+	claims := models.NewOptionalClaims()
+	claim := getClaimFromName("email")
+	claims.SetAccessToken([]models.OptionalClaimable{claim})
+
+	return claims
+}
+
+func getTestClaimEmailGroups() models.OptionalClaimsable {
+	claims := models.NewOptionalClaims()
+	claim := getClaim()
+	emailClaim := getClaimFromName("email")
+	claims.SetIdToken([]models.OptionalClaimable{claim, emailClaim})
+
+	return claims
+}
+
+func getTestClaimEmailGroupsComplete() models.OptionalClaimsable {
+	claims := models.NewOptionalClaims()
+	claim := getClaim()
+	emailClaim := getClaimFromName("email")
+	claims.SetIdToken([]models.OptionalClaimable{claim, emailClaim})
+	claims.SetAccessToken([]models.OptionalClaimable{claim})
+	claims.SetSaml2Token([]models.OptionalClaimable{claim, emailClaim})
+
+	return claims
 }
 
 func TestNewConfig(t *testing.T) {
