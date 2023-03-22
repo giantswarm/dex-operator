@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2023-03-22
+
 ### Changed
 
 - Make dex operator modules exportable
@@ -77,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/giantswarm/dex-operator/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/giantswarm/dex-operator/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/giantswarm/dex-operator/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/giantswarm/dex-operator/compare/v0.1.3...v0.1.4
