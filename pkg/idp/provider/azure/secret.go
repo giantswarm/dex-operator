@@ -1,9 +1,10 @@
 package azure
 
 import (
-	"giantswarm/dex-operator/pkg/idp/provider"
 	"strings"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 
 	"github.com/dexidp/dex/connector/microsoft"
 	"github.com/giantswarm/microerror"

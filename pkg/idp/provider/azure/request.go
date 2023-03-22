@@ -2,9 +2,10 @@ package azure
 
 import (
 	"fmt"
-	"giantswarm/dex-operator/pkg/idp/provider"
 	"reflect"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"

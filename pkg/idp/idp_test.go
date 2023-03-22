@@ -10,10 +10,10 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"giantswarm/dex-operator/pkg/dex"
-	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/idp/provider/mockprovider"
-	"giantswarm/dex-operator/pkg/key"
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"

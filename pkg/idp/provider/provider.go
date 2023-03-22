@@ -2,9 +2,10 @@ package provider
 
 import (
 	"context"
-	"giantswarm/dex-operator/pkg/dex"
 	"os"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
 
 	"github.com/giantswarm/microerror"
 	"gopkg.in/yaml.v2"

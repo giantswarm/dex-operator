@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"giantswarm/dex-operator/pkg/dex"
-	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/key"
 	"reflect"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"

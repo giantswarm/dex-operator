@@ -1,9 +1,10 @@
 package github
 
 import (
-	"giantswarm/dex-operator/pkg/idp/provider"
 	"strconv"
 	"testing"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 
 	"github.com/go-logr/logr"
 )

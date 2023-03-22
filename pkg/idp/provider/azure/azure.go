@@ -3,10 +3,11 @@ package azure
 import (
 	"context"
 	"fmt"
-	"giantswarm/dex-operator/pkg/dex"
-	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/key"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/dexidp/dex/connector/microsoft"

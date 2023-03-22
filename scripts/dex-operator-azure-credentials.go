@@ -33,9 +33,10 @@ package main
 
 import (
 	"fmt"
-	"giantswarm/dex-operator/pkg/idp/provider/azure"
-	"giantswarm/dex-operator/setup"
 	"os"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
+	"github.com/giantswarm/dex-operator/setup"
 )
 
 const (

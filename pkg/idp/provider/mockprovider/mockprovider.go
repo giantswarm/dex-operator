@@ -2,10 +2,11 @@ package mockprovider
 
 import (
 	"context"
-	"giantswarm/dex-operator/pkg/dex"
-	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/key"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/dexidp/dex/connector/mock"
 	"github.com/giantswarm/microerror"

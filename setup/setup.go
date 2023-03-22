@@ -2,10 +2,11 @@ package setup
 
 import (
 	"fmt"
-	"giantswarm/dex-operator/controllers"
-	"giantswarm/dex-operator/pkg/idp/provider"
-	"giantswarm/dex-operator/pkg/key"
 	"strings"
+
+	"github.com/giantswarm/dex-operator/controllers"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"os"
 

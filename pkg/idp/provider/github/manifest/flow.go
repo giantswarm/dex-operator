@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"giantswarm/dex-operator/pkg/idp/provider"
 	"net"
 	"time"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 
 	"net/http"
 	"net/url"
