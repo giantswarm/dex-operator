@@ -200,7 +200,7 @@ func getAppConfigForInstallation(installation string, domains []string) provider
 // This returns a comma seperated list of callback URLs for github applications
 func getGithubRedirectURLs(domains []string) string {
 	for i, domain := range domains {
-		domains[i] = key.GetRedirectURI(key.GetIssuerAddress(domain))
+		domains[i] = key.GetRedirectURI(domain)
 	}
 	return strings.Join(domains[:], ",")
 
