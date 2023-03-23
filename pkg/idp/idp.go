@@ -281,37 +281,22 @@ func (s *Service) connectorsNeedUpdate(oldConnectors map[string]dex.Connector, n
 }
 
 func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) {
-	var issuerAddress string
-	{
-		// Get the cluster values configmap if present (workload cluster format)
-		if clusterValuesIsPresent(s.app) {
-			clusterValuesConfigmap := &corev1.ConfigMap{}
-			if err := s.Get(ctx, types.NamespacedName{
-				Name:      s.app.Spec.Config.ConfigMap.Name,
-				Namespace: s.app.Spec.Config.ConfigMap.Namespace},
-				clusterValuesConfigmap); err != nil {
-				return provider.AppConfig{}, err
-			}
-			// Get the base domain
-			baseDomain := getBaseDomainFromClusterValues(clusterValuesConfigmap)
+	var baseDomain string
 
-			// Derive issuer address from it if it exists
-			if baseDomain != "" {
-				issuerAddress = key.GetIssuerAddress(baseDomain)
-			}
+	// Get the cluster values configmap if present (workload cluster format)
+	if clusterValuesIsPresent(s.app) {
+		clusterValuesConfigmap := &corev1.ConfigMap{}
+		if err := s.Get(ctx, types.NamespacedName{
+			Name:      s.app.Spec.Config.ConfigMap.Name,
+			Namespace: s.app.Spec.Config.ConfigMap.Namespace},
+			clusterValuesConfigmap); err != nil {
+			return provider.AppConfig{}, err
 		}
-
-		// Otherwise fall back to management cluster issuer address if present
-		if issuerAddress == "" {
-			issuerAddress = s.managementClusterIssuerAddress
-		}
-
-		// If all else fails, fall back to the base domain (only works in vintage)
-		if issuerAddress == "" {
-			clusterDomain := key.GetVintageClusterDomain(s.managementClusterBaseDomain)
-			issuerAddress = key.GetIssuerAddress(clusterDomain)
-		}
+		// Get the base domain
+		baseDomain = getBaseDomainFromClusterValues(clusterValuesConfigmap)
 	}
+	issuerAddress := GetIssuerAddress(baseDomain, s.managementClusterIssuerAddress, s.managementClusterBaseDomain)
+
 	return provider.AppConfig{
 		Name:                 key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
 		RedirectURI:          key.GetRedirectURI(issuerAddress),
@@ -336,4 +321,26 @@ func (s *Service) GetDefaultDexConfigSecret(name string, namespace string) *core
 		Type: "Opaque",
 		Data: map[string][]byte{},
 	}
+}
+
+func GetIssuerAddress(baseDomain string, managementClusterIssuerAddress string, managementClusterBaseDomain string) string {
+	var issuerAddress string
+	{
+		// Derive issuer address from cluster basedomain if it exists
+		if baseDomain != "" {
+			issuerAddress = key.GetIssuerAddress(baseDomain)
+		}
+
+		// Otherwise fall back to management cluster issuer address if present
+		if issuerAddress == "" {
+			issuerAddress = managementClusterIssuerAddress
+		}
+
+		// If all else fails, fall back to the base domain (only works in vintage)
+		if issuerAddress == "" {
+			clusterDomain := key.GetVintageClusterDomain(managementClusterBaseDomain)
+			issuerAddress = key.GetIssuerAddress(clusterDomain)
+		}
+	}
+	return issuerAddress
 }

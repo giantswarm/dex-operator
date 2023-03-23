@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Push to vsphere and cloud-director app collection.
 - Don't push to openstack app collection.
+- Move issuer address computation into its own function.
 
 ## [0.3.1] - 2023-03-22
 
