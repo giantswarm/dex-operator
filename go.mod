@@ -115,4 +115,5 @@ replace (
 	golang.org/x/text => golang.org/x/text v0.8.0
 	google.golang.org/grpc => google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf => google.golang.org/protobuf v1.30.0
+	k8s.io/apiserver v0.26.3 => k8s.io/apiserver v0.26.1
 )
