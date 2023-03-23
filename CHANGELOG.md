@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Move issuer address computation into its own function.
+
 ## [0.3.1] - 2023-03-22
 
 ### Changed
