@@ -326,7 +326,7 @@ func (s *Service) GetDefaultDexConfigSecret(name string, namespace string) *core
 func GetIssuerAddress(baseDomain string, managementClusterIssuerAddress string, managementClusterBaseDomain string) string {
 	var issuerAddress string
 	{
-		// Derive issuer address from cluster basedomain it if it exists
+		// Derive issuer address from cluster basedomain if it exists
 		if baseDomain != "" {
 			issuerAddress = key.GetIssuerAddress(baseDomain)
 		}
