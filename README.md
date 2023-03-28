@@ -14,17 +14,23 @@ The `app controller` configures callback URIs and other settings and writes the 
 ## providers
 
 Providers need to implement the `provider.Provider` interface.
+Currently supported providers are `azure active directory` and `github`.
 
-### azure active directory
+### adding dex-operator credentials for gs installations
+
+Each `dex-operator` instance should have its own credentials and client registration for each organization/tenant.
+[opsctl](https://github.com/giantswarm/opsctl) supports the creation, update and cleanup of credentials for `dex-operator` via the `create dexconfig` command.
+
+### Azure Active Directory
 
 Configures app registration in an azure active directory tenant.
-To configure this identity provider, first [add two app registrations to the tenant](https://learn.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app).
+`dex-operator` will look for [two app registrations](https://learn.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app) on the tenant.
 
 - Name: `giantswarm-dex`. It needs `delegated` Permissions `Directory.Read.All` and `User.Read`. Delegated permissions set here will cascade to dex apps registered by the dex-operator.
 - Name: `dex-operator`. It needs `Application` Permissions `Application.ReadWrite.All`. Permissions set here will cascade to dex-operator instances registered by the user.
 
 
-The following configuration is needed in `values`:
+The configuration for Azure Active Directory in  `values` looks like this:
 ```
 oidc:
   $OWNER:
@@ -37,15 +43,46 @@ oidc:
 ```
 - `$OWNER`: Owner of the azure tenant. `giantswarm` or `customer`.
 - `$TENANTID`: The ID of the azure tenant that should be used for the configuration.
-- `$CLIENTID`: ID of the client (application) configured in the tenant for `dex-operator`.
+- `$CLIENTID`: ID of the client (application) configured in the tenant for `dex-operator` client for the management cluster `dex-operator` runs on.
 - `$CLIENTSECRET`: Secret configured for `dex-operator` client for the management cluster `dex-operator` runs on.
 
-When the configuration is added, a `microsoft` connector should be added to each installed `dex-app` and the application registration with callback URI should be visible in the active directory.
+When the configuration is present, a `microsoft` connector will be added to each installed `dex-app` and the application registration with callback URI should be visible in the active directory.
 The operator will automatically renew the client-secret in case it expires or is removed from a connector.
 It will also automatically update other configuration such as permissions, claims and redirect URI.
 
-### adding azure ad credentials for gs installations
+### GitHub
 
-An existing set of `dex-operator` credentials as well as the azure active directory tenant are needed.
-Each `dex-operator` instance should have its own credentials and service principal. Utility to easily create, update and clean up credentials can be found in the `setup` package.
-[this script](https://github.com/giantswarm/dex-operator/blob/main/scripts/dex-operator-azure-credentials.go) can be used to call it for azure.
+Configures app registration in a GitHub organization.
+Please note that the github provider has limited functionality due to limitations in the GitHub API.
+We recommend GitHub to be configured as a fallback SSO method.
+
+
+The configuration for GitHub in  `values` looks like this:
+```
+oidc:
+  $OWNER:
+    providers:
+    - name: github
+      credentials:
+        client-id: $CLIENTID
+        client-secret: $CLIENTSECRET
+        organization: $ORGANIZATION
+        team: $TEAM
+        app-id: $APPID
+        private-key: $PRIVATEKEY
+```
+- `$OWNER`: Owner of the github organization. `giantswarm` or `customer`.
+- `$ORGANIZATION`: The name of the github organization that should be used for the configuration.
+- `$TEAM`: The name of the github team that should be used for SSO.
+- `$CLIENTID`: Client ID for the github app in the organization for the management cluster `dex-operator` runs on which should be used for SSO.
+- `$CLIENTSECRET`: Client Secret for the github app in the organization for the management cluster `dex-operator` runs on which should be used for SSO.
+- `$APPID`: ID of the github app in the organization for the management cluster `dex-operator` runs on which should be used for API calls.
+- `$PRIVATEKEY`: Private key for the github app in the organization for the management cluster `dex-operator` runs on which should be used for API calls.
+
+
+When the configuration is present, a `github` connector will be added to each installed `dex-app`.
+The GitHub API does not allow to automatically update apps or renew the client-secrets.
+Unfortunately it also does not allow for access to workload cluster callback URLs.
+However, it will provide metrics that allow alerting when rotation is needed.
+In that case [opsctl](https://github.com/giantswarm/opsctl) supports the update via the `create dexconfig --provider github --update` command.
+The `--workload-cluster` flag also allows creation of callback URLs for up to 9 workload clusters.
