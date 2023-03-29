@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix bug where credential creation fails when parent directory is missing.
+- Omit empty fields in credential creation.
+
 ### Changed
 
 - Replace credential creation script with `opsctl create dexconfig`.

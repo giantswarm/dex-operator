@@ -8,18 +8,18 @@ import (
 )
 
 type Config struct {
-	Oidc Oidc `json:"oidc"`
+	Oidc Oidc `yaml:"oidc,omitempty"`
 }
 type Oidc struct {
-	Giantswarm OidcOwner `json:"giantswarm"`
-	Customer   OidcOwner `json:"customer"`
+	Giantswarm OidcOwner `yaml:"giantswarm,omitempty"`
+	Customer   OidcOwner `yaml:"customer,omitempty"`
 }
 type OidcOwner struct {
-	Providers []OidcOwnerProvider `json:"providers"`
+	Providers []OidcOwnerProvider `json:"providers,omitempty"`
 }
 type OidcOwnerProvider struct {
-	Name        string `json:"name"`
-	Credentials string `json:"credentials"`
+	Name        string `yaml:"name"`
+	Credentials string `yaml:"credentials"`
 }
 
 func GetConfigFromFile(fileLocation string) (Config, error) {
