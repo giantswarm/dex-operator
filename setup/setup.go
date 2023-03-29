@@ -2,6 +2,7 @@ package setup
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/giantswarm/dex-operator/controllers"
@@ -136,6 +137,10 @@ func (s *Setup) CleanConfigCredentialsForProviders() error {
 
 func (s *Setup) WriteToFile() error {
 	data, err := yaml.Marshal(s.config)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	err = os.MkdirAll(filepath.Dir(s.outputFile), os.ModePerm)
 	if err != nil {
 		return microerror.Mask(err)
 	}
