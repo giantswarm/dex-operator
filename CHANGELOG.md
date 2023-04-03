@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix bug in azure provider when update of redirect URI array fails.
+
 ## [0.3.3] - 2023-03-29
 
 ### Fixed

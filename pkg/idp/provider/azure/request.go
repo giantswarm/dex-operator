@@ -60,7 +60,7 @@ func computeRedirectURIUpdatePatch(app models.Applicationable, config provider.A
 			return false, nil
 		}
 	}
-	patch.SetRedirectUris(append(uris, config.RedirectURI))
+	patch = getRedirectURIsRequestBody(append(uris, config.RedirectURI))
 	return true, patch
 }
 
