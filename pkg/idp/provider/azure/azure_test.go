@@ -259,3 +259,48 @@ func TestSecretExpired(t *testing.T) {
 		})
 	}
 }
+
+func TestComputeURIUpdatePatch(t *testing.T) {
+	testCases := []struct {
+		name         string
+		URIs         []string
+		updateNeeded bool
+	}{
+		{
+			name:         "case 0",
+			URIs:         nil,
+			updateNeeded: true,
+		},
+		{
+			name:         "case 1",
+			URIs:         []string{"hi.io"},
+			updateNeeded: true,
+		},
+		{
+			name:         "case 2",
+			URIs:         []string{"hello.io"},
+			updateNeeded: false,
+		},
+		{
+			name:         "case 3",
+			URIs:         []string{"hi.io", "hello.io"},
+			updateNeeded: false,
+		},
+		{
+			name:         "case 4",
+			URIs:         []string{},
+			updateNeeded: true,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			app := models.NewApplication()
+			app.SetWeb(getRedirectURIsRequestBody(tc.URIs))
+			updateNeeded, _ := computeRedirectURIUpdatePatch(app, provider.GetTestConfig())
+			if updateNeeded != tc.updateNeeded {
+				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
+			}
+		})
+	}
+}
