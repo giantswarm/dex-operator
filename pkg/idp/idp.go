@@ -75,11 +75,20 @@ func New(c Config) (*Service, error) {
 }
 
 func (s *Service) Reconcile(ctx context.Context) error {
-	// We do not handle apps that have user configmaps set up due to a bug where configuration in secrets can be overwritten
+	// We do not handle apps that have connectors in user configmaps set up due to a bug where configuration in secrets can be overwritten
 	//TODO: solve this gracefully
 	if userConfigMapPresent(s.app) {
-		s.log.Info("Dex app has a user configmap set up for configuration. Cancelling reconcillation. We recommend to move configuration to a user secret.")
-		return s.ReconcileDelete(ctx)
+		userConfigMap := &corev1.ConfigMap{}
+		if err := s.Get(ctx, types.NamespacedName{
+			Name:      s.app.Spec.UserConfig.ConfigMap.Name,
+			Namespace: s.app.Spec.UserConfig.ConfigMap.Namespace},
+			userConfigMap); err != nil {
+			return microerror.Mask(err)
+		}
+		if connectorsDefinedInUserConfigMap(userConfigMap) {
+			s.log.Info("Dex app has a user configmap set up with connector configuration. Cancelling reconcillation. We recommend to move configuration to a user secret.")
+			return s.ReconcileDelete(ctx)
+		}
 	}
 
 	// Add secret config to app instance

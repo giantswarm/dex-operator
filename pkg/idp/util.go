@@ -60,6 +60,15 @@ func getBaseDomainFromClusterValues(clusterValuesConfigmap *corev1.ConfigMap) st
 	return ""
 }
 
+func connectorsDefinedInUserConfigMap(userConfigmap *corev1.ConfigMap) bool {
+	values := userConfigmap.Data[key.UserValuesConfigMapKey]
+	rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.ConnectorsKey))
+	if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
+		return true
+	}
+	return false
+}
+
 func GetDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
 	return v1alpha1.AppExtraConfig{
 		Kind:      "secret",

@@ -209,6 +209,156 @@ func TestUserConfigMap(t *testing.T) {
 	}
 }
 
+func TestUserConnectors(t *testing.T) {
+	testCases := []struct {
+		name           string
+		data           map[string]string
+		expectedResult bool
+	}{
+		{
+			name: "case 0",
+			data: map[string]string{
+				key.UserValuesConfigMapKey: `
+					something: "12"
+					baseDomain: hello.io
+					somethingelse: "false"
+					the:
+					  big:
+					    connectors:
+						- id: a
+						  name: b
+					object:
+					  yes: no
+					`,
+			},
+			expectedResult: true,
+		},
+		{
+			name: "case 1",
+			data: map[string]string{
+				key.UserValuesConfigMapKey: `
+					something: "12"
+					baseDomain: hello.io
+					somethingelse: "false"
+					object:
+					  yes: no
+					`,
+			},
+			expectedResult: false,
+		},
+		{
+			name: "case 2",
+			data: map[string]string{
+				key.UserValuesConfigMapKey: `
+					something: "12"
+					baseDomain: hello.io
+					somethingelse: "false"
+					the:
+					  small:
+					    connectors: []
+					object:
+					  yes: no
+					`,
+			},
+			expectedResult: true,
+		},
+		{
+			name: "case 3",
+			data: map[string]string{
+				key.UserValuesConfigMapKey: `
+					something: "12"
+					baseDomain: hello.io
+					somethingelse: "false"
+					the:
+					  small:
+					    connectors: []
+					  big:
+					    connectors: []
+					object:
+					  yes: no
+					`,
+			},
+			expectedResult: true,
+		},
+		{
+			name: "case 4",
+			data: map[string]string{
+				key.UserValuesConfigMapKey: `
+					something: "12"
+					baseDomain: hello.io
+					somethingelse: "false"
+					the:
+					  big:
+					    connectors: null
+					object:
+					  yes: no
+					`,
+			},
+			expectedResult: true,
+		},
+		{
+			name: "case 5",
+			data: map[string]string{
+				key.UserValuesConfigMapKey: `
+					something: "12"
+					baseDomain: hello.io
+					somethingelse: "false"
+					the:
+					  big:
+					    connectors:
+					object:
+					  yes: no
+					`,
+			},
+			expectedResult: true,
+		},
+		{
+			name: "case 6",
+			data: map[string]string{
+				key.UserValuesConfigMapKey: `
+					something: "12"
+					baseDomain: hello.io
+					somethingelse: "false"
+					the:
+					  small:
+					    connectors: []
+					  big:
+					    connectors:
+					    - id: a
+						  name: b
+					object:
+					  yes: no
+					`,
+			},
+			expectedResult: true,
+		},
+		{
+			name: "case 7",
+			data: map[string]string{
+				key.UserValuesConfigMapKey: `
+					something: "12"
+					baseDomain: hello.connectors.io
+					somethingelse: "false"
+					object:
+					  yes: no
+					`,
+			},
+			expectedResult: false,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			cm := &corev1.ConfigMap{
+				Data: tc.data,
+			}
+			if connectorsDefinedInUserConfigMap(cm) != tc.expectedResult {
+				t.Fatalf("Expected %v to be equal to %v", connectorsDefinedInUserConfigMap(cm), tc.expectedResult)
+			}
+		})
+	}
+}
+
 func TestRemoveExtraConfig(t *testing.T) {
 	testCases := []struct {
 		name           string
