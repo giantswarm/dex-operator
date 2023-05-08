@@ -15,33 +15,32 @@ jobs:
 workflows:
   build:
     jobs:
-    - tests:
-        filters:
-          tags:
-            only: /^v.*/
-    - architect/go-build:
-        context: architect
-        name: go-build
-        binary: dex-operator
-        resource_class: xlarge
-        filters:
-          tags:
-            only: /^v.*/
-
-    - architect/push-to-docker:
-        context: architect
-        name: push-dex-operator-to-quay
-        image: "quay.io/giantswarm/dex-operator"
-        username_envar: "QUAY_USERNAME"
-        password_envar: "QUAY_PASSWORD"
-        resource_class: xlarge
-        requires:
-        - go-build
-        filters:
-          # Trigger the job also on git tag.
-          tags:
-            only: /^v.*/
-    - architect/push-to-docker:
+      - tests:
+          filters:
+            tags:
+              only: /^v.*/
+      - architect/go-build:
+          context: architect
+          name: go-build
+          binary: dex-operator
+          resource_class: xlarge
+          filters:
+            tags:
+              only: /^v.*/
+      - architect/push-to-docker:
+          context: architect
+          name: push-dex-operator-to-quay
+          image: "quay.io/giantswarm/dex-operator"
+          username_envar: "QUAY_USERNAME"
+          password_envar: "QUAY_PASSWORD"
+          resource_class: xlarge
+          requires:
+            - go-build
+          filters:
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
+      - architect/push-to-docker:
           context: "architect"
           name: push-dex-operator-to-docker
           image: "docker.io/giantswarm/dex-operator"
@@ -54,7 +53,7 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-    - architect/push-to-docker:
+      - architect/push-to-docker:
           context: architect
           name: push-dex-operator-to-aliyun
           image: "giantswarm-registry.cn-shanghai.cr.aliyuncs.com/giantswarm/dex-operator"
@@ -67,129 +66,115 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+      # Ensure that for every commit
+      # there is an app version in the test catalog.
+      - architect/push-to-app-catalog:
+          context: architect
+          name: push-to-app-catalog
+          app_catalog: "control-plane-catalog"
+          app_catalog_test: "control-plane-test-catalog"
+          chart: "dex-operator"
+          requires:
+            - push-dex-operator-to-quay
+            - push-dex-operator-to-docker
+          filters:
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
+      - architect/push-to-app-collection:
+          context: architect
+          name: push-to-azure-app-collection
+          app_name: "dex-operator"
+          app_collection_repo: "azure-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - architect/push-to-app-collection:
+          context: architect
+          name: push-to-aws-app-collection
+          app_name: "dex-operator"
+          app_collection_repo: "aws-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - architect/push-to-app-collection:
+          context: architect
+          name: push-to-kvm-app-collection
+          app_name: "dex-operator"
+          app_collection_repo: "kvm-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - architect/push-to-app-collection:
+          context: architect
 
-    # Ensure that for every commit
-    # there is an app version in the test catalog.
-    - architect/push-to-app-catalog:
-        context: architect
-        name: push-to-app-catalog
-        app_catalog: "control-plane-catalog"
-        app_catalog_test: "control-plane-test-catalog"
-        chart: "dex-operator"
-        requires:
-        - push-dex-operator-to-quay
-        - push-dex-operator-to-docker
-        filters:
-          # Trigger the job also on git tag.
-          tags:
-            only: /^v.*/
-
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-azure-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: "azure-app-collection"
-        requires:
-        - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-aws-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: "aws-app-collection"
-        requires:
-        - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-kvm-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: "kvm-app-collection"
-        requires:
-        - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-openstack-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: openstack-app-collection
-        requires:
-          - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-capa-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: "capa-app-collection"
-        requires:
-          - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-gcp-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: "gcp-app-collection"
-        requires:
-          - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-cloud-director-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: "cloud-director-app-collection"
-        requires:
-          - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
-
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-vsphere-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: "vsphere-app-collection"
-        requires:
-          - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
-    - architect/push-to-app-collection:
-        context: architect
-        name: push-to-capz-app-collection
-        app_name: "dex-operator"
-        app_collection_repo: "capz-app-collection"
-        requires:
-          - push-to-app-catalog
-        filters:
-          branches:
-            ignore: /.*/
-          tags:
-            only: /^v.*/
+          name: push-to-capa-app-collection
+          app_name: "dex-operator"
+          app_collection_repo: "capa-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - architect/push-to-app-collection:
+          context: architect
+          name: push-to-gcp-app-collection
+          app_name: "dex-operator"
+          app_collection_repo: "gcp-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - architect/push-to-app-collection:
+          context: architect
+          name: push-to-cloud-director-app-collection
+          app_name: "dex-operator"
+          app_collection_repo: "cloud-director-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - architect/push-to-app-collection:
+          context: architect
+          name: push-to-vsphere-app-collection
+          app_name: "dex-operator"
+          app_collection_repo: "vsphere-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - architect/push-to-app-collection:
+          context: architect
+          name: push-to-capz-app-collection
+          app_name: "dex-operator"
+          app_collection_repo: "capz-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
