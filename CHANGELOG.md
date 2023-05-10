@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Allow user configmaps for dex app as long as no connectors are defined.
+
 ### Removed
 
 - Stop pushing to `openstack-app-collection`.
