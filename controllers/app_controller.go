@@ -34,6 +34,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -138,15 +139,27 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	predicate, err := predicate.LabelSelectorPredicate(r.LabelSelector)
+	labelPredicate, err := predicate.LabelSelectorPredicate(r.LabelSelector)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	namespacedNamePredicate, err := namespacedNamePredicate(key.MCDexDefaultNamespacedName())
 	if err != nil {
 		return microerror.Mask(err)
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.App{}).
-		WithEventFilter(predicate).
+		WithEventFilter(predicate.Or(labelPredicate, namespacedNamePredicate)).
 		Owns(&corev1.Secret{}).
 		Complete(r)
+}
+
+// namespacedNamePredicate constructs a Predicate from a namespaced name.
+// Only objects matching the namespaced name will be admitted.
+func namespacedNamePredicate(s types.NamespacedName) (predicate.Predicate, error) {
+	return predicate.NewPredicateFuncs(func(o client.Object) bool {
+		return o.GetName() == s.Name && o.GetNamespace() == s.Namespace
+	}), nil
 }
 
 func DefaultRequeue() reconcile.Result {
