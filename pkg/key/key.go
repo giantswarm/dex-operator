@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -14,6 +15,8 @@ const (
 	DexOperatorLabelValue        = "dex-operator"
 	ClusterValuesConfigmapSuffix = "cluster-values"
 	ClusterValuesConfigMapKey    = "values"
+	MCDexAppDefaultName          = "dex-app"
+	MCDexAppDefaultNamespace     = "giantswarm"
 	UserValuesConfigMapKey       = "values"
 	BaseDomainKey                = "baseDomain"
 	ConnectorsKey                = "connectors"
@@ -33,6 +36,14 @@ func DexLabelSelector() metav1.LabelSelector {
 		},
 	}
 }
+
+func MCDexDefaultNamespacedName() types.NamespacedName {
+	return types.NamespacedName{
+		Name:      MCDexAppDefaultName,
+		Namespace: MCDexAppDefaultNamespace,
+	}
+}
+
 func GetProviderName(owner string, name string) string {
 	return fmt.Sprintf("%s-%s", owner, name)
 }

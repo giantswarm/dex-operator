@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add predicate to app controller that recognizes MC dex app even before the `app.kubernetes.io/name` label was set.
+
 ## [0.3.5] - 2023-05-10
 
 ### Changed
