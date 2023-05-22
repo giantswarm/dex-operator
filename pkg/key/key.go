@@ -48,6 +48,10 @@ func GetProviderName(owner string, name string) string {
 	return fmt.Sprintf("%s-%s", owner, name)
 }
 
+func GetDexConfigName(name string) string {
+	return fmt.Sprintf("%s-%s", name, DexConfigName)
+}
+
 func GetIdpAppName(installation string, namespace string, name string) string {
 	return fmt.Sprintf("%s-%s-%s", installation, namespace, name)
 }

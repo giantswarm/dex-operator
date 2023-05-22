@@ -13,6 +13,7 @@ import (
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/microerror"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExtraConfig) bool {
@@ -69,7 +70,15 @@ func connectorsDefinedInUserConfigMap(userConfigmap *corev1.ConfigMap) bool {
 	return false
 }
 
-func GetDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
+func GetDexSecretConfig(n types.NamespacedName) v1alpha1.AppExtraConfig {
+	return v1alpha1.AppExtraConfig{
+		Kind:      "secret",
+		Name:      key.GetDexConfigName(n.Name),
+		Namespace: n.Namespace,
+		Priority:  25}
+}
+
+func GetVintageDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
 	return v1alpha1.AppExtraConfig{
 		Kind:      "secret",
 		Name:      key.DexConfigName,
