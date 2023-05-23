@@ -91,8 +91,16 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		}
 	}
 
+	// this migrates the vintage secret format (default name in cluster namespace) to capi secret format (custom name in org namespace)
+	// TODO: this migration code can be removed after running this once
+	if migrated, err := s.migrateVintageSecret(ctx); err != nil {
+		return microerror.Mask(err)
+	} else if migrated {
+		return nil
+	}
+
 	// Add secret config to app instance
-	dexSecretConfig := GetDexSecretConfig(s.app.Namespace)
+	dexSecretConfig := GetDexSecretConfig(types.NamespacedName{Namespace: s.app.Namespace, Name: s.app.Name})
 	if !dexSecretConfigIsPresent(s.app, dexSecretConfig) {
 		s.app.Spec.ExtraConfigs = append(s.app.Spec.ExtraConfigs, dexSecretConfig)
 		if err := s.Update(ctx, s.app); err != nil {
@@ -107,11 +115,11 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if !apierrors.IsNotFound(err) {
 			return microerror.Mask(err)
 		} else {
-			secret = s.GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace)
+			secret = GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace)
 			if err := s.Create(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}
-			s.log.Info("Applied default dex config secret for dex app instance.")
+			s.log.Info("Created default dex config secret for dex app instance.")
 		}
 	}
 	{
@@ -144,7 +152,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			if err := s.Update(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}
-			s.log.Info("Applied default dex config secret for dex app instance.")
+			s.log.Info("Updated default dex config secret for dex app instance.")
 		}
 	}
 
@@ -161,7 +169,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
 	// Fetch secret if present
-	dexSecretConfig := GetDexSecretConfig(s.app.Namespace)
+	dexSecretConfig := GetDexSecretConfig(types.NamespacedName{Namespace: s.app.Namespace, Name: s.app.Name})
 	if dexSecretConfigIsPresent(s.app, dexSecretConfig) {
 		secret := &corev1.Secret{}
 		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
@@ -314,7 +322,7 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 	}, nil
 }
 
-func (s *Service) GetDefaultDexConfigSecret(name string, namespace string) *corev1.Secret {
+func GetDefaultDexConfigSecret(name string, namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -352,4 +360,67 @@ func GetIssuerAddress(baseDomain string, managementClusterIssuerAddress string, 
 		}
 	}
 	return issuerAddress
+}
+
+func (s *Service) migrateVintageSecret(ctx context.Context) (bool, error) {
+	// Check for vintage secret reference
+	vintageDexSecretConfig := GetVintageDexSecretConfig(s.app.Namespace)
+	if !dexSecretConfigIsPresent(s.app, vintageDexSecretConfig) {
+		return false, nil
+	}
+
+	// Reference exists
+	// Fetch vintage secret
+	vintageSecret := &corev1.Secret{}
+	if err := s.Get(ctx, types.NamespacedName{Name: vintageDexSecretConfig.Name, Namespace: vintageDexSecretConfig.Namespace}, vintageSecret); err == nil {
+
+		// Check for new secret reference
+		dexSecretConfig := GetDexSecretConfig(types.NamespacedName{Namespace: s.app.Namespace, Name: s.app.Name})
+		if !dexSecretConfigIsPresent(s.app, dexSecretConfig) {
+
+			// Try fetching the new secret
+			secret := &corev1.Secret{}
+			if err = s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return false, microerror.Mask(err)
+				}
+				// secret does not exist, create new secret and copy old secret data
+				secret = GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace)
+				secret.Data = vintageSecret.Data
+				if err := s.Create(ctx, secret); err != nil {
+					return false, microerror.Mask(err)
+				}
+				s.log.Info(fmt.Sprintf("Copied data from vintage dex config secret %s to new dex config secret %s for dex app instance.", vintageDexSecretConfig.Name, dexSecretConfig.Name))
+			}
+		}
+		// remove finalizer
+		if controllerutil.ContainsFinalizer(vintageSecret, key.DexOperatorFinalizer) {
+			controllerutil.RemoveFinalizer(vintageSecret, key.DexOperatorFinalizer)
+			if err := s.Update(ctx, vintageSecret); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return false, microerror.Mask(err)
+				}
+			} else {
+				s.log.Info("Removed finalizer from vintage dex config secret.")
+			}
+		}
+		// delete old secret
+		if err := s.Delete(ctx, vintageSecret); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return false, microerror.Mask(err)
+			}
+		} else {
+			s.log.Info("Deleted vintage dex config secret for dex app instance.")
+		}
+
+	} else if !apierrors.IsNotFound(err) {
+		return false, microerror.Mask(err)
+	}
+	// if we are here we can assume the secret is gone so we remove the reference
+	s.app.Spec.ExtraConfigs = removeExtraConfig(s.app.Spec.ExtraConfigs, vintageDexSecretConfig)
+	if err := s.Update(ctx, s.app); err != nil {
+		return false, microerror.Mask(err)
+	}
+	s.log.Info("Removed vintage dex config secret reference from dex app instance.")
+	return true, nil
 }

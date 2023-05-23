@@ -370,42 +370,42 @@ func TestRemoveExtraConfig(t *testing.T) {
 			name:           "case 0",
 			configBefore:   nil,
 			configAfter:    nil,
-			configToRemove: GetDexSecretConfig("test"),
+			configToRemove: GetVintageDexSecretConfig("test"),
 		},
 		{
 			name: "case 2",
 			configBefore: []v1alpha1.AppExtraConfig{
-				GetDexSecretConfig("test2"),
+				GetVintageDexSecretConfig("test2"),
 			},
 			configAfter: []v1alpha1.AppExtraConfig{
-				GetDexSecretConfig("test2"),
+				GetVintageDexSecretConfig("test2"),
 			},
-			configToRemove: GetDexSecretConfig("test"),
+			configToRemove: GetVintageDexSecretConfig("test"),
 		},
 		{
 			name: "case 2",
 			configBefore: []v1alpha1.AppExtraConfig{
-				GetDexSecretConfig("test"),
+				GetVintageDexSecretConfig("test"),
 			},
 			configAfter:    []v1alpha1.AppExtraConfig{},
-			configToRemove: GetDexSecretConfig("test"),
+			configToRemove: GetVintageDexSecretConfig("test"),
 		},
 		{
 			name: "case 3",
 			configBefore: []v1alpha1.AppExtraConfig{
-				GetDexSecretConfig("test"),
-				GetDexSecretConfig("test2"),
+				GetVintageDexSecretConfig("test"),
+				GetVintageDexSecretConfig("test2"),
 			},
 			configAfter: []v1alpha1.AppExtraConfig{
-				GetDexSecretConfig("test2"),
+				GetVintageDexSecretConfig("test2"),
 			},
-			configToRemove: GetDexSecretConfig("test"),
+			configToRemove: GetVintageDexSecretConfig("test"),
 		},
 		{
 			name:           "case 3",
 			configBefore:   []v1alpha1.AppExtraConfig{},
 			configAfter:    []v1alpha1.AppExtraConfig{},
-			configToRemove: GetDexSecretConfig("test"),
+			configToRemove: GetVintageDexSecretConfig("test"),
 		},
 	}
 
@@ -478,7 +478,7 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			secret := s.GetDefaultDexConfigSecret("example", "test")
+			secret := GetDefaultDexConfigSecret("example", "test")
 			secret.Data["default"] = data
 			connectors, err := getConnectorsFromSecret(secret)
 			if err != nil {
