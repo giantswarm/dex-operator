@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.6] - 2023-05-17
+## [0.4.0] - 2023-05-23
 
 ### Added
 
 - Use dex app name specific naming pattern for dex config secret and add migration code for old naming pattern.
+
+## [0.3.6] - 2023-05-17
+
+### Added
+
 - Add predicate to app controller that recognizes MC dex app even before the `app.kubernetes.io/name` label was set.
 
 ## [0.3.5] - 2023-05-10
@@ -121,7 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.3.6...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/giantswarm/dex-operator/compare/v0.3.6...v0.4.0
 [0.3.6]: https://github.com/giantswarm/dex-operator/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/giantswarm/dex-operator/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/giantswarm/dex-operator/compare/v0.3.3...v0.3.4
