@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0] - 2023-05-23
 
+### Added
+
+- Use dex app name specific naming pattern for dex config secret and add migration code for old naming pattern.
+
 ## [0.3.6] - 2023-05-17
 
 ### Added
 
-- Use dex app name specific naming pattern for dex config secret and add migration code for old naming pattern.
 - Add predicate to app controller that recognizes MC dex app even before the `app.kubernetes.io/name` label was set.
 
 ## [0.3.5] - 2023-05-10
