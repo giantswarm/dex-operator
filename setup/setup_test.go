@@ -229,6 +229,20 @@ func TestRun(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "case 9",
+			setup: SetupConfig{
+				Installation:   "test",
+				CredentialFile: "test-data/credentials",
+				Provider:       IncludeAll,
+				Action:         DeleteAction,
+			},
+			expectConfig: Config{
+				Oidc: Oidc{
+					Giantswarm: getOldprovider(),
+				},
+			},
+		},
 	}
 
 	for i, tc := range testCases {

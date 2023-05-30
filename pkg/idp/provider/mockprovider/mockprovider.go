@@ -83,6 +83,10 @@ func (m *MockProvider) CleanCredentialsForAuthenticatedApp(config provider.AppCo
 	return nil
 }
 
+func (m *MockProvider) DeleteAuthenticatedApp(config provider.AppConfig) error {
+	return nil
+}
+
 func MockCert() string {
 	return `-----BEGIN MOCK CERT-----
 mock

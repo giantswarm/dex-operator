@@ -3,6 +3,7 @@ package azure
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
@@ -15,6 +16,7 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
@@ -396,28 +398,81 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (ma
 }
 
 func (a *Azure) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
-	for _, name := range []string{config.Name, DexOperatorName} {
-		app, err := a.GetApp(name)
-		if err != nil {
-			if !IsNotFound(err) {
-				return microerror.Mask(err)
-			}
-			continue
+	app, err := a.GetApp(config.Name)
+	if err != nil {
+		if !IsNotFound(err) {
+			return microerror.Mask(err)
 		}
-		id := app.GetId()
-		if id == nil {
-			return microerror.Maskf(notFoundError, "Could not find ID of app %s.", name)
-		}
-		for _, c := range app.GetPasswordCredentials() {
-			if credentialName := c.GetDisplayName(); credentialName != nil {
-				if *credentialName == config.Name && secretChanged(c, a.clientSecret) {
-					if err = a.DeleteSecret(context.Background(), c.GetKeyId(), *id); err != nil {
-						return microerror.Mask(err)
-					}
-					a.Log.Info(fmt.Sprintf("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", c.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
+		return nil
+	}
+	id := app.GetId()
+	if id == nil {
+		return microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
+	}
+	for _, c := range app.GetPasswordCredentials() {
+		if credentialName := c.GetDisplayName(); credentialName != nil {
+			if *credentialName == config.Name && secretChanged(c, a.clientSecret) {
+				if err = a.DeleteSecret(context.Background(), c.GetKeyId(), *id); err != nil {
+					return microerror.Mask(err)
 				}
+				a.Log.Info(fmt.Sprintf("Removed secret %v of %s app %s for %s in microsoft ad tenant %s", c.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 			}
 		}
 	}
 	return nil
+}
+
+func (a *Azure) DeleteAuthenticatedApp(config provider.AppConfig) error {
+	ctx := context.Background()
+	installation := strings.TrimPrefix(config.Name, DexOperatorName+"-")
+
+	// get all the dex-apps
+	dexApps, err := a.Client.Applications().Get(context.Background(), testGetRequestConfig("dex-app"))
+	if err != nil {
+		return microerror.Maskf(requestFailedError, PrintOdataError(err))
+	}
+	count := dexApps.GetOdataCount()
+	if *count != 0 {
+		appList := dexApps.GetValue()
+		for _, app := range appList {
+			if strings.Split(*app.GetDisplayName(), "-")[0] == installation {
+				err := a.DeleteApp(*app.GetDisplayName(), ctx)
+				if err != nil {
+					return microerror.Maskf(requestFailedError, PrintOdataError(err))
+				}
+			}
+		}
+	}
+
+	// get dex-operator app
+	dexOperator, err := a.GetApp(config.Name)
+	if err == nil {
+		err := a.DeleteApp(*dexOperator.GetDisplayName(), ctx)
+		if err != nil {
+			return microerror.Maskf(requestFailedError, PrintOdataError(err))
+		}
+	} else {
+		if !IsNotFound(err) {
+			return microerror.Mask(err)
+		}
+	}
+	a.Log.Info(fmt.Sprintf("Deleted all %s app resources for installation %s in microsoft ad tenant %s", a.Type, installation, a.TenantID))
+	return nil
+}
+
+func testGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
+	headers := abstractions.NewRequestHeaders()
+	headers.Add("ConsistencyLevel", "eventual")
+	requestSearch := fmt.Sprintf("\"displayName:%v\"", name)
+	requestCount := true
+
+	requestParameters := &applications.ApplicationsRequestBuilderGetQueryParameters{
+		Search:  &requestSearch,
+		Count:   &requestCount,
+		Orderby: []string{"displayName"},
+	}
+	return &applications.ApplicationsRequestBuilderGetRequestConfiguration{
+		Headers:         headers,
+		QueryParameters: requestParameters,
+	}
 }

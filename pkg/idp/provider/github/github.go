@@ -329,10 +329,25 @@ func (g *Github) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) 
 	return nil
 }
 
+func (g *Github) DeleteAuthenticatedApp(config provider.AppConfig) error {
+	g.Log.Info(fmt.Sprintf("github does not allow deletion of apps via automation. Attempting to open deletion page for %s so user can manually delete it.", config.Name))
+	appURL := getDeletionURLForApp(DefaultHost, g.Organization, config.Name)
+	g.Log.Info(fmt.Sprintf("Opening the app under the following URL: %s", config.Name))
+	err := open.Start(appURL)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	return nil
+}
+
 func getAppURL(host string, organization string, slug string) string {
 	return fmt.Sprintf("https://%s/organizations/%s/settings/apps/%s", host, organization, slug)
 }
 
 func getDeletionURLForOldApp(host string, organization string, slug string) string {
 	return fmt.Sprintf("https://%s/organizations/%s/settings/apps/%s-old/advanced", host, organization, slug)
+}
+
+func getDeletionURLForApp(host string, organization string, slug string) string {
+	return fmt.Sprintf("https://%s/organizations/%s/settings/apps/%s/advanced", host, organization, slug)
 }

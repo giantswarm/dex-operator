@@ -16,6 +16,7 @@ type Provider interface {
 	DeleteApp(string, context.Context) error
 	GetCredentialsForAuthenticatedApp(AppConfig) (map[string]string, error)
 	CleanCredentialsForAuthenticatedApp(AppConfig) error
+	DeleteAuthenticatedApp(AppConfig) error
 	GetName() string
 	GetProviderName() string
 	GetOwner() string
