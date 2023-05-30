@@ -129,6 +129,23 @@ func GetAppGetRequestConfig(name string) *applications.ApplicationsRequestBuilde
 	}
 }
 
+func GetAllAppsContainingRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
+	headers := abstractions.NewRequestHeaders()
+	headers.Add("ConsistencyLevel", "eventual")
+	requestSearch := fmt.Sprintf("\"displayName:%v\"", name)
+	requestCount := true
+
+	requestParameters := &applications.ApplicationsRequestBuilderGetQueryParameters{
+		Search:  &requestSearch,
+		Count:   &requestCount,
+		Orderby: []string{"displayName"},
+	}
+	return &applications.ApplicationsRequestBuilderGetRequestConfiguration{
+		Headers:         headers,
+		QueryParameters: requestParameters,
+	}
+}
+
 func getAppCreateRequestBody(config provider.AppConfig) models.Applicationable {
 	// Assemble request body
 	app := models.NewApplication()

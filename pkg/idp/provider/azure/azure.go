@@ -16,7 +16,6 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
-	abstractions "github.com/microsoft/kiota-abstractions-go"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
@@ -427,7 +426,7 @@ func (a *Azure) DeleteAuthenticatedApp(config provider.AppConfig) error {
 	installation := strings.TrimPrefix(config.Name, DexOperatorName+"-")
 
 	// get all the dex-apps
-	dexApps, err := a.Client.Applications().Get(context.Background(), testGetRequestConfig("dex-app"))
+	dexApps, err := a.Client.Applications().Get(context.Background(), GetAllAppsContainingRequestConfig("dex-app"))
 	if err != nil {
 		return microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
@@ -458,21 +457,4 @@ func (a *Azure) DeleteAuthenticatedApp(config provider.AppConfig) error {
 	}
 	a.Log.Info(fmt.Sprintf("Deleted all %s app resources for installation %s in microsoft ad tenant %s", a.Type, installation, a.TenantID))
 	return nil
-}
-
-func testGetRequestConfig(name string) *applications.ApplicationsRequestBuilderGetRequestConfiguration {
-	headers := abstractions.NewRequestHeaders()
-	headers.Add("ConsistencyLevel", "eventual")
-	requestSearch := fmt.Sprintf("\"displayName:%v\"", name)
-	requestCount := true
-
-	requestParameters := &applications.ApplicationsRequestBuilderGetQueryParameters{
-		Search:  &requestSearch,
-		Count:   &requestCount,
-		Orderby: []string{"displayName"},
-	}
-	return &applications.ApplicationsRequestBuilderGetRequestConfiguration{
-		Headers:         headers,
-		QueryParameters: requestParameters,
-	}
 }
