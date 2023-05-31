@@ -21,6 +21,7 @@ import (
 const (
 	IncludeAll   = "all"
 	CleanAction  = "clean"
+	DeleteAction = "delete"
 	UpdateAction = "update"
 	CreateAction = "create"
 )
@@ -79,6 +80,12 @@ func (s *Setup) Run() error {
 			return microerror.Mask(err)
 		}
 		return nil
+	case DeleteAction:
+		err := s.DeleteConfigCredentialsForProviders()
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		return nil
 	case UpdateAction:
 		err := s.GetConfigCredentialsForProviders()
 		if err != nil {
@@ -122,6 +129,16 @@ func (s *Setup) GetConfigCredentialsForProviders() error {
 	}
 	if s.action == CreateAction {
 		s.createConfig(config)
+	}
+	return nil
+}
+
+func (s *Setup) DeleteConfigCredentialsForProviders() error {
+	for _, p := range s.providers {
+		err := p.DeleteAuthenticatedApp(s.appConfig)
+		if err != nil {
+			return microerror.Mask(err)
+		}
 	}
 	return nil
 }
