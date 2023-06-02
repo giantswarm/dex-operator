@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2023-06-02
+
 ### Added
 
 - Add team label.
@@ -136,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/giantswarm/dex-operator/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/giantswarm/dex-operator/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/giantswarm/dex-operator/compare/v0.3.6...v0.4.0
 [0.3.6]: https://github.com/giantswarm/dex-operator/compare/v0.3.5...v0.3.6
