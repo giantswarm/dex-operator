@@ -5,5 +5,5 @@ appVersion: "[[ .AppVersion ]]"
 home: "https://github.com/giantswarm/dex-operator"
 apiVersion: v1
 annotations:
-  application.giantswarm.io/team: "rainbow"
+  application.giantswarm.io/team: "bigmac"
   config.giantswarm.io/version: 1.x.x
