@@ -1,7 +1,6 @@
 {
   "extends": [
-    "config:base",
-    ":reviewer(team:team-bigmac)"
+    "config:base"
   ],
   "labels": ["dependencies", "renovate"],
   "packageRules": [
