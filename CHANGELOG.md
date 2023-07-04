@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update deployment to be PSS compliant.
+
+### Added
+
+- Add icon to Chart.yaml.
+
 ## [0.5.1] - 2023-06-02
 
 ### Added
