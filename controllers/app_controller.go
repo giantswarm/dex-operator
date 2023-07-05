@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/giantswarm/dex-operator/pkg/auth"
 	"github.com/giantswarm/dex-operator/pkg/idp"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
@@ -46,13 +47,14 @@ import (
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
-	Log                 logr.Logger
-	Scheme              *runtime.Scheme
-	LabelSelector       metav1.LabelSelector
-	BaseDomain          string
-	IssuerAddress       string
-	ManagementCluster   string
-	ProviderCredentials string
+	Log                      logr.Logger
+	Scheme                   *runtime.Scheme
+	LabelSelector            metav1.LabelSelector
+	BaseDomain               string
+	IssuerAddress            string
+	ManagementCluster        string
+	ProviderCredentials      string
+	GiantswarmWriteAllGroups []string
 }
 
 //+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps,verbs=get;list;watch;create;update;patch;delete
@@ -105,10 +107,33 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return ctrl.Result{}, microerror.Mask(err)
 		}
 	}
+	var authService *auth.Service
+	{
+		writeAllGroups, err := r.GetWriteAllGroups()
+		if err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+
+		c := auth.Config{
+			Log:                   &log,
+			Client:                r.Client,
+			App:                   app,
+			ManagementClusterName: r.ManagementCluster,
+			WriteAllGroups:        writeAllGroups,
+		}
+
+		authService, err = auth.New(c)
+		if err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+	}
 
 	// App is deleted.
 	if !app.DeletionTimestamp.IsZero() {
 		if err := idpService.ReconcileDelete(ctx); err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+		if err := authService.ReconcileDelete(ctx); err != nil {
 			return ctrl.Result{}, microerror.Mask(err)
 		}
 		// remove finalizer
@@ -132,6 +157,9 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	// App is not deleted
 	if err := idpService.Reconcile(ctx); err != nil {
+		return ctrl.Result{}, microerror.Mask(err)
+	}
+	if err := authService.Reconcile(ctx); err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
 	return DefaultRequeue(), nil
@@ -186,6 +214,12 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 		}
 	}
 	return providers, nil
+}
+
+func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
+	// For now, we only return the global giantswarm write-all groups here.
+	// This could be changed to include specific ones to the app
+	return r.GiantswarmWriteAllGroups, nil
 }
 
 func NewProvider(p provider.ProviderCredential, log *logr.Logger) (provider.Provider, error) {

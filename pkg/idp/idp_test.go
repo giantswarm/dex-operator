@@ -77,7 +77,7 @@ func TestGetBaseDomain(t *testing.T) {
 		{
 			name: "case 0",
 			data: map[string]string{
-				key.ClusterValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.io
 					somethingelse: "false"
@@ -90,7 +90,7 @@ func TestGetBaseDomain(t *testing.T) {
 		{
 			name: "case 1",
 			data: map[string]string{
-				key.ClusterValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					somethingelse: "false"
 					object:
@@ -103,7 +103,7 @@ func TestGetBaseDomain(t *testing.T) {
 		{
 			name: "case 2",
 			data: map[string]string{
-				key.ClusterValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					somethingelse: "false"
 					object:
@@ -115,7 +115,7 @@ func TestGetBaseDomain(t *testing.T) {
 		{
 			name: "case 3",
 			data: map[string]string{
-				key.ClusterValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 				baseDomain: hi.goodday.hello.io
 					something: "12"
 					somethingelse: "false"
@@ -218,7 +218,7 @@ func TestUserConnectors(t *testing.T) {
 		{
 			name: "case 0",
 			data: map[string]string{
-				key.UserValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.io
 					somethingelse: "false"
@@ -236,7 +236,7 @@ func TestUserConnectors(t *testing.T) {
 		{
 			name: "case 1",
 			data: map[string]string{
-				key.UserValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.io
 					somethingelse: "false"
@@ -249,7 +249,7 @@ func TestUserConnectors(t *testing.T) {
 		{
 			name: "case 2",
 			data: map[string]string{
-				key.UserValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.io
 					somethingelse: "false"
@@ -265,7 +265,7 @@ func TestUserConnectors(t *testing.T) {
 		{
 			name: "case 3",
 			data: map[string]string{
-				key.UserValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.io
 					somethingelse: "false"
@@ -283,7 +283,7 @@ func TestUserConnectors(t *testing.T) {
 		{
 			name: "case 4",
 			data: map[string]string{
-				key.UserValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.io
 					somethingelse: "false"
@@ -299,7 +299,7 @@ func TestUserConnectors(t *testing.T) {
 		{
 			name: "case 5",
 			data: map[string]string{
-				key.UserValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.io
 					somethingelse: "false"
@@ -315,7 +315,7 @@ func TestUserConnectors(t *testing.T) {
 		{
 			name: "case 6",
 			data: map[string]string{
-				key.UserValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.io
 					somethingelse: "false"
@@ -335,7 +335,7 @@ func TestUserConnectors(t *testing.T) {
 		{
 			name: "case 7",
 			data: map[string]string{
-				key.UserValuesConfigMapKey: `
+				key.ValuesConfigMapKey: `
 					something: "12"
 					baseDomain: hello.connectors.io
 					somethingelse: "false"
@@ -821,7 +821,7 @@ func getClusterValuesConfigMap(clusterValues string) *corev1.ConfigMap {
 			Namespace: "example",
 		},
 		Data: map[string]string{
-			key.ClusterValuesConfigMapKey: clusterValues,
+			key.ValuesConfigMapKey: clusterValues,
 		},
 	}
 }

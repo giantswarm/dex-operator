@@ -3,6 +3,7 @@ oidc:
     providers: []
   giantswarm:
     providers: []
+    write_all_groups: []
 
 baseDomain: ""
 managementCluster: ""

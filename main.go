@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -51,13 +52,14 @@ func init() {
 
 func main() {
 	var (
-		baseDomain           string
-		issuerAddress        string
-		enableLeaderElection bool
-		idpCredentials       string
-		managementCluster    string
-		metricsAddr          string
-		probeAddr            string
+		baseDomain               string
+		issuerAddress            string
+		enableLeaderElection     bool
+		idpCredentials           string
+		managementCluster        string
+		metricsAddr              string
+		probeAddr                string
+		giantswarmWriteAllGroups string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&idpCredentials, "idp-credentials-file", "/home/.idp/credentials", "The location of the idp credentials file.")
@@ -69,6 +71,7 @@ func main() {
 	flag.StringVar(&baseDomain, "base-domain", "", "Domain for the dex callback address, e.g. customer.gigantic.io.")
 	flag.StringVar(&issuerAddress, "issuer-address", "", "URL of the identity issuer")
 	flag.StringVar(&managementCluster, "management-cluster", "", "Name of the management cluster.")
+	flag.StringVar(&giantswarmWriteAllGroups, "giantswarm-write-all-groups", "", "Comma separated list of giantswarm admin groups.")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
@@ -103,14 +106,15 @@ func main() {
 	}
 
 	if err = (&controllers.AppReconciler{
-		BaseDomain:          baseDomain,
-		IssuerAddress:       issuerAddress,
-		ManagementCluster:   managementCluster,
-		Client:              mgr.GetClient(),
-		Log:                 ctrl.Log.WithName("controllers").WithName("App"),
-		Scheme:              mgr.GetScheme(),
-		LabelSelector:       key.DexLabelSelector(),
-		ProviderCredentials: idpCredentials,
+		BaseDomain:               baseDomain,
+		IssuerAddress:            issuerAddress,
+		ManagementCluster:        managementCluster,
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("App"),
+		Scheme:                   mgr.GetScheme(),
+		LabelSelector:            key.DexLabelSelector(),
+		ProviderCredentials:      idpCredentials,
+		GiantswarmWriteAllGroups: strings.Split(giantswarmWriteAllGroups, ","),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
 		os.Exit(1)
