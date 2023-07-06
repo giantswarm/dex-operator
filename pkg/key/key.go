@@ -54,7 +54,7 @@ func GetDexConfigName(name string) string {
 }
 
 func GetAuthConfigName(name string) string {
-	return fmt.Sprintf("%s-%s", name, DexConfigName)
+	return fmt.Sprintf("%s-%s", name, AuthConfigName)
 }
 
 func GetIdpAppName(installation string, namespace string, name string) string {
