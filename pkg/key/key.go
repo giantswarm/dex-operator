@@ -9,15 +9,16 @@ import (
 
 const (
 	AppLabel                     = "app.kubernetes.io/name"
+	AdminRoleName                = "cluster-admin"
 	DexAppLabelValue             = "dex-app"
+	AuthConfigName               = "default-auth-config"
 	DexConfigName                = "default-dex-config"
 	DexOperatorFinalizer         = "dex-operator.finalizers.giantswarm.io/app-controller"
 	DexOperatorLabelValue        = "dex-operator"
 	ClusterValuesConfigmapSuffix = "cluster-values"
-	ClusterValuesConfigMapKey    = "values"
+	ValuesConfigMapKey           = "values"
 	MCDexAppDefaultName          = "dex-app"
 	MCDexAppDefaultNamespace     = "giantswarm"
-	UserValuesConfigMapKey       = "values"
 	BaseDomainKey                = "baseDomain"
 	ConnectorsKey                = "connectors"
 	DexResourceURI               = "https://dex.giantswarm.io"
@@ -50,6 +51,10 @@ func GetProviderName(owner string, name string) string {
 
 func GetDexConfigName(name string) string {
 	return fmt.Sprintf("%s-%s", name, DexConfigName)
+}
+
+func GetAuthConfigName(name string) string {
+	return fmt.Sprintf("%s-%s", name, AuthConfigName)
 }
 
 func GetIdpAppName(installation string, namespace string, name string) string {

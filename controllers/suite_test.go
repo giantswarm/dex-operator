@@ -86,13 +86,14 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&AppReconciler{
-		BaseDomain:          "test.io",
-		ManagementCluster:   "something",
-		Log:                 ctrl.Log.WithName("controllers").WithName("App"),
-		Client:              k8sManager.GetClient(),
-		Scheme:              k8sManager.GetScheme(),
-		LabelSelector:       key.DexLabelSelector(),
-		ProviderCredentials: "test-data/credentials",
+		BaseDomain:               "test.io",
+		ManagementCluster:        "something",
+		GiantswarmWriteAllGroups: []string{"group_a", "group_b"},
+		Log:                      ctrl.Log.WithName("controllers").WithName("App"),
+		Client:                   k8sManager.GetClient(),
+		Scheme:                   k8sManager.GetScheme(),
+		LabelSelector:            key.DexLabelSelector(),
+		ProviderCredentials:      "test-data/credentials",
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

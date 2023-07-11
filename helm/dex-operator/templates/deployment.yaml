@@ -37,6 +37,7 @@ spec:
         - --base-domain={{ .Values.baseDomain }}
         - --management-cluster={{ .Values.managementCluster }}
         - --issuer-address={{ .Values.issuerAddress }}
+        - --giantswarm-write-all-groups={{ join "," .Values.oidc.giantswarm.write_all_groups }}
         ports:
         - containerPort: 8080
           name: metrics

@@ -53,7 +53,7 @@ func clusterValuesIsPresent(app *v1alpha1.App) bool {
 }
 
 func getBaseDomainFromClusterValues(clusterValuesConfigmap *corev1.ConfigMap) string {
-	values := clusterValuesConfigmap.Data[key.ClusterValuesConfigMapKey]
+	values := clusterValuesConfigmap.Data[key.ValuesConfigMapKey]
 	rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.BaseDomainKey))
 	if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
 		return matches[3]
@@ -62,7 +62,7 @@ func getBaseDomainFromClusterValues(clusterValuesConfigmap *corev1.ConfigMap) st
 }
 
 func connectorsDefinedInUserConfigMap(userConfigmap *corev1.ConfigMap) bool {
-	values := userConfigmap.Data[key.UserValuesConfigMapKey]
+	values := userConfigmap.Data[key.ValuesConfigMapKey]
 	rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.ConnectorsKey))
 	if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
 		return true
