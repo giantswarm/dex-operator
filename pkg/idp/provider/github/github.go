@@ -23,6 +23,7 @@ import (
 
 const (
 	ProviderName          = "github"
+	ProviderDisplayName   = "Github"
 	ProviderConnectorType = "github"
 	OrganizationKey       = "organization"
 	TeamKey               = "team"
@@ -37,6 +38,7 @@ type Github struct {
 	Client       *githubclient.Client
 	Log          *logr.Logger
 	Name         string
+	Description  string
 	Type         string
 	Owner        string
 	Organization string
@@ -71,6 +73,7 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
 
 	return &Github{
 		Name:         key.GetProviderName(p.Owner, p.Name),
+		Description:  p.GetConnectorDescription(ProviderDisplayName),
 		Log:          log,
 		Type:         ProviderConnectorType,
 		Client:       client,
@@ -181,7 +184,7 @@ func (g *Github) CreateOrUpdateApp(config provider.AppConfig, ctx context.Contex
 		Connector: dex.Connector{
 			Type:   g.Type,
 			ID:     g.Name,
-			Name:   key.GetConnectorDescription(ProviderConnectorType, g.Owner),
+			Name:   g.Description,
 			Config: string(data[:]),
 		},
 		SecretEndDateTime: secret.EndDateTime,

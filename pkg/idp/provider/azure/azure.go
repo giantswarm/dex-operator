@@ -26,6 +26,7 @@ import (
 
 type Azure struct {
 	Name         string
+	Description  string
 	Client       *msgraphsdk.GraphServiceClient
 	Log          *logr.Logger
 	Owner        string
@@ -71,6 +72,7 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 	return &Azure{
 
 		Name:         key.GetProviderName(p.Owner, p.Name),
+		Description:  p.GetConnectorDescription(ProviderDisplayName),
 		Log:          log,
 		Type:         ProviderConnectorType,
 		Client:       client,
@@ -161,7 +163,7 @@ func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context
 		Connector: dex.Connector{
 			Type:   a.Type,
 			ID:     a.Name,
-			Name:   key.GetConnectorDescription(ProviderConnectorType, a.Owner),
+			Name:   a.Description,
 			Config: string(data[:]),
 		},
 		SecretEndDateTime: secret.EndDateTime,
