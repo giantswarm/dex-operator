@@ -28,7 +28,7 @@ type MockProvider struct {
 func New(p provider.ProviderCredential) (*MockProvider, error) {
 	return &MockProvider{
 		Name:        key.GetProviderName(p.Owner, ProviderName),
-		Description: p.GetConnectorDescription(),
+		Description: p.GetConnectorDescription(ProviderConnectorType),
 		Type:        ProviderConnectorType,
 		Owner:       p.Owner,
 	}, nil

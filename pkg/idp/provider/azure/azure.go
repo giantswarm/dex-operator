@@ -72,7 +72,7 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 	return &Azure{
 
 		Name:         key.GetProviderName(p.Owner, p.Name),
-		Description:  p.GetConnectorDescription(),
+		Description:  p.GetConnectorDescription(ProviderConnectorType),
 		Log:          log,
 		Type:         ProviderConnectorType,
 		Client:       client,
