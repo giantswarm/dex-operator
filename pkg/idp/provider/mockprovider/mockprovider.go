@@ -19,14 +19,16 @@ const (
 )
 
 type MockProvider struct {
-	Name  string
-	Type  string
-	Owner string
+	Name        string
+	Description string
+	Type        string
+	Owner       string
 }
 
 func New(p provider.ProviderCredential) (*MockProvider, error) {
 	return &MockProvider{
 		Name:  key.GetProviderName(p.Owner, ProviderName),
+		Description: p.GetConnectorDescription(),
 		Type:  ProviderConnectorType,
 		Owner: p.Owner,
 	}, nil
@@ -61,7 +63,7 @@ func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.
 		Connector: dex.Connector{
 			Type:   m.Type,
 			ID:     m.Name,
-			Name:   key.GetConnectorDescription(ProviderConnectorType, m.Owner),
+			Name:   m.Description,
 			Config: string(data[:]),
 		},
 		SecretEndDateTime: time.Now().AddDate(0, 6, 0),
