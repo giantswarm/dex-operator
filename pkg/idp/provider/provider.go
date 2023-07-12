@@ -38,11 +38,11 @@ type ProviderCredential struct {
 	Description string            `yaml:"description"`
 }
 
-func (c ProviderCredential) GetConnectorDescription(providerConnectorType string) string {
+func (c ProviderCredential) GetConnectorDescription(providerDisplayName string) string {
 	if c.Description != "" {
 		return c.Description
 	}
-	return key.GetDefaultConnectorDescription(providerConnectorType, c.Owner)
+	return key.GetDefaultConnectorDescription(providerDisplayName, c.Owner)
 }
 
 type ProviderApp struct {

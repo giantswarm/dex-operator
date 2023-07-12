@@ -15,6 +15,7 @@ import (
 
 const (
 	ProviderName          = "mock"
+	ProviderDisplayName   = "Mock Provider"
 	ProviderConnectorType = "mockCallback"
 )
 
@@ -28,7 +29,7 @@ type MockProvider struct {
 func New(p provider.ProviderCredential) (*MockProvider, error) {
 	return &MockProvider{
 		Name:        key.GetProviderName(p.Owner, ProviderName),
-		Description: p.GetConnectorDescription(ProviderConnectorType),
+		Description: p.GetConnectorDescription(ProviderDisplayName),
 		Type:        ProviderConnectorType,
 		Owner:       p.Owner,
 	}, nil

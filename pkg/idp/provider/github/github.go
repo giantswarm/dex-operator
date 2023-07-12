@@ -23,6 +23,7 @@ import (
 
 const (
 	ProviderName          = "github"
+	ProviderDisplayName   = "Github"
 	ProviderConnectorType = "github"
 	OrganizationKey       = "organization"
 	TeamKey               = "team"
@@ -72,7 +73,7 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
 
 	return &Github{
 		Name:         key.GetProviderName(p.Owner, p.Name),
-		Description:  p.GetConnectorDescription(ProviderConnectorType),
+		Description:  p.GetConnectorDescription(ProviderDisplayName),
 		Log:          log,
 		Type:         ProviderConnectorType,
 		Client:       client,

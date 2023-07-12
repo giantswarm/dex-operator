@@ -24,6 +24,8 @@ const (
 	DexResourceURI               = "https://dex.giantswarm.io"
 	OwnerGiantswarm              = "giantswarm"
 	OwnerCustomer                = "customer"
+	OwnerGiantswarmDisplayName   = "Giant Swarm"
+	OwnerCustomerDisplayName     = "Customer"
 )
 
 const (
@@ -61,8 +63,19 @@ func GetIdpAppName(installation string, namespace string, name string) string {
 	return fmt.Sprintf("%s-%s-%s", installation, namespace, name)
 }
 
-func GetDefaultConnectorDescription(connectorType string, owner string) string {
-	return fmt.Sprintf("%s connector for %s", connectorType, owner)
+func GetDefaultConnectorDescription(connectorDisplayName string, owner string) string {
+	return fmt.Sprintf("%s connector for %s", connectorDisplayName, GetOwnerDisplayName(owner))
+}
+
+func GetOwnerDisplayName(owner string) string {
+	switch owner {
+	case OwnerGiantswarm:
+		return OwnerGiantswarmDisplayName
+	case OwnerCustomer:
+		return OwnerCustomerDisplayName
+	default:
+		return owner
+	}
 }
 
 func GetRedirectURI(issuerAddress string) string {
