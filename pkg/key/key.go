@@ -64,7 +64,7 @@ func GetIdpAppName(installation string, namespace string, name string) string {
 }
 
 func GetDefaultConnectorDescription(connectorDisplayName string, owner string) string {
-	return fmt.Sprintf("%s connector for %s", connectorDisplayName, GetOwnerDisplayName(owner))
+	return fmt.Sprintf("%s for %s", connectorDisplayName, GetOwnerDisplayName(owner))
 }
 
 func GetOwnerDisplayName(owner string) string {
