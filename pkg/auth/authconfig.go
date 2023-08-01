@@ -15,14 +15,22 @@ type authConfig struct {
 	namespace         string
 	managementCluster string
 	adminGroups       []string
+	apiServerPort     int
 }
 type AuthConfigValues struct {
-	ManagementCluster string    `yaml:"managementCluster,omitempty"`
-	Bindings          []Binding `yaml:"bindings,omitempty"`
+	ManagementCluster string     `yaml:"managementCluster,omitempty"`
+	Bindings          []Binding  `yaml:"bindings,omitempty"`
+	Kubernetes        Kubernetes `yaml:"kubernetes,omitempty"`
 }
 type Binding struct {
 	Role   string   `yaml:"role,omitempty"`
 	Groups []string `yaml:"groups,omitempty"`
+}
+type Kubernetes struct {
+	API KubernetesAPI `yaml:"api,omitempty"`
+}
+type KubernetesAPI struct {
+	Port int `yaml:"port,omitempty"`
 }
 
 func getAuthConfigMap(config authConfig) (*corev1.ConfigMap, error) {
@@ -32,6 +40,11 @@ func getAuthConfigMap(config authConfig) (*corev1.ConfigMap, error) {
 			{
 				Role:   key.AdminRoleName,
 				Groups: config.adminGroups,
+			},
+		},
+		Kubernetes: Kubernetes{
+			API: KubernetesAPI{
+				Port: config.apiServerPort,
 			},
 		},
 	}
