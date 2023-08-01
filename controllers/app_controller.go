@@ -222,11 +222,6 @@ func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
 	return r.GiantswarmWriteAllGroups, nil
 }
 
-func (r *AppReconciler) GetAPIServerPort() (*int, error) {
-
-	return nil, nil
-}
-
 func NewProvider(p provider.ProviderCredential, log *logr.Logger) (provider.Provider, error) {
 	switch p.Name {
 	case mockprovider.ProviderName:
