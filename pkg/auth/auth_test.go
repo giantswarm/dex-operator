@@ -70,8 +70,13 @@ func TestReconcile(t *testing.T) {
 			ctx := context.Background()
 
 			scheme := runtime.NewScheme()
-			capi.AddToScheme(scheme)
-			clientgoscheme.AddToScheme(scheme)
+			if err := capi.AddToScheme(scheme); err != nil {
+				t.Fatal(err)
+			}
+			if err := clientgoscheme.AddToScheme(scheme); err != nil {
+				t.Fatal(err)
+			}
+
 			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster())
 			if tc.existingConfigMap != nil {
 				fakeClientBuilder.WithObjects(tc.existingConfigMap)
