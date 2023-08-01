@@ -11,7 +11,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -66,7 +69,10 @@ func TestReconcile(t *testing.T) {
 
 			ctx := context.Background()
 
-			fakeClientBuilder := fake.NewClientBuilder()
+			scheme := runtime.NewScheme()
+			capi.AddToScheme(scheme)
+			clientgoscheme.AddToScheme(scheme)
+			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster())
 			if tc.existingConfigMap != nil {
 				fakeClientBuilder.WithObjects(tc.existingConfigMap)
 			}
@@ -103,5 +109,19 @@ func TestReconcile(t *testing.T) {
 				t.Fatalf("Expected %s, got %s", tc.expectedConfig, result.Data[key.ValuesConfigMapKey])
 			}
 		})
+	}
+}
+
+func getTestCluster() *capi.Cluster {
+	return &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "wc",
+			Namespace: "example",
+		},
+		Spec: capi.ClusterSpec{
+			ControlPlaneEndpoint: capi.APIEndpoint{
+				Port: 443,
+			},
+		},
 	}
 }
