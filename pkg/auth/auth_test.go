@@ -11,7 +11,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -30,7 +33,7 @@ func TestReconcile(t *testing.T) {
 			managementClusterName: "mc",
 			clusterName:           "wc",
 			writeAllGroups:        []string{"group_a", "group_b"},
-			expectedConfig:        "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\n",
+			expectedConfig:        "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\nkubernetes:\n  api:\n    port: 443\n",
 		},
 		{
 			name:                  "case 1: MC case, skip creation",
@@ -57,7 +60,7 @@ func TestReconcile(t *testing.T) {
 					key.ValuesConfigMapKey: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_x\n  - group_y\n",
 				},
 			},
-			expectedConfig: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\n",
+			expectedConfig: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\nkubernetes:\n  api:\n    port: 443\n",
 		},
 	}
 
@@ -66,7 +69,15 @@ func TestReconcile(t *testing.T) {
 
 			ctx := context.Background()
 
-			fakeClientBuilder := fake.NewClientBuilder()
+			scheme := runtime.NewScheme()
+			if err := capi.AddToScheme(scheme); err != nil {
+				t.Fatal(err)
+			}
+			if err := clientgoscheme.AddToScheme(scheme); err != nil {
+				t.Fatal(err)
+			}
+
+			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster())
 			if tc.existingConfigMap != nil {
 				fakeClientBuilder.WithObjects(tc.existingConfigMap)
 			}
@@ -103,5 +114,19 @@ func TestReconcile(t *testing.T) {
 				t.Fatalf("Expected %s, got %s", tc.expectedConfig, result.Data[key.ValuesConfigMapKey])
 			}
 		})
+	}
+}
+
+func getTestCluster() *capi.Cluster {
+	return &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "wc",
+			Namespace: "example",
+		},
+		Spec: capi.ClusterSpec{
+			ControlPlaneEndpoint: capi.APIEndpoint{
+				Port: 443,
+			},
+		},
 	}
 }

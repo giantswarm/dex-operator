@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -61,11 +62,24 @@ func New(c Config) (*Service, error) {
 }
 
 func (s *Service) Reconcile(ctx context.Context) error {
-	config := s.getAuthConfig()
-
+	cluster := s.app.GetLabels()[label.Cluster]
 	// the auth config is only useful for workload cluster apps
-	if config.cluster == "" || config.cluster == config.managementCluster {
+	if cluster == "" || cluster == s.managementClusterName {
 		return nil
+	}
+
+	apiServerPort, err := s.getAPIServerPort(cluster, ctx)
+	if err != nil {
+		return err
+	}
+
+	config := authConfig{
+		cluster:           cluster,
+		name:              key.GetAuthConfigName(cluster),
+		namespace:         s.app.Namespace,
+		managementCluster: s.managementClusterName,
+		adminGroups:       s.writeAllGroups,
+		apiServerPort:     apiServerPort,
 	}
 
 	// fetch auth config
@@ -109,7 +123,12 @@ func (s *Service) Reconcile(ctx context.Context) error {
 }
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
-	config := s.getAuthConfig()
+	cluster := s.app.GetLabels()[label.Cluster]
+	config := authConfig{
+		cluster:   cluster,
+		name:      key.GetAuthConfigName(cluster),
+		namespace: s.app.Namespace,
+	}
 
 	cm := &corev1.ConfigMap{}
 	if err := s.Get(ctx, types.NamespacedName{
@@ -146,13 +165,13 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) getAuthConfig() authConfig {
-	cluster := s.app.GetLabels()[label.Cluster]
-	return authConfig{
-		cluster:           cluster,
-		name:              key.GetAuthConfigName(cluster),
-		namespace:         s.app.Namespace,
-		managementCluster: s.managementClusterName,
-		adminGroups:       s.writeAllGroups,
+func (s *Service) getAPIServerPort(clusterID string, ctx context.Context) (int, error) {
+	cluster := &capi.Cluster{}
+	if err := s.Get(ctx, types.NamespacedName{
+		Name:      clusterID,
+		Namespace: s.app.Namespace},
+		cluster); err != nil {
+		return 0, err
 	}
+	return int(cluster.Spec.ControlPlaneEndpoint.Port), nil
 }
