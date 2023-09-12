@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/github/manifest"
 	"github.com/giantswarm/dex-operator/pkg/key"
+	"github.com/giantswarm/dex-operator/pkg/yaml"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	githubconnector "github.com/dexidp/dex/connector/github"
@@ -18,7 +20,6 @@ import (
 	"github.com/go-logr/logr"
 	githubclient "github.com/google/go-github/v50/github"
 	"github.com/skratchdot/open-golang/open"
-	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -178,7 +179,7 @@ func (g *Github) CreateOrUpdateApp(config provider.AppConfig, ctx context.Contex
 		RedirectURI:   config.RedirectURI,
 		TeamNameField: TeamNameFieldSlug,
 	}
-	data, err := yaml.Marshal(connectorConfig)
+	data, err := yaml.MarshalWithJsonAnnotations(connectorConfig)
 	if err != nil {
 		return provider.ProviderApp{}, microerror.Mask(err)
 	}
