@@ -3,8 +3,9 @@ package yaml
 import (
 	"encoding/json"
 
-	"github.com/giantswarm/microerror"
 	yamllib "gopkg.in/yaml.v2"
+
+	"github.com/giantswarm/microerror"
 )
 
 // MarshalWithJsonAnnotations marshals the given value to YAML, but uses the
