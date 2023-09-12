@@ -32,6 +32,7 @@ const (
 	ClientIDKey           = "client-id"
 	ClientSecretKey       = "client-secret"
 	DefaultHost           = "github.com"
+	TeamNameFieldSlug     = "slug"
 )
 
 type Github struct {
@@ -174,7 +175,8 @@ func (g *Github) CreateOrUpdateApp(config provider.AppConfig, ctx context.Contex
 				Teams: []string{g.Team},
 			},
 		},
-		RedirectURI: config.RedirectURI,
+		RedirectURI:   config.RedirectURI,
+		TeamNameField: TeamNameFieldSlug,
 	}
 	data, err := yaml.Marshal(connectorConfig)
 	if err != nil {
