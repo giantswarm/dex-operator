@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Changed GitHub connector config to include `teamNameField: slug` by default.
+
 ## [0.8.0] - 2023-08-02
 
 ### Added
