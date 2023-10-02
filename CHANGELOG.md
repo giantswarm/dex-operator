@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2023-10-02
+
 ### Changed
 
 - Propagate `global.podSecurityStandards.enforced` value set to `false` for PSS migration
@@ -172,7 +174,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/giantswarm/dex-operator/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/giantswarm/dex-operator/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/giantswarm/dex-operator/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/giantswarm/dex-operator/compare/v0.6.0...v0.7.0
