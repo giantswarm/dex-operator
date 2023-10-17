@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add option to `setup` to use credentials as base64 encoded variables.
+
 ## [0.9.0] - 2023-09-14
 
 ### Changed
