@@ -33,6 +33,7 @@ type SetupConfig struct {
 	Provider       string
 	Action         string
 	Domains        []string //domains only matter for github setup
+	Base64Vars     bool
 }
 
 type Setup struct {
@@ -42,6 +43,7 @@ type Setup struct {
 	action     string
 	outputFile string
 	log        logr.Logger
+	base64Vars bool
 }
 
 func New(setup SetupConfig) (*Setup, error) {
@@ -51,7 +53,7 @@ func New(setup SetupConfig) (*Setup, error) {
 	}
 	log := zapr.NewLogger(zapLogger)
 
-	config, err := GetConfigFromFile(setup.CredentialFile)
+	config, err := GetConfigFromFile(setup.CredentialFile, setup.Base64Vars)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
@@ -68,6 +70,7 @@ func New(setup SetupConfig) (*Setup, error) {
 		config:     config,
 		outputFile: setup.OutputFile,
 		log:        log,
+		base64Vars: setup.Base64Vars,
 	}, nil
 
 }
@@ -153,9 +156,16 @@ func (s *Setup) CleanConfigCredentialsForProviders() error {
 }
 
 func (s *Setup) WriteToFile() error {
-	data, err := yaml.Marshal(s.config)
-	if err != nil {
-		return microerror.Mask(err)
+	var data []byte
+	var err error
+
+	if s.base64Vars {
+		data = getBase64VarsFromConfig(s.config)
+	} else {
+		data, err = yaml.Marshal(s.config)
+		if err != nil {
+			return microerror.Mask(err)
+		}
 	}
 	err = os.MkdirAll(filepath.Dir(s.outputFile), os.ModePerm)
 	if err != nil {

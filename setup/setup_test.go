@@ -91,6 +91,16 @@ func TestSetupConfig(t *testing.T) {
 				Action:         CleanAction,
 			},
 		},
+		{
+			name: "case 8",
+			setup: SetupConfig{
+				Installation:   "test",
+				CredentialFile: "test-data/credentials_b64",
+				Provider:       IncludeAll,
+				Action:         UpdateAction,
+				Base64Vars:     true,
+			},
+		},
 	}
 
 	for i, tc := range testCases {
@@ -242,6 +252,17 @@ func TestRun(t *testing.T) {
 					Giantswarm: getOldprovider(),
 				},
 			},
+		},
+		{
+			name: "case 10",
+			setup: SetupConfig{
+				Installation:   "test",
+				CredentialFile: "test-data/credentials_b64",
+				Provider:       IncludeAll,
+				Action:         UpdateAction,
+				Base64Vars:     true,
+			},
+			expectConfig: getDefaultConfig(),
 		},
 	}
 
