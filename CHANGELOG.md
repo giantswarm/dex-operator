@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Look for Cluster in organization namespace in vintage MCs
+
 ### Added
 
 - Add option to `setup` to use credentials as base64 encoded variables.

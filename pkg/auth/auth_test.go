@@ -88,8 +88,8 @@ func TestReconcile(t *testing.T) {
 				app: &v1alpha1.App{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test",
-						Namespace: "example",
-						Labels:    map[string]string{label.Cluster: tc.clusterName},
+						Namespace: "org-example",
+						Labels:    map[string]string{label.Cluster: tc.clusterName, label.Organization: "example"},
 					},
 				},
 				writeAllGroups:        tc.writeAllGroups,
@@ -103,7 +103,7 @@ func TestReconcile(t *testing.T) {
 			result := &corev1.ConfigMap{}
 			if err := service.Client.Get(ctx, types.NamespacedName{
 				Name:      key.GetAuthConfigName(tc.clusterName),
-				Namespace: "example"},
+				Namespace: "org-example"},
 				result); err != nil {
 				if !apierrors.IsNotFound(err) {
 					t.Fatal(err)
@@ -121,7 +121,7 @@ func getTestCluster() *capi.Cluster {
 	return &capi.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wc",
-			Namespace: "example",
+			Namespace: "org-example",
 		},
 		Spec: capi.ClusterSpec{
 			ControlPlaneEndpoint: capi.APIEndpoint{

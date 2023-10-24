@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/giantswarm/dex-operator/pkg/key"
 
@@ -166,12 +167,24 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 }
 
 func (s *Service) getAPIServerPort(clusterID string, ctx context.Context) (int, error) {
+	var namespace string
+	{
+		if isOrgNamespace(s.app.Namespace) {
+			namespace = s.app.Namespace
+		} else {
+			namespace = "org-" + s.app.GetLabels()[label.Organization]
+		}
+	}
 	cluster := &capi.Cluster{}
 	if err := s.Get(ctx, types.NamespacedName{
 		Name:      clusterID,
-		Namespace: s.app.Namespace},
+		Namespace: namespace},
 		cluster); err != nil {
 		return 0, err
 	}
 	return int(cluster.Spec.ControlPlaneEndpoint.Port), nil
+}
+
+func isOrgNamespace(namespace string) bool {
+	return strings.HasPrefix(namespace, "org-")
 }
