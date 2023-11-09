@@ -8,7 +8,7 @@ require (
 	github.com/dexidp/dex v2.13.0+incompatible
 	github.com/giantswarm/apiextensions-application v0.6.0
 	github.com/giantswarm/backoff v1.0.0
-	github.com/giantswarm/k8smetadata v0.20.0
+	github.com/giantswarm/k8smetadata v0.23.0
 	github.com/giantswarm/microerror v0.4.0
 	github.com/go-logr/logr v1.2.4
 	github.com/go-logr/zapr v1.2.4
