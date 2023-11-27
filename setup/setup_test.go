@@ -9,6 +9,7 @@ import (
 
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/github"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/simpleprovider"
 )
 
 func TestSetupConfig(t *testing.T) {
@@ -261,6 +262,41 @@ func TestRun(t *testing.T) {
 				Provider:       IncludeAll,
 				Action:         UpdateAction,
 				Base64Vars:     true,
+			},
+			expectConfig: getDefaultConfig(),
+		},
+		{
+			name: "case 11",
+			setup: SetupConfig{
+				Installation:   "test",
+				CredentialFile: "test-data/credentials_simple",
+				Provider:       IncludeAll,
+				Action:         UpdateAction,
+			},
+			expectConfig: Config{
+				Oidc: Oidc{
+					Giantswarm: OidcOwner{
+						[]OidcOwnerProvider{
+							{
+								Name:        mockprovider.ProviderName,
+								Credentials: getNewCredential(),
+							},
+							{
+								Name:        simpleprovider.ProviderName,
+								Credentials: getOldCredential(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "case 12",
+			setup: SetupConfig{
+				Installation:   "test",
+				CredentialFile: "test-data/credentials_simple",
+				Provider:       IncludeAll,
+				Action:         CreateAction,
 			},
 			expectConfig: getDefaultConfig(),
 		},
