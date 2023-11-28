@@ -7,6 +7,7 @@ import (
 
 	"github.com/giantswarm/dex-operator/controllers"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/simpleprovider"
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"os"
@@ -179,7 +180,7 @@ func getProvidersFromConfig(credentials Config, include string, log logr.Logger)
 	providers := []provider.Provider{}
 	// We are only returning the giantswarm providers. Either all or a specific one.
 	for _, p := range credentials.Oidc.Giantswarm.Providers {
-		if include == IncludeAll || include == p.Name {
+		if includeProvider(include, p.Name) {
 			c := map[string]string{}
 			if err := yaml.Unmarshal([]byte(p.Credentials), &c); err != nil {
 				return nil, microerror.Mask(err)
@@ -195,6 +196,16 @@ func getProvidersFromConfig(credentials Config, include string, log logr.Logger)
 		}
 	}
 	return providers, nil
+}
+
+func includeProvider(include string, provider string) bool {
+	if provider == simpleprovider.ProviderName {
+		return false
+	}
+	if include == IncludeAll {
+		return true
+	}
+	return include == provider
 }
 
 func (s *Setup) updateConfig(newCredentials []OidcOwnerProvider) {

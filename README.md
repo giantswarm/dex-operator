@@ -15,6 +15,7 @@ The `app controller` configures callback URIs and other settings and writes the 
 
 Providers need to implement the `provider.Provider` interface.
 Currently supported providers are `azure active directory` and `github`.
+In addition, the `simple` provider offers a basic way to include any identity provider [supported by dex](https://dexidp.io/docs/connectors/).
 
 ### adding dex-operator credentials for gs installations
 
@@ -31,7 +32,7 @@ Configures app registration in an azure active directory tenant.
 
 
 The configuration for Azure Active Directory in  `values` looks like this:
-```
+```yaml
 oidc:
   $OWNER:
     providers:
@@ -58,7 +59,7 @@ We recommend GitHub to be configured as a fallback SSO method.
 
 
 The configuration for GitHub in  `values` looks like this:
-```
+```yaml
 oidc:
   $OWNER:
     providers:
@@ -86,3 +87,28 @@ Unfortunately it also does not allow for access to workload cluster callback URL
 However, it will provide metrics that allow alerting when rotation is needed.
 In that case [opsctl](https://github.com/giantswarm/opsctl) supports the update via the `create dexconfig --provider github --update` command.
 The `--workload-cluster` flag also allows creation of callback URLs for up to 9 workload clusters.
+
+### Simple Provider
+
+The simple provider does not implement a client and therefore does not communicate with identity providers or create new configuration.
+It can merely distribute existing connector configuration from the management cluster across workload cluster dex instances.
+This allows users with management cluster access a default access method without further configuration.
+It also allows dex-operator to work without needing permissions on an identity provider or without needing to support it explicitly.
+However, __we strongly recommend using different connectors for each workload cluster and automatic secret rotation__, either manually or through providers like [`azure active directory`](#azure-active-directory)
+
+Reusing configuration across clusters is always a security risk since leaking one secret can compromise several organizations.
+
+The configuration for the simple provider in  `values` looks like this:
+```yaml
+oidc:
+  $OWNER:
+    providers:
+    - name: simple
+      credentials:
+        connectorType: $CONNECTORTYPE
+        connectorConfig: $CONNECTORCONFIG
+```
+
+- `$OWNER`: Owner of the connector configuration. `giantswarm` or `customer`.
+- `$CONNECTORTYPE`: The type of dex connector. All valid types can be found in the [dex documentation](https://dexidp.io/docs/connectors/).
+- `$CONNECTORCONFIG`: The connector configuration. Format for each types can likewise be found in the [dex documentation](https://dexidp.io/docs/connectors/). Note that `redirectURI` is not needed since it will be injected for each dex instance.
