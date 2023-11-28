@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.0] - 2023-11-28
 
+### Added
+
+- Add `simple` provider for default access.
+
 ## [0.10.1] - 2023-10-24
 
 ### Fixed
