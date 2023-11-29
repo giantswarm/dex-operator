@@ -12,6 +12,7 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -20,19 +21,19 @@ import (
 )
 
 type Config struct {
-	Client                client.Client
-	Log                   *logr.Logger
-	App                   *v1alpha1.App
-	ManagementClusterName string
-	WriteAllGroups        []string
+	Client                          client.Client
+	Log                             *logr.Logger
+	App                             *v1alpha1.App
+	ManagementClusterName           string
+	ManagementClusterWriteAllGroups []string
 }
 
 type Service struct {
 	client.Client
-	log                   logr.Logger
-	app                   *v1alpha1.App
-	managementClusterName string
-	writeAllGroups        []string
+	log                             logr.Logger
+	app                             *v1alpha1.App
+	managementClusterName           string
+	managementClusterWriteAllGroups []string
 }
 
 func New(c Config) (*Service, error) {
@@ -48,15 +49,15 @@ func New(c Config) (*Service, error) {
 	if c.ManagementClusterName == "" {
 		return nil, microerror.Maskf(invalidConfigError, "no management cluster name given")
 	}
-	if len(c.WriteAllGroups) == 0 {
+	if len(c.ManagementClusterWriteAllGroups) == 0 {
 		return nil, microerror.Maskf(invalidConfigError, "no write all groups given")
 	}
 	s := &Service{
-		Client:                c.Client,
-		app:                   c.App,
-		log:                   *c.Log,
-		managementClusterName: c.ManagementClusterName,
-		writeAllGroups:        c.WriteAllGroups,
+		Client:                          c.Client,
+		app:                             c.App,
+		log:                             *c.Log,
+		managementClusterName:           c.ManagementClusterName,
+		managementClusterWriteAllGroups: c.ManagementClusterWriteAllGroups,
 	}
 
 	return s, nil
@@ -74,12 +75,17 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return err
 	}
 
+	writeAllGroups, err := s.getWriteAllGroups(ctx)
+	if err != nil {
+		return err
+	}
+
 	config := authConfig{
 		cluster:           cluster,
 		name:              key.GetAuthConfigName(cluster),
 		namespace:         s.app.Namespace,
 		managementCluster: s.managementClusterName,
-		adminGroups:       s.writeAllGroups,
+		adminGroups:       writeAllGroups,
 		apiServerPort:     apiServerPort,
 	}
 
@@ -185,6 +191,39 @@ func (s *Service) getAPIServerPort(clusterID string, ctx context.Context) (int, 
 	return int(cluster.Spec.ControlPlaneEndpoint.Port), nil
 }
 
+func (s *Service) getWriteAllGroups(ctx context.Context) ([]string, error) {
+	writeAllGroups := s.managementClusterWriteAllGroups
+
+	// get all additional groups that have cluster-admin role in app namespace
+	roleBindings := &rbacv1.RoleBindingList{}
+	if err := s.List(ctx, roleBindings, client.InNamespace(s.app.Namespace)); err != nil {
+		return nil, err
+	}
+	for _, roleBinding := range roleBindings.Items {
+		if roleBinding.RoleRef.Name != "cluster-admin" && roleBinding.RoleRef.Kind != "ClusterRole" {
+			continue
+		}
+		for _, subject := range roleBinding.Subjects {
+			if subject.Kind != "Group" {
+				continue
+			}
+			if !contains(writeAllGroups, subject.Name) {
+				writeAllGroups = append(writeAllGroups, subject.Name)
+			}
+		}
+	}
+	return writeAllGroups, nil
+}
+
 func isOrgNamespace(namespace string) bool {
 	return strings.HasPrefix(namespace, "org-")
+}
+
+func contains(groups []string, group string) bool {
+	for _, g := range groups {
+		if g == group {
+			return true
+		}
+	}
+	return false
 }

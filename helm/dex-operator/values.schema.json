@@ -40,6 +40,9 @@
                     "properties": {
                         "providers": {
                             "type": "array"
+                        },
+                        "write_all_groups": {
+                            "type": "array"
                         }
                     }
                 },

@@ -56,6 +56,7 @@ type AppReconciler struct {
 	ManagementCluster        string
 	ProviderCredentials      string
 	GiantswarmWriteAllGroups []string
+	CustomerWriteAllGroups   []string
 }
 
 //+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps,verbs=get;list;watch;create;update;patch;delete
@@ -86,6 +87,27 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	var authService *auth.Service
+	{
+		writeAllGroups, err := r.GetWriteAllGroups()
+		if err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+
+		c := auth.Config{
+			Log:                             &log,
+			Client:                          r.Client,
+			App:                             app,
+			ManagementClusterName:           r.ManagementCluster,
+			ManagementClusterWriteAllGroups: writeAllGroups,
+		}
+
+		authService, err = auth.New(c)
+		if err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+	}
+
 	var idpService *idp.Service
 	{
 		providers, err := r.GetProviders()
@@ -104,26 +126,6 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		idpService, err = idp.New(c)
-		if err != nil {
-			return ctrl.Result{}, microerror.Mask(err)
-		}
-	}
-	var authService *auth.Service
-	{
-		writeAllGroups, err := r.GetWriteAllGroups()
-		if err != nil {
-			return ctrl.Result{}, microerror.Mask(err)
-		}
-
-		c := auth.Config{
-			Log:                   &log,
-			Client:                r.Client,
-			App:                   app,
-			ManagementClusterName: r.ManagementCluster,
-			WriteAllGroups:        writeAllGroups,
-		}
-
-		authService, err = auth.New(c)
 		if err != nil {
 			return ctrl.Result{}, microerror.Mask(err)
 		}
@@ -157,10 +159,10 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		log.Info("Added finalizer to dex app instance.")
 	}
 	// App is not deleted
-	if err := idpService.Reconcile(ctx); err != nil {
+	if err := authService.Reconcile(ctx); err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
-	if err := authService.Reconcile(ctx); err != nil {
+	if err := idpService.Reconcile(ctx); err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
 	return DefaultRequeue(), nil
@@ -218,9 +220,7 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 }
 
 func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
-	// For now, we only return the global giantswarm write-all groups here.
-	// This could be changed to include specific ones to the app
-	return r.GiantswarmWriteAllGroups, nil
+	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
 }
 
 func NewProvider(p provider.ProviderCredential, log *logr.Logger) (provider.Provider, error) {

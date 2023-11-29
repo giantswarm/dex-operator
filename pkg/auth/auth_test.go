@@ -9,6 +9,7 @@ import (
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +34,7 @@ func TestReconcile(t *testing.T) {
 			managementClusterName: "mc",
 			clusterName:           "wc",
 			writeAllGroups:        []string{"group_a", "group_b"},
-			expectedConfig:        "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\nkubernetes:\n  api:\n    port: 443\n",
+			expectedConfig:        "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\n  - group_c\n  - group_d\nkubernetes:\n  api:\n    port: 443\n",
 		},
 		{
 			name:                  "case 1: MC case, skip creation",
@@ -60,7 +61,7 @@ func TestReconcile(t *testing.T) {
 					key.ValuesConfigMapKey: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_x\n  - group_y\n",
 				},
 			},
-			expectedConfig: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\nkubernetes:\n  api:\n    port: 443\n",
+			expectedConfig: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\n  - group_c\n  - group_d\nkubernetes:\n  api:\n    port: 443\n",
 		},
 	}
 
@@ -77,7 +78,7 @@ func TestReconcile(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster())
+			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster(), getTestRoleBindings())
 			if tc.existingConfigMap != nil {
 				fakeClientBuilder.WithObjects(tc.existingConfigMap)
 			}
@@ -92,8 +93,8 @@ func TestReconcile(t *testing.T) {
 						Labels:    map[string]string{label.Cluster: tc.clusterName, label.Organization: "example"},
 					},
 				},
-				writeAllGroups:        tc.writeAllGroups,
-				managementClusterName: tc.managementClusterName,
+				managementClusterWriteAllGroups: tc.writeAllGroups,
+				managementClusterName:           tc.managementClusterName,
 			}
 
 			err := service.Reconcile(ctx)
@@ -127,6 +128,33 @@ func getTestCluster() *capi.Cluster {
 			ControlPlaneEndpoint: capi.APIEndpoint{
 				Port: 443,
 			},
+		},
+	}
+}
+
+func getTestRoleBindings() *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "wc",
+			Namespace: "org-example",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind: "Group",
+				Name: "group_c",
+			},
+			{
+				Kind: "User",
+				Name: "user_a",
+			},
+			{
+				Kind: "Group",
+				Name: "group_d",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			Kind: "ClusterRole",
+			Name: "cluster-admin",
 		},
 	}
 }

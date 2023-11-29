@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add customer write-all groups to auth-configmap
+
+### Removed
+
+- Remove secret migration code
+
 ## [0.11.0] - 2023-11-28
 
 ### Added
