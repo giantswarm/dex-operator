@@ -62,6 +62,7 @@ func main() {
 		metricsAddr              string
 		probeAddr                string
 		giantswarmWriteAllGroups string
+		customerWriteAllGroups   string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&idpCredentials, "idp-credentials-file", "/home/.idp/credentials", "The location of the idp credentials file.")
@@ -74,6 +75,7 @@ func main() {
 	flag.StringVar(&issuerAddress, "issuer-address", "", "URL of the identity issuer")
 	flag.StringVar(&managementCluster, "management-cluster", "", "Name of the management cluster.")
 	flag.StringVar(&giantswarmWriteAllGroups, "giantswarm-write-all-groups", "", "Comma separated list of giantswarm admin groups.")
+	flag.StringVar(&customerWriteAllGroups, "customer-write-all-groups", "", "Comma separated list of customer admin groups.")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
@@ -117,6 +119,7 @@ func main() {
 		LabelSelector:            key.DexLabelSelector(),
 		ProviderCredentials:      idpCredentials,
 		GiantswarmWriteAllGroups: strings.Split(giantswarmWriteAllGroups, ","),
+		CustomerWriteAllGroups:   strings.Split(customerWriteAllGroups, ","),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
 		os.Exit(1)

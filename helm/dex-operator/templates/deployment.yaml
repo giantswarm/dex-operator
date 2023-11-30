@@ -38,6 +38,7 @@ spec:
         - --management-cluster={{ .Values.managementCluster }}
         - --issuer-address={{ .Values.issuerAddress }}
         - --giantswarm-write-all-groups={{ join "," .Values.oidc.giantswarm.write_all_groups }}
+        - --customer-write-all-groups={{ join "," .Values.oidc.customer.write_all_groups }}
         ports:
         - containerPort: 8080
           name: metrics

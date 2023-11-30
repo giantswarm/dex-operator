@@ -1,6 +1,7 @@
 oidc:
   customer:
     providers: []
+    write_all_groups: []
   giantswarm:
     providers: []
     write_all_groups: []
