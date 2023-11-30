@@ -252,7 +252,7 @@ func TestSecretExpired(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			s := models.NewPasswordCredential()
-			s.SetEndDateTime(&tc.expirationDate)
+			s.SetEndDateTime(&testCases[i].expirationDate)
 			if secretExpired(s) != tc.expired {
 				t.Fatalf("Expected %v, got %v", tc.expired, secretExpired(s))
 			}
