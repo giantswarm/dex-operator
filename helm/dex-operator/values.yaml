@@ -16,7 +16,7 @@ image:
   name: "giantswarm/dex-operator"
   tag: "[[ .Version ]]"
 registry:
-  domain: docker.io
+  domain: gsoci.azurecr.io
 
 pod:
   user:
