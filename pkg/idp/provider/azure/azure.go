@@ -199,7 +199,9 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 
 	//Update if needed
 	if needsUpdate, patch := a.computeAppUpdatePatch(config, app, parentApp); needsUpdate {
-		_, err = a.Client.ApplicationsById(*id).Patch(ctx, patch, nil)
+		applicationsClient := a.Client.Applications()
+		applicationObjectID := *id
+		_, err := applicationsClient.ByApplicationId(applicationObjectID).Patch(ctx, patch, nil)
 		if err != nil {
 			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
@@ -210,7 +212,8 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 
 func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx context.Context, oldSecret string, skipDelete bool) (provider.ProviderSecret, error) {
 
-	app, err := a.Client.ApplicationsById(id).Get(ctx, nil)
+	applicationsClient := a.Client.Applications()
+	app, err := applicationsClient.ByApplicationId(id).Get(ctx, nil)
 	if err != nil {
 		return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
@@ -244,7 +247,8 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 
 	// Create secret if it does not exist
 	if needsCreation {
-		secret, err = a.Client.ApplicationsById(id).AddPassword().Post(ctx, GetSecretCreateRequestBody(config), nil)
+		passwordRequestBody := applications.NewItemAddPasswordPostRequestBody()
+		secret, err := applicationsClient.ByApplicationId(id).AddPassword().Post(ctx, passwordRequestBody, nil)
 		if err != nil {
 			return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
@@ -254,10 +258,11 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 }
 
 func (a *Azure) DeleteSecret(ctx context.Context, secretID *uuid.UUID, appID string) error {
+	applicationsClient := a.Client.Applications()
 	requestBody := applications.NewItemRemovePasswordPostRequestBody()
 	requestBody.SetKeyId(secretID)
 
-	err := a.Client.ApplicationsById(appID).RemovePassword().Post(ctx, requestBody, nil)
+	err := applicationsClient.ByApplicationId(appID).RemovePassword().Post(ctx, requestBody, nil)
 	if err != nil {
 		return microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
@@ -272,7 +277,8 @@ func (a *Azure) DeleteApp(name string, ctx context.Context) error {
 		}
 		return microerror.Mask(err)
 	}
-	if err := a.Client.ApplicationsById(appID).Delete(ctx, nil); err != nil {
+	applicationsClient := a.Client.Applications()
+	if err := applicationsClient.ByApplicationId(appID).Delete(ctx, nil); err != nil {
 		return microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
 	a.Log.Info(fmt.Sprintf("Deleted %s app %s for %s in microsoft ad tenant %s", a.Type, name, a.Owner, a.TenantID))
