@@ -39,7 +39,22 @@
                     "type": "object",
                     "properties": {
                         "providers": {
-                            "type": "array"
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "credentials": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "credentials"
+                                ]
+                            }
                         },
                         "write_all_groups": {
                             "type": "array"
@@ -50,7 +65,22 @@
                     "type": "object",
                     "properties": {
                         "providers": {
-                            "type": "array"
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "credentials": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "credentials"
+                                ]
+                            }
                         },
                         "write_all_groups": {
                             "type": "array"
