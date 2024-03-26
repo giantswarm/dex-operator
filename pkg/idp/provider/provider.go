@@ -9,7 +9,7 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/microerror"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type Provider interface {
