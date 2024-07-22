@@ -2,10 +2,10 @@ package provider
 
 import (
 	"context"
-	"github.com/giantswarm/dex-operator/pkg/app"
 	"os"
 	"time"
 
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/key"
 

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/giantswarm/dex-operator/pkg/key"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
