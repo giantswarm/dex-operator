@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -33,10 +32,6 @@ func userConfigMapPresent(app *v1alpha1.App) bool {
 		return false
 	}
 	return true
-}
-
-func clusterValuesIsPresent(app *v1alpha1.App) bool {
-	return strings.HasSuffix(app.Spec.Config.ConfigMap.Name, key.ClusterValuesConfigmapSuffix)
 }
 
 func connectorsDefinedInUserConfigMap(userConfigmap *corev1.ConfigMap) bool {
