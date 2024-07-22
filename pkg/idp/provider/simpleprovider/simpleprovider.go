@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
 
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -104,7 +105,7 @@ func (s *SimpleProvider) GetOwner() string {
 	return s.Owner
 }
 
-func (s *SimpleProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
+func (s *SimpleProvider) CreateOrUpdateApp(config app.Config, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
 	// Inject the redirect URI into the connector config
 	connectorConfig := s.injectRedirectURI(config.RedirectURI)
 
@@ -129,15 +130,15 @@ func (s *SimpleProvider) DeleteApp(name string, ctx context.Context) error {
 	return nil
 }
 
-func (s *SimpleProvider) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (map[string]string, error) {
+func (s *SimpleProvider) GetCredentialsForAuthenticatedApp(config app.Config) (map[string]string, error) {
 	s.Log.Info(fmt.Sprintf("No new credentials will be created for the %s provider because it does not allow dex-operator access.", ProviderName))
 	return map[string]string{}, nil
 }
-func (s *SimpleProvider) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
+func (s *SimpleProvider) CleanCredentialsForAuthenticatedApp(config app.Config) error {
 	return nil
 }
 
-func (s *SimpleProvider) DeleteAuthenticatedApp(config provider.AppConfig) error {
+func (s *SimpleProvider) DeleteAuthenticatedApp(config app.Config) error {
 	return nil
 }
 

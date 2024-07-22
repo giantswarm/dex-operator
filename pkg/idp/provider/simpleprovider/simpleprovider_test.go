@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 
@@ -63,7 +64,7 @@ func TestCreateApp(t *testing.T) {
 		connectorType   string
 		connectorConfig string
 		description     string
-		appConfig       provider.AppConfig
+		appConfig       app.Config
 
 		expectedConnector dex.Connector
 		expectError       bool

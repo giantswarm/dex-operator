@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added handling of the new `cluster.giantswarm.io/update-oidc-flags` annotation in the Dex app - if set to `true`, it will add OIDC flags to the cluster configuration and force node roll, unless the OIDC flags already exist.
+
 ## [0.12.2] - 2024-07-25
 
 ### Fixed

@@ -8,25 +8,37 @@ import (
 )
 
 const (
-	AppLabel                     = "app.kubernetes.io/name"
-	AdminRoleName                = "cluster-admin"
-	DexAppLabelValue             = "dex-app"
-	AuthConfigName               = "default-auth-config"
-	DexConfigName                = "default-dex-config"
-	DexOperatorFinalizer         = "dex-operator.finalizers.giantswarm.io/app-controller"
-	DexOperatorLabelValue        = "dex-operator"
-	ClusterValuesConfigmapSuffix = "cluster-values"
-	ValuesConfigMapKey           = "values"
-	MCDexAppDefaultName          = "dex-app"
-	MCDexAppDefaultNamespace     = "giantswarm"
-	BaseDomainKey                = "baseDomain"
-	ConnectorsKey                = "connectors"
-	DexResourceURI               = "https://dex.giantswarm.io"
-	OwnerGiantswarm              = "giantswarm"
-	OwnerCustomer                = "customer"
-	OwnerGiantswarmDisplayName   = "Giant Swarm"
-	OwnerCustomerDisplayName     = "Customer"
+	AppLabel                       = "app.kubernetes.io/name"
+	AppClusterLabel                = "giantswarm-io/cluster"
+	AdminRoleName                  = "cluster-admin"
+	DexAppLabelValue               = "dex-app"
+	AuthConfigName                 = "default-auth-config"
+	DexConfigName                  = "default-dex-config"
+	DexOperatorFinalizer           = "dex-operator.finalizers.giantswarm.io/app-controller"
+	DexOperatorLabelValue          = "dex-operator"
+	ClusterValuesConfigmapSuffix   = "cluster-values"
+	ValuesConfigMapKey             = "values"
+	MCDexAppDefaultName            = "dex-app"
+	MCDexAppDefaultNamespace       = "giantswarm"
+	BaseDomainKey                  = "baseDomain"
+	ConnectorsKey                  = "connectors"
+	DexResourceURI                 = "https://dex.giantswarm.io"
+	OwnerGiantswarm                = "giantswarm"
+	OwnerCustomer                  = "customer"
+	OwnerGiantswarmDisplayName     = "Giant Swarm"
+	OwnerCustomerDisplayName       = "Customer"
+	OIDCIssuerAPIServerExtraArg    = "oidc-issuer-url"
+	ClusterOIDCConfigName          = "cluster-oidc-config"
+	UpdateOIDCFlagsAnnotationName  = "cluster.giantswarm.io/update-oidc-flags"
+	UpdateOIDCFlagsAnnotationValue = "true"
 )
+
+/*
+oidc-client-id: dex-k8s-authenticator
+oidc-groups-claim: groups
+oidc-issuer-url: https://dex.golem.gaws.gigantic.io
+oidc-username-claim: email
+*/
 
 const (
 	SecretValidityMonths = 3
@@ -78,6 +90,10 @@ func GetOwnerDisplayName(owner string) string {
 	}
 }
 
+func GetIssuerURI(issuerAddress string) string {
+	return fmt.Sprintf("https://%s", issuerAddress)
+}
+
 func GetRedirectURI(issuerAddress string) string {
 	return fmt.Sprintf("https://%s/callback", issuerAddress)
 }
@@ -96,4 +112,8 @@ func GetVintageClusterDomain(baseDomain string) string {
 
 func GetDexOperatorName(installation string) string {
 	return fmt.Sprintf("dex-operator-%s", installation)
+}
+
+func GetClusterOIDCConfigName(appName string) string {
+	return fmt.Sprintf("%s-%s", appName, ClusterOIDCConfigName)
 }

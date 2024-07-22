@@ -3,17 +3,16 @@ package idp
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
 
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"github.com/giantswarm/dex-operator/pkg/key"
+	"github.com/giantswarm/dex-operator/pkg/tests"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +24,7 @@ func TestCreateProviderApps(t *testing.T) {
 	testCases := []struct {
 		name        string
 		providers   []provider.Provider
-		appConfig   provider.AppConfig
+		appConfig   app.Config
 		expectError bool
 	}{
 		{
@@ -55,7 +54,7 @@ func TestCreateProviderApps(t *testing.T) {
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
-				app:       getExampleApp(),
+				app:       tests.GetExampleApp(),
 			}
 			_, err := s.CreateOrUpdateProviderApps(tc.appConfig, context.Background(), map[string]dex.Connector{})
 			if err != nil && !tc.expectError {
@@ -63,79 +62,6 @@ func TestCreateProviderApps(t *testing.T) {
 			}
 			if err == nil && tc.expectError {
 				t.Fatalf("Expected an error, got success.")
-			}
-		})
-	}
-}
-
-func TestGetBaseDomain(t *testing.T) {
-	testCases := []struct {
-		name           string
-		data           map[string]string
-		expectedDomain string
-	}{
-		{
-			name: "case 0",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.io
-					somethingelse: "false"
-					object:
-					  yes: no
-					`,
-			},
-			expectedDomain: "hello.io",
-		},
-		{
-			name: "case 1",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					somethingelse: "false"
-					object:
-					  yes: no
-					baseDomain: hi.goodday.hello.io
-					`,
-			},
-			expectedDomain: "hi.goodday.hello.io",
-		},
-		{
-			name: "case 2",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					somethingelse: "false"
-					object:
-					  yes: no
-					`,
-			},
-			expectedDomain: "",
-		},
-		{
-			name: "case 3",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-				baseDomain: hi.goodday.hello.io
-					something: "12"
-					somethingelse: "false"
-					object:
-					  yes: no
-					  baseDomain: no.goodday.hello.io
-					`,
-			},
-			expectedDomain: "hi.goodday.hello.io",
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			cm := &corev1.ConfigMap{
-				Data: tc.data,
-			}
-			baseDomain := getBaseDomainFromClusterValues(cm)
-			if baseDomain != tc.expectedDomain {
-				t.Fatalf("Expected %v to be equal to %v", baseDomain, tc.expectedDomain)
 			}
 		})
 	}
@@ -149,7 +75,7 @@ func TestUserConfigMap(t *testing.T) {
 	}{
 		{
 			name:           "case 0",
-			app:            getExampleApp(),
+			app:            tests.GetExampleApp(),
 			expectedResult: false,
 		},
 		{
@@ -411,7 +337,7 @@ func TestRemoveExtraConfig(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			if !reflect.DeepEqual(removeExtraConfig(tc.configBefore, tc.configToRemove), tc.configAfter) {
+			if !reflect.DeepEqual(app.RemoveExtraConfig(tc.configBefore, tc.configToRemove), tc.configAfter) {
 				t.Fatalf("expected result to be %v", tc.configAfter)
 			}
 		})
@@ -458,7 +384,7 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			appConfig := provider.AppConfig{
+			appConfig := app.Config{
 				RedirectURI: `hello.com`,
 				Name:        "hello",
 			}
@@ -468,7 +394,7 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
-				app:       getExampleApp(),
+				app:       tests.GetExampleApp(),
 			}
 			config, err := s.CreateOrUpdateProviderApps(appConfig, ctx, map[string]dex.Connector{})
 			if err != nil {
@@ -710,118 +636,7 @@ func TestSecretDataNeedsUpdate(t *testing.T) {
 	}
 }
 
-func TestGetAppConfig(t *testing.T) {
-	testCases := []struct {
-		name                           string
-		managementClusterName          string
-		managementClusterBaseDomain    string
-		managementClusterIssuerAddress string
-		app                            *v1alpha1.App
-		clusterValuesConfigMap         *corev1.ConfigMap
-		expectedAppConfig              provider.AppConfig
-	}{
-		{
-			name:                           "case 0: Get issuer URL from cluster config values",
-			managementClusterName:          "testcluster",
-			managementClusterBaseDomain:    "base.domain.io",
-			managementClusterIssuerAddress: "issuer.cluster.base.domain.io",
-			app:                            getExampleApp(),
-			clusterValuesConfigMap:         getClusterValuesConfigMap("baseDomain: wc.cluster.domain.io"),
-			expectedAppConfig: provider.AppConfig{
-				Name:                 "testcluster-example-test",
-				RedirectURI:          "https://dex.wc.cluster.domain.io/callback",
-				IdentifierURI:        "https://dex.giantswarm.io/testcluster-example-test",
-				SecretValidityMonths: key.SecretValidityMonths,
-			},
-		},
-		{
-			name:                           "case 1: Get issuer URL from management cluster issuer URL property",
-			managementClusterName:          "testcluster",
-			managementClusterBaseDomain:    "base.domain.io",
-			managementClusterIssuerAddress: "issuer.cluster.domain.io",
-			app:                            getExampleApp(),
-			expectedAppConfig: provider.AppConfig{
-				Name:                 "testcluster-example-test",
-				RedirectURI:          "https://issuer.cluster.domain.io/callback",
-				IdentifierURI:        "https://dex.giantswarm.io/testcluster-example-test",
-				SecretValidityMonths: key.SecretValidityMonths,
-			},
-		},
-		{
-			name:                        "case 2: Get issuer URL from management cluster base domain",
-			managementClusterName:       "testcluster",
-			managementClusterBaseDomain: "base.domain.io",
-			app:                         getExampleApp(),
-			expectedAppConfig: provider.AppConfig{
-				Name:                 "testcluster-example-test",
-				RedirectURI:          "https://dex.g8s.base.domain.io/callback",
-				IdentifierURI:        "https://dex.giantswarm.io/testcluster-example-test",
-				SecretValidityMonths: key.SecretValidityMonths,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-
-			ctx := context.Background()
-
-			fakeClientBuilder := fake.NewClientBuilder()
-			if tc.clusterValuesConfigMap != nil {
-				tc.app.Spec = v1alpha1.AppSpec{
-					Config: v1alpha1.AppSpecConfig{
-						ConfigMap: v1alpha1.AppSpecConfigConfigMap{
-							Name:      tc.clusterValuesConfigMap.Name,
-							Namespace: tc.clusterValuesConfigMap.Namespace,
-						},
-					},
-				}
-				fakeClientBuilder.WithObjects(tc.clusterValuesConfigMap)
-			}
-
-			service := Service{
-				Client:                         fakeClientBuilder.Build(),
-				log:                            ctrl.Log.WithName("test"),
-				app:                            tc.app,
-				managementClusterName:          tc.managementClusterName,
-				managementClusterBaseDomain:    tc.managementClusterBaseDomain,
-				managementClusterIssuerAddress: tc.managementClusterIssuerAddress,
-			}
-
-			appConfig, err := service.GetAppConfig(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if !reflect.DeepEqual(appConfig, tc.expectedAppConfig) {
-				t.Fatalf("Expacted %v, got %v", tc.expectedAppConfig, appConfig)
-			}
-		})
-	}
-}
-
 func getExampleProvider(owner string) provider.Provider {
 	p, _ := mockprovider.New(provider.ProviderCredential{Owner: owner})
 	return p
-}
-
-func getExampleApp() *v1alpha1.App {
-	return &v1alpha1.App{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "example",
-		},
-	}
-}
-
-func getClusterValuesConfigMap(clusterValues string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("test-%s", key.ClusterValuesConfigmapSuffix),
-			Namespace: "example",
-		},
-		Data: map[string]string{
-			key.ValuesConfigMapKey: clusterValues,
-		},
-	}
 }

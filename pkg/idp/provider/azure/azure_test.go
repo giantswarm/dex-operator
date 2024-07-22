@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 
 	"github.com/go-logr/logr"
@@ -14,7 +15,7 @@ import (
 func TestGetRequestBody(t *testing.T) {
 	testCases := []struct {
 		name   string
-		config provider.AppConfig
+		config app.Config
 	}{
 		{
 			name:   "case 0",

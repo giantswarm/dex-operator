@@ -1,12 +1,14 @@
 package provider
 
 import (
+	"github.com/giantswarm/dex-operator/pkg/app"
+
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func GetTestConfig() AppConfig {
-	return AppConfig{RedirectURI: "hello.io", Name: "test", SecretValidityMonths: 6}
+func GetTestConfig() app.Config {
+	return app.Config{RedirectURI: "hello.io", Name: "test", SecretValidityMonths: 6}
 }
 
 func GetTestCredential() ProviderCredential {

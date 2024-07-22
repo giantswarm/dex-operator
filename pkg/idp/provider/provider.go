@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"os"
 	"time"
 
@@ -13,22 +14,15 @@ import (
 )
 
 type Provider interface {
-	CreateOrUpdateApp(AppConfig, context.Context, dex.Connector) (ProviderApp, error)
+	CreateOrUpdateApp(app.Config, context.Context, dex.Connector) (ProviderApp, error)
 	DeleteApp(string, context.Context) error
-	GetCredentialsForAuthenticatedApp(AppConfig) (map[string]string, error)
-	CleanCredentialsForAuthenticatedApp(AppConfig) error
-	DeleteAuthenticatedApp(AppConfig) error
+	GetCredentialsForAuthenticatedApp(config app.Config) (map[string]string, error)
+	CleanCredentialsForAuthenticatedApp(config app.Config) error
+	DeleteAuthenticatedApp(config app.Config) error
 	GetName() string
 	GetProviderName() string
 	GetOwner() string
 	GetType() string
-}
-
-type AppConfig struct {
-	RedirectURI          string
-	Name                 string
-	IdentifierURI        string
-	SecretValidityMonths int
 }
 
 type ProviderCredential struct {
