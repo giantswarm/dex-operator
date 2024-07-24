@@ -864,8 +864,11 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dexidp/dex v0.0.0-20201214084049-0f9e2888ab65 h1:0e0aPOWDbX7n1XEkMP4klKgtT6R1yw38GeliP3w36VI=
 github.com/dexidp/dex v0.0.0-20201214084049-0f9e2888ab65/go.mod h1:ECzVsF9ahGC3Io8RPo2B8IlFYfRvKgnOOHQdXZfGKUk=
+github.com/dexidp/dex v0.0.0-20221003101923-e4bceef9f3d1 h1:6o2brXI5IXq8y8dlKGIBbF++F0CcumMqrAUIu7k0wuM=
+github.com/dexidp/dex v0.0.0-20221003101923-e4bceef9f3d1/go.mod h1:0hRS+E+sX0nofR5H8c66/01UykootFdvdvgSpcr+ja0=
 github.com/dexidp/dex/api/v2 v2.0.0 h1:bvge1sRmzVzWPWp4WlMzS04lcNQA+jFzHqKV3066bRw=
 github.com/dexidp/dex/api/v2 v2.0.0/go.mod h1:k5arBJT1QYvpsEY3sEd0NXJp3hKWKuUUfzJ3BlcqPdM=
+github.com/dexidp/dex/api/v2 v2.1.0/go.mod h1:s91/6CI290JhYN1F8aiRifLF71qRGLVZvzq68uC6Ln4=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dnaeon/go-vcr v1.2.0 h1:zHCHvJYTMh1N7xnV7zf1m1GPBF9Ad0Jk/whtQ1663qI=
 github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
@@ -1170,6 +1173,8 @@ github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
 github.com/mattermost/xml-roundtrip-validator v0.0.0-20201204154048-1a8688af4cf1 h1:D2uMrH5NnWgU7JdjiWjOg/n31gbPH6I0D3IbCrqVVYE=
 github.com/mattermost/xml-roundtrip-validator v0.0.0-20201204154048-1a8688af4cf1/go.mod h1:qccnGMcpgwcNaBnxqpJpWWUiPNr5H3O8eDgGV9gT5To=
+github.com/mattermost/xml-roundtrip-validator v0.1.0 h1:RXbVD2UAl7A7nOTR4u7E3ILa4IbtvKBHw64LDsmu9hU=
+github.com/mattermost/xml-roundtrip-validator v0.1.0/go.mod h1:qccnGMcpgwcNaBnxqpJpWWUiPNr5H3O8eDgGV9gT5To=
 github.com/mattn/go-colorable v0.0.9/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaOChaDxuIBZU=
 github.com/mattn/go-isatty v0.0.4/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=

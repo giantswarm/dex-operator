@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.8.0
-	github.com/dexidp/dex v0.0.0-20201214084049-0f9e2888ab65
+	github.com/dexidp/dex v0.0.0-20221003101923-e4bceef9f3d1
 	github.com/giantswarm/apiextensions-application v0.6.0
 	github.com/giantswarm/backoff v1.0.0
 	github.com/giantswarm/k8smetadata v0.23.0
@@ -48,7 +48,7 @@ require (
 	github.com/cloudflare/circl v1.3.6 // indirect
 	github.com/coreos/go-oidc v2.2.1+incompatible // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dexidp/dex/api/v2 v2.0.0 // indirect
+	github.com/dexidp/dex/api/v2 v2.1.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
@@ -85,7 +85,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201204154048-1a8688af4cf1 // indirect
+	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/microsoft/kiota-http-go v0.16.2 // indirect
 	github.com/microsoft/kiota-serialization-form-go v0.9.1 // indirect
