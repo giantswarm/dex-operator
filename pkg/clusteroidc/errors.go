@@ -2,6 +2,14 @@ package clusteroidc
 
 import "github.com/giantswarm/microerror"
 
+var clusterAppNotFoundError = &microerror.Error{
+	Kind: "clusterAppNotFound",
+}
+
+func IsClusterAppNotFound(err error) bool {
+	return microerror.Cause(err) == clusterAppNotFoundError
+}
+
 var oidcFlagsConfigNotFoundError = &microerror.Error{
 	Kind: "oidcFlagsConfigNotFound",
 }

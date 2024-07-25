@@ -9,7 +9,7 @@ import (
 
 const (
 	AppLabel                       = "app.kubernetes.io/name"
-	AppClusterLabel                = "giantswarm-io/cluster"
+	AppClusterLabel                = "giantswarm.io/cluster"
 	AdminRoleName                  = "cluster-admin"
 	DexAppLabelValue               = "dex-app"
 	AuthConfigName                 = "default-auth-config"

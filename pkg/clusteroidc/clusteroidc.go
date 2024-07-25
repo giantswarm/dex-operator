@@ -2,7 +2,6 @@ package clusteroidc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -13,7 +12,8 @@ import (
 	"github.com/giantswarm/k8smetadata/pkg/label"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -58,13 +58,12 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return nil
 	}
 
-	s.log.Info(fmt.Sprintf("Detected cluster.giantswarm.io/update-oidc-flags annotation in Dex app %s/%s, will apply OIDC flags", s.app.Name, s.app.Namespace))
+	s.log.Info("Detected cluster.giantswarm.io/update-oidc-flags annotation in Dex app, will apply OIDC flags")
 
 	// Read "giantswarm-io/cluster" label from the app CR
-	clusterName, ok := s.app.Labels[key.AppClusterLabel]
-	if !ok {
-		// End reconciliation if label not found
-		s.log.Info(fmt.Sprintf("Dex app %s/%s does not have the giantswarm-io/cluster label, unable to determine workload cluster", s.app.Namespace, s.app.Name))
+	clusterApp, err := s.getClusterApp(ctx)
+	if err != nil {
+		s.log.Info("Unable to get cluster app")
 		return s.removeAnnotationAndUpdateApp(ctx)
 	}
 
@@ -74,11 +73,11 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	// Check if OIDC flags already exist in the cluster
-	oidcFlagsExist, err := s.oidcFlagsPresentInCLuster(ctx, clusterName)
+	oidcFlagsExist, err := s.oidcFlagsPresentInCLuster(ctx, clusterApp.Name)
 	if err != nil {
 		if IsOIDCFlagsConfigNotFound(err) {
 			// OIDC flags cannot be checked, end reconciliation
-			s.log.Info(fmt.Sprintf("Unable to check if OIDC flags are present in the %s cluster: %v", clusterName, microerror.Cause(err)))
+			s.log.Info(fmt.Sprintf("Unable to check if OIDC flags are present in the %s cluster: %v", clusterApp.Name, microerror.Cause(err)))
 			return s.removeAnnotationAndUpdateApp(ctx)
 		}
 		return microerror.Mask(err)
@@ -86,20 +85,29 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 	// OIDC flags already exist in the cluster, end reconciliation
 	if oidcFlagsExist {
-		s.log.Info(fmt.Sprintf("OIDC flags are already configured in the %s cluster, skipping", clusterName))
+		s.log.Info(fmt.Sprintf("OIDC flags are already configured in the %s cluster, skipping", clusterApp.Name))
 		return s.removeAnnotationAndUpdateApp(ctx)
 	}
 
-	// If not, add them to the config OR create a new extra config and reference it in the extra config of the app
-	err = s.createOrUpdateOIDCConfigMap(ctx, clusterName, appConfig.IssuerURI)
+	// If not, add them to the user config configmap of the workload cluster
+	clusterUserConfigMap := &corev1.ConfigMap{}
+	err = s.Get(ctx, types.NamespacedName{Name: clusterApp.Spec.UserConfig.ConfigMap.Name, Namespace: clusterApp.Spec.UserConfig.ConfigMap.Namespace}, clusterUserConfigMap)
+
+	err = s.createOrUpdateOIDCConfigMap(ctx, clusterApp.Name, appConfig.IssuerURI)
 	if err != nil {
 		return microerror.Mask(err)
 	}
 
 	// Update extra config if needed
-	if !oidcExtraConfigPresent(s.app) {
-		oidcExtraConfig := GetOIDCFlagsExtraConfig(s.app)
-		s.app.Spec.ExtraConfigs = append(s.app.Spec.ExtraConfigs, oidcExtraConfig)
+	if !oidcExtraConfigPresent(clusterApp) {
+		oidcExtraConfig := GetOIDCFlagsExtraConfig(clusterApp)
+		clusterApp.Spec.ExtraConfigs = append(clusterApp.Spec.ExtraConfigs, oidcExtraConfig)
+		s.log.Info(fmt.Sprintf("Adding OIDC setting to the %s/%s cluster", clusterApp.Namespace, clusterApp.Name))
+		err = s.Update(ctx, clusterApp)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		s.log.Info(fmt.Sprintf("Added OIDC setting to the %s/%s cluster", clusterApp.Namespace, clusterApp.Name))
 	}
 
 	// Remove the "Update OIDC Flags annotation"
@@ -107,17 +115,23 @@ func (s *Service) Reconcile(ctx context.Context) error {
 }
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
-	if oidcExtraConfigPresent(s.app) {
-		oidcFlagsExtraConfig := GetOIDCFlagsExtraConfig(s.app)
-		s.app.Spec.ExtraConfigs = app.RemoveExtraConfig(s.app.Spec.ExtraConfigs, oidcFlagsExtraConfig)
-		err := s.Update(ctx, s.app)
+	clusterApp, err := s.getClusterApp(ctx)
+	if err != nil {
+		s.log.Info("Unable to get cluster app")
+		return nil
+	}
+
+	if oidcExtraConfigPresent(clusterApp) {
+		oidcFlagsExtraConfig := GetOIDCFlagsExtraConfig(clusterApp)
+		clusterApp.Spec.ExtraConfigs = app.RemoveExtraConfig(clusterApp.Spec.ExtraConfigs, oidcFlagsExtraConfig)
+		err = s.Update(ctx, clusterApp)
 		if err != nil {
 			return microerror.Mask(err)
 		}
 	}
 
-	configMap := &v1.ConfigMap{}
-	if err := s.Get(ctx, types.NamespacedName{Name: key.GetClusterOIDCConfigName(s.app.Name), Namespace: s.app.Namespace}, configMap); err != nil {
+	configMap := &corev1.ConfigMap{}
+	if err = s.Get(ctx, types.NamespacedName{Name: key.GetClusterOIDCConfigName(clusterApp.Name), Namespace: clusterApp.Namespace}, configMap); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
@@ -126,7 +140,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 
 	if controllerutil.ContainsFinalizer(configMap, key.DexOperatorFinalizer) {
 		controllerutil.RemoveFinalizer(configMap, key.DexOperatorFinalizer)
-		if err := s.Update(ctx, configMap); err != nil {
+		if err = s.Update(ctx, configMap); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
@@ -135,12 +149,30 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 			s.log.Info(fmt.Sprintf("Removed finalizer from OIDC flags configmap %s/%s", configMap.Namespace, configMap.Name))
 		}
 	}
-	err := s.Delete(ctx, configMap)
+	err = s.Delete(ctx, configMap)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return microerror.Mask(err)
 	}
 
 	return nil
+}
+
+func (s *Service) getClusterApp(ctx context.Context) (*v1alpha1.App, error) {
+	// Read "giantswarm-io/cluster" label from the app CR
+	clusterName, ok := s.app.Labels[key.AppClusterLabel]
+	if !ok {
+		s.log.Info("Dex app does not have the giantswarm-io/cluster label, unable to determine workload cluster")
+		return nil, clusterAppNotFoundError
+	}
+
+	clusterApp := &v1alpha1.App{}
+	err := s.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: s.app.Namespace}, clusterApp)
+	if err != nil {
+		s.log.Info(fmt.Sprintf("Unable to get the %s/%s cluster app", s.app.Namespace, clusterName))
+		return nil, microerror.Maskf(clusterAppNotFoundError, "%v", err)
+	}
+
+	return clusterApp, nil
 }
 
 // Read configuration of the cluster from the label
@@ -164,8 +196,8 @@ func (s *Service) oidcFlagsPresentInCLuster(ctx context.Context, clusterName str
 }
 
 func (s *Service) createOrUpdateOIDCConfigMap(ctx context.Context, clusterName, clusterIssuer string) error {
-	configMap := &v1.ConfigMap{}
-	configMapName := key.GetClusterOIDCConfigName(s.app.Name)
+	configMap := &corev1.ConfigMap{}
+	configMapName := key.GetClusterOIDCConfigName(clusterName)
 	if err := s.Get(ctx, types.NamespacedName{Name: configMapName, Namespace: s.app.Namespace}, configMap); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return microerror.Mask(err)
@@ -184,7 +216,7 @@ func (s *Service) createOrUpdateOIDCConfigMap(ctx context.Context, clusterName, 
 
 	needsUpdate := false
 	if !reflect.DeepEqual(desiredData, configMap.BinaryData) {
-		configMap.BinaryData = desiredData
+		configMap.Data = desiredData
 		needsUpdate = true
 	}
 
@@ -214,8 +246,8 @@ func (s *Service) removeAnnotationAndUpdateApp(ctx context.Context) error {
 	return nil
 }
 
-func GetOIDCFlagsConfigMap(name, namespace string) *v1.ConfigMap {
-	return &v1.ConfigMap{
+func GetOIDCFlagsConfigMap(name, namespace string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",
@@ -231,7 +263,7 @@ func GetOIDCFlagsConfigMap(name, namespace string) *v1.ConfigMap {
 	}
 }
 
-func CreateOIDCFlagsConfigMapValues(clusterIssuer string) (map[string][]byte, error) {
+func CreateOIDCFlagsConfigMapValues(clusterIssuer string) (map[string]string, error) {
 	values := map[string]interface{}{
 		"global": map[string]interface{}{
 			"controlPlane": map[string]interface{}{
@@ -244,10 +276,11 @@ func CreateOIDCFlagsConfigMapValues(clusterIssuer string) (map[string][]byte, er
 			},
 		},
 	}
-	data, err := json.Marshal(values)
+
+	data, err := yaml.Marshal(values)
 	if err != nil {
 		return nil, err
 	}
 
-	return map[string][]byte{key.ValuesConfigMapKey: data}, nil
+	return map[string]string{key.ValuesConfigMapKey: string(data)}, nil
 }

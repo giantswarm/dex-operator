@@ -36,6 +36,7 @@ func TestOIDCConfigCreate(t *testing.T) {
 	testCases := []struct {
 		name                string
 		app                 *v1alpha1.App
+		clusterApp          *v1alpha1.App
 		clusterConfig       *corev1.ConfigMap
 		kubeadmControlPlane *v1beta1.KubeadmControlPlane
 		oidcConfig          *corev1.ConfigMap
@@ -44,26 +45,30 @@ func TestOIDCConfigCreate(t *testing.T) {
 	}{
 		{
 			name:                "case 0: App without the OIDC flags annotation",
-			app:                 getTestApp(appName, namespace, clusterName, clusterConfigName, "", false),
+			app:                 getTestDexApp(appName, namespace, clusterName, clusterConfigName, false),
+			clusterApp:          getTestClusterApp(clusterName, namespace, clusterConfigName, ""),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane(""),
 		},
 		{
 			name:                "case 1: App with the OIDC flags annotation",
-			app:                 getTestApp(appName, namespace, clusterName, clusterConfigName, "", true),
+			app:                 getTestDexApp(appName, namespace, clusterName, clusterConfigName, true),
+			clusterApp:          getTestClusterApp(clusterName, namespace, "", ""),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane(""),
 			expectedOidcConfig:  getOIDCConfig("https://dex.wc.cluster.domain.io"),
 		},
 		{
 			name:                "case 2: App with the annotation and existing OIDC flags",
-			app:                 getTestApp(appName, namespace, clusterName, clusterConfigName, "", true),
+			app:                 getTestDexApp(appName, namespace, clusterName, clusterConfigName, true),
+			clusterApp:          getTestClusterApp(clusterName, namespace, clusterConfigName, ""),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane("https://issuer.externaldomain.io"),
 		},
 		{
 			name:                "case 3: App with the annotation and existing OIDC config with the same values",
-			app:                 getTestApp(appName, namespace, clusterName, clusterConfigName, "", true),
+			app:                 getTestDexApp(appName, namespace, clusterName, clusterConfigName, true),
+			clusterApp:          getTestClusterApp(clusterName, namespace, clusterConfigName, ""),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			oidcConfig:          getOIDCConfig("https://dex.wc.cluster.domain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane(""),
@@ -71,7 +76,8 @@ func TestOIDCConfigCreate(t *testing.T) {
 		},
 		{
 			name:                "case 4: App with the annotation and existing OIDC config with different values",
-			app:                 getTestApp(appName, namespace, clusterName, clusterConfigName, key.GetClusterOIDCConfigName(appName), true),
+			app:                 getTestDexApp(appName, namespace, clusterName, clusterConfigName, true),
+			clusterApp:          getTestClusterApp(clusterName, namespace, clusterConfigName, key.GetClusterOIDCConfigName(appName)),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			oidcConfig:          getOIDCConfig("https://dex.wc.cluster.olddomain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane(""),
@@ -79,7 +85,8 @@ func TestOIDCConfigCreate(t *testing.T) {
 		},
 		{
 			name:                "case 5: App with annotation without cluster label",
-			app:                 getTestApp(appName, namespace, "", clusterConfigName, "", true),
+			app:                 getTestDexApp(appName, namespace, "", clusterConfigName, true),
+			clusterApp:          getTestClusterApp(clusterName, namespace, clusterConfigName, ""),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane(""),
 		},
@@ -103,6 +110,9 @@ func TestOIDCConfigCreate(t *testing.T) {
 			var initObjects []client.Object
 			if tc.app != nil {
 				initObjects = append(initObjects, tc.app)
+			}
+			if tc.clusterApp != nil {
+				initObjects = append(initObjects, tc.clusterApp)
 			}
 			if tc.clusterConfig != nil {
 				initObjects = append(initObjects, tc.clusterConfig)
@@ -154,9 +164,15 @@ func TestOIDCConfigCreate(t *testing.T) {
 				t.Errorf("found unexpected %s annotation in the app", key.UpdateOIDCFlagsAnnotationName)
 			}
 
+			actualClusterApp := &v1alpha1.App{}
+			err = fakeClient.Get(ctx, types.NamespacedName{Name: tc.clusterApp.Name, Namespace: tc.clusterApp.Namespace}, actualClusterApp)
+			if err != nil {
+				t.Fatalf("received unexpected error %v", err)
+			}
+
 			actualOidcConfig := &corev1.ConfigMap{}
 			actualOidcConfigExists := true
-			err = fakeClient.Get(ctx, types.NamespacedName{Name: key.GetClusterOIDCConfigName(actualApp.Name), Namespace: actualApp.Namespace}, actualOidcConfig)
+			err = fakeClient.Get(ctx, types.NamespacedName{Name: key.GetClusterOIDCConfigName(actualClusterApp.Name), Namespace: actualApp.Namespace}, actualOidcConfig)
 			if err != nil {
 				if apierrors.IsNotFound(err) {
 					actualOidcConfigExists = false
@@ -175,11 +191,16 @@ func TestOIDCConfigCreate(t *testing.T) {
 						actualOidcConfig.Namespace, actualOidcConfig.Name)
 				}
 
-				if !reflect.DeepEqual(tc.expectedOidcConfig.BinaryData, actualOidcConfig.BinaryData) {
+				if !reflect.DeepEqual(tc.expectedOidcConfig.Data, actualOidcConfig.Data) {
 					t.Errorf("unexpected OIDC configmap content - expected %v, actual %v",
 						string(tc.expectedOidcConfig.BinaryData[key.ValuesConfigMapKey]),
 						string(actualOidcConfig.BinaryData[key.ValuesConfigMapKey]))
 				}
+
+				if !oidcExtraConfigPresent(actualClusterApp) {
+					t.Errorf("expected extra config %s is not present in app %v", tc.expectedOidcConfig.Name, actualClusterApp)
+				}
+
 			} else if actualOidcConfigExists {
 				t.Errorf("received unexpected OIDC config %v", actualOidcConfig)
 			}
@@ -195,27 +216,31 @@ func TestOIDCConfigDelete(t *testing.T) {
 	testCases := []struct {
 		name                string
 		app                 *v1alpha1.App
+		clusterApp          *v1alpha1.App
 		clusterConfig       *corev1.ConfigMap
 		kubeadmControlPlane *v1beta1.KubeadmControlPlane
 		oidcConfig          *corev1.ConfigMap
 	}{
 		{
 			name:                "case 0: Delete app with OIDC annotation and extra config present",
-			app:                 getTestApp(appName, namespace, clusterName, clusterConfigName, key.GetClusterOIDCConfigName(appName), true),
+			app:                 getTestDexApp(appName, namespace, clusterName, clusterConfigName, true),
+			clusterApp:          getTestClusterApp(clusterName, namespace, clusterConfigName, key.GetClusterOIDCConfigName(appName)),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			oidcConfig:          getOIDCConfig("https://dex.wc.cluster.domain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane("https://dex.wc.cluster.domain.io"),
 		},
 		{
 			name:                "case 1: Delete app without OIDC annotation and with extra config present",
-			app:                 getTestApp(appName, namespace, clusterName, clusterConfigName, key.GetClusterOIDCConfigName(appName), false),
+			app:                 getTestDexApp(appName, namespace, clusterName, clusterConfigName, false),
+			clusterApp:          getTestClusterApp(clusterName, namespace, clusterConfigName, key.GetClusterOIDCConfigName(appName)),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			oidcConfig:          getOIDCConfig("https://dex.wc.cluster.domain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane("https://dex.wc.cluster.domain.io"),
 		},
 		{
 			name:                "case 2: Delete app without OIDC annotation and extra config",
-			app:                 getTestApp(appName, namespace, clusterName, clusterConfigName, "", false),
+			app:                 getTestDexApp(appName, namespace, clusterName, clusterConfigName, false),
+			clusterApp:          getTestClusterApp(clusterName, namespace, clusterConfigName, ""),
 			clusterConfig:       tests.GetClusterValuesConfigMap(clusterConfigName, namespace, "baseDomain: wc.cluster.domain.io"),
 			kubeadmControlPlane: getTestKubeadmControlPlane("https://dex.wc.cluster.domain.io"),
 		},
@@ -238,6 +263,9 @@ func TestOIDCConfigDelete(t *testing.T) {
 			var initObjects []client.Object
 			if tc.app != nil {
 				initObjects = append(initObjects, tc.app)
+			}
+			if tc.clusterApp != nil {
+				initObjects = append(initObjects, tc.clusterApp)
 			}
 			if tc.clusterConfig != nil {
 				initObjects = append(initObjects, tc.clusterConfig)
@@ -269,19 +297,30 @@ func TestOIDCConfigDelete(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			actualClusterApp := &v1alpha1.App{}
+			err = fakeClient.Get(ctx, types.NamespacedName{Name: tc.clusterApp.Name, Namespace: tc.clusterApp.Namespace}, actualClusterApp)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if oidcExtraConfigPresent(actualClusterApp) {
+				t.Errorf("found unexpected extra config in %s/%s app: %v", actualClusterApp.Namespace, actualClusterApp.Name, actualClusterApp)
+			}
+
 			actualOidcConfig := &corev1.ConfigMap{}
-			err = fakeClient.Get(ctx, types.NamespacedName{Name: key.GetClusterOIDCConfigName(tc.app.Name), Namespace: tc.app.Namespace}, actualOidcConfig)
+			err = fakeClient.Get(ctx, types.NamespacedName{Name: key.GetClusterOIDCConfigName(tc.clusterApp.Name), Namespace: tc.clusterApp.Namespace}, actualOidcConfig)
 			if err == nil {
 				t.Errorf("found unexpected config map %s/%s", actualOidcConfig.Namespace, actualOidcConfig.Name)
 			} else if !apierrors.IsNotFound(err) {
 				t.Errorf("received unexpected error %v", err)
 			}
+
 		})
 	}
 }
 
-func getTestApp(name, namespace, clusterName, clusterConfigName, extraConfigName string, oidcAnnotation bool) *v1alpha1.App {
-	app := &v1alpha1.App{
+func getApp(name, namespace, clusterConfigName string) *v1alpha1.App {
+	return &v1alpha1.App{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -297,6 +336,10 @@ func getTestApp(name, namespace, clusterName, clusterConfigName, extraConfigName
 			},
 		},
 	}
+}
+
+func getTestDexApp(name, namespace, clusterName, clusterConfigName string, oidcAnnotation bool) *v1alpha1.App {
+	app := getApp(name, namespace, clusterConfigName)
 
 	if clusterName != "" {
 		app.ObjectMeta.Labels = map[string]string{
@@ -309,6 +352,12 @@ func getTestApp(name, namespace, clusterName, clusterConfigName, extraConfigName
 			key.UpdateOIDCFlagsAnnotationName: key.UpdateOIDCFlagsAnnotationValue,
 		}
 	}
+
+	return app
+}
+
+func getTestClusterApp(name, namespace, clusterConfigName, extraConfigName string) *v1alpha1.App {
+	app := getApp(name, namespace, clusterConfigName)
 
 	if extraConfigName != "" {
 		app.Spec.ExtraConfigs = append(app.Spec.ExtraConfigs, v1alpha1.AppExtraConfig{
@@ -348,12 +397,12 @@ func getOIDCConfig(clusterIssuer string) *corev1.ConfigMap {
 	data, _ := CreateOIDCFlagsConfigMapValues(clusterIssuer)
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      key.GetClusterOIDCConfigName(appName),
+			Name:      key.GetClusterOIDCConfigName(clusterName),
 			Namespace: namespace,
 			Finalizers: []string{
 				key.DexOperatorFinalizer,
 			},
 		},
-		BinaryData: data,
+		Data: data,
 	}
 }
