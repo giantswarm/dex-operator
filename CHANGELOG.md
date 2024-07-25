@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.12.2] - 2024-07-25
 
+### Fixed
+
+- Fixes critical CVEs in dex library in https://github.com/giantswarm/dex-operator/pull/110
+
 ## [0.12.1] - 2023-12-06
 
 ### Changed
