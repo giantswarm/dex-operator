@@ -90,9 +90,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	// If not, add them to the user config configmap of the workload cluster
-	clusterUserConfigMap := &corev1.ConfigMap{}
-	err = s.Get(ctx, types.NamespacedName{Name: clusterApp.Spec.UserConfig.ConfigMap.Name, Namespace: clusterApp.Spec.UserConfig.ConfigMap.Namespace}, clusterUserConfigMap)
-
 	err = s.createOrUpdateOIDCConfigMap(ctx, clusterApp.Name, appConfig.IssuerURI)
 	if err != nil {
 		return microerror.Mask(err)
