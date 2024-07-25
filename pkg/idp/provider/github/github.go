@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/github/manifest"
@@ -160,7 +161,7 @@ func (g *Github) GetOwner() string {
 	return g.Owner
 }
 
-func (g *Github) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
+func (g *Github) CreateOrUpdateApp(config app.Config, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
 	secret, err := g.createOrUpdateSecret(config, ctx, oldConnector)
 	if err != nil {
 		return provider.ProviderApp{}, microerror.Mask(err)
@@ -203,7 +204,7 @@ func (g *Github) DeleteApp(name string, ctx context.Context) error {
 	return nil
 }
 
-func (g *Github) createOrUpdateSecret(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderSecret, error) {
+func (g *Github) createOrUpdateSecret(config app.Config, ctx context.Context, oldConnector dex.Connector) (provider.ProviderSecret, error) {
 	// get authenticated app, check if the callback URI is present
 	app, _, err := g.Client.Apps.Get(ctx, "")
 	if err != nil {
@@ -246,7 +247,7 @@ func (g *Github) getSecret(app *githubclient.App, oldConnector dex.Connector) (p
 	}, nil
 }
 
-func (g *Github) UpdateNeeded(app *githubclient.App, config provider.AppConfig) bool {
+func (g *Github) UpdateNeeded(app *githubclient.App, config app.Config) bool {
 	if permissionsUpdateNeeded(app) {
 		g.Log.Info(fmt.Sprintf("Permissions of %s app %s for %s in github organization %s needs update.", g.Type, app.GetSlug(), g.Owner, g.Organization))
 		return true
@@ -259,12 +260,12 @@ func permissionsUpdateNeeded(app *githubclient.App) bool {
 	return !(permissions.GetEmails() == "read" && permissions.GetMembers() == "read")
 }
 
-func callbackURIPresent(app *githubclient.App, config provider.AppConfig) bool {
+func callbackURIPresent(app *githubclient.App, config app.Config) bool {
 	//TODO: check if callback URL is present
 	return true
 }
 
-func (g *Github) CreateApp(config provider.AppConfig) (*githubclient.AppConfig, error) {
+func (g *Github) CreateApp(config app.Config) (*githubclient.AppConfig, error) {
 	c := manifest.Config{
 		AppConfig:         config,
 		Port:              0,
@@ -284,7 +285,7 @@ func (g *Github) GetAppData(app *githubclient.AppConfig) Config {
 		Team:         g.Team,
 	}
 }
-func (g *Github) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (map[string]string, error) {
+func (g *Github) GetCredentialsForAuthenticatedApp(config app.Config) (map[string]string, error) {
 	// check if the app is already present
 	oldApp, resp, err := g.Client.Apps.Get(context.Background(), "")
 	if err != nil {
@@ -316,7 +317,7 @@ func (g *Github) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (m
 		PrivateKeyKey:   string(c.PrivateKey),
 	}, nil
 }
-func (g *Github) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
+func (g *Github) CleanCredentialsForAuthenticatedApp(config app.Config) error {
 	app, resp, err := g.Client.Apps.Get(context.Background(), "")
 	if err != nil {
 		return err
@@ -334,7 +335,7 @@ func (g *Github) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) 
 	return nil
 }
 
-func (g *Github) DeleteAuthenticatedApp(config provider.AppConfig) error {
+func (g *Github) DeleteAuthenticatedApp(config app.Config) error {
 	g.Log.Info(fmt.Sprintf("github does not allow deletion of apps via automation. Attempting to open deletion page for %s so user can manually delete it.", config.Name))
 	appURL := getDeletionURLForApp(DefaultHost, g.Organization, config.Name)
 	g.Log.Info(fmt.Sprintf("Opening the app under the following URL: %s", appURL))

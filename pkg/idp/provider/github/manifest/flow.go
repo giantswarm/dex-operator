@@ -10,17 +10,17 @@ import (
 	"net"
 	"time"
 
-	"github.com/giantswarm/dex-operator/pkg/idp/provider"
-
 	"net/http"
 	"net/url"
+
+	"github.com/giantswarm/dex-operator/pkg/app"
 
 	githubclient "github.com/google/go-github/v50/github"
 	"github.com/pkg/browser"
 )
 
 type Config struct {
-	AppConfig         provider.AppConfig
+	AppConfig         app.Config
 	Port              int
 	Host              string
 	ReadHeaderTimeout time.Duration

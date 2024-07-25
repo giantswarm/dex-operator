@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/app"
 
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
@@ -43,7 +43,7 @@ func computePermissionsUpdatePatch(app models.Applicationable, parentApp models.
 	return true, patch
 }
 
-func computeRedirectURIUpdatePatch(app models.Applicationable, config provider.AppConfig) (bool, models.WebApplicationable) {
+func computeRedirectURIUpdatePatch(app models.Applicationable, config app.Config) (bool, models.WebApplicationable) {
 	var original, patch models.WebApplicationable
 	{
 		original = app.GetWeb()
@@ -147,7 +147,7 @@ func GetAllAppsContainingRequestConfig(name string) *applications.ApplicationsRe
 	}
 }
 
-func getAppCreateRequestBody(config provider.AppConfig) models.Applicationable {
+func getAppCreateRequestBody(config app.Config) models.Applicationable {
 	// Assemble request body
 	app := models.NewApplication()
 	app.SetDisplayName(&config.Name)
@@ -192,7 +192,7 @@ func getClaimFromName(claimName string) *models.OptionalClaim {
 	return claim
 }
 
-func GetSecretCreateRequestBody(config provider.AppConfig) *applications.ItemAddPasswordPostRequestBody {
+func GetSecretCreateRequestBody(config app.Config) *applications.ItemAddPasswordPostRequestBody {
 	keyCredential := models.NewPasswordCredential()
 	keyCredential.SetDisplayName(&config.Name)
 

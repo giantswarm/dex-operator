@@ -3,7 +3,7 @@ package manifest
 import (
 	"strings"
 
-	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/app"
 )
 
 type Manifest struct {
@@ -14,7 +14,7 @@ type Manifest struct {
 	URL          string            `json:"url"`
 }
 
-func NewManifest(config provider.AppConfig) Manifest {
+func NewManifest(config app.Config) Manifest {
 	return Manifest{
 		Name:         config.Name,
 		Permissions:  getPermissions(),

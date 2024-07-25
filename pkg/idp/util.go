@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -28,37 +27,11 @@ func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExt
 	return false
 }
 
-func removeExtraConfig(extraConfigs []v1alpha1.AppExtraConfig, dexSecretConfig v1alpha1.AppExtraConfig) []v1alpha1.AppExtraConfig {
-	if extraConfigs == nil {
-		return extraConfigs
-	}
-	result := []v1alpha1.AppExtraConfig{}
-	for _, config := range extraConfigs {
-		if !reflect.DeepEqual(config, dexSecretConfig) {
-			result = append(result, config)
-		}
-	}
-	return result
-}
-
 func userConfigMapPresent(app *v1alpha1.App) bool {
 	if app.Spec.UserConfig.ConfigMap.Name == "" && app.Spec.UserConfig.ConfigMap.Namespace == "" {
 		return false
 	}
 	return true
-}
-
-func clusterValuesIsPresent(app *v1alpha1.App) bool {
-	return strings.HasSuffix(app.Spec.Config.ConfigMap.Name, key.ClusterValuesConfigmapSuffix)
-}
-
-func getBaseDomainFromClusterValues(clusterValuesConfigmap *corev1.ConfigMap) string {
-	values := clusterValuesConfigmap.Data[key.ValuesConfigMapKey]
-	rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.BaseDomainKey))
-	if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
-		return matches[3]
-	}
-	return ""
 }
 
 func connectorsDefinedInUserConfigMap(userConfigmap *corev1.ConfigMap) bool {

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/giantswarm/dex-operator/pkg/auth"
+	"github.com/giantswarm/dex-operator/pkg/clusteroidc"
 	"github.com/giantswarm/dex-operator/pkg/idp"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
@@ -131,12 +132,33 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
+	var oidcService *clusteroidc.Service
+	{
+		var err error
+		c := clusteroidc.Config{
+			Log:                            log,
+			Client:                         r.Client,
+			App:                            app,
+			ManagementClusterBaseDomain:    r.BaseDomain,
+			ManagementClusterIssuerAddress: r.IssuerAddress,
+			ManagementClusterName:          r.ManagementCluster,
+		}
+
+		oidcService, err = clusteroidc.New(c)
+		if err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+	}
+
 	// App is deleted.
 	if !app.DeletionTimestamp.IsZero() {
 		if err := idpService.ReconcileDelete(ctx); err != nil {
 			return ctrl.Result{}, microerror.Mask(err)
 		}
 		if err := authService.ReconcileDelete(ctx); err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+		if err := oidcService.ReconcileDelete(ctx); err != nil {
 			return ctrl.Result{}, microerror.Mask(err)
 		}
 		// remove finalizer
@@ -163,6 +185,9 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, microerror.Mask(err)
 	}
 	if err := idpService.Reconcile(ctx); err != nil {
+		return ctrl.Result{}, microerror.Mask(err)
+	}
+	if err := oidcService.Reconcile(ctx); err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
 	return DefaultRequeue(), nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -51,7 +52,7 @@ func (m *MockProvider) GetOwner() string {
 	return m.Owner
 }
 
-func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
+func (m *MockProvider) CreateOrUpdateApp(config app.Config, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
 	connectorConfig := &mock.PasswordConfig{
 		Username: "test",
 		Password: "test",
@@ -75,18 +76,18 @@ func (m *MockProvider) DeleteApp(name string, ctx context.Context) error {
 	return nil
 }
 
-func (m *MockProvider) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (map[string]string, error) {
+func (m *MockProvider) GetCredentialsForAuthenticatedApp(config app.Config) (map[string]string, error) {
 	return map[string]string{
 		"client-id":     "abc",
 		"cert":          MockCert(),
 		"client-secret": "test",
 	}, nil
 }
-func (m *MockProvider) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
+func (m *MockProvider) CleanCredentialsForAuthenticatedApp(config app.Config) error {
 	return nil
 }
 
-func (m *MockProvider) DeleteAuthenticatedApp(config provider.AppConfig) error {
+func (m *MockProvider) DeleteAuthenticatedApp(config app.Config) error {
 	return nil
 }
 

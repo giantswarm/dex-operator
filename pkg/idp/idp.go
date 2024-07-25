@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -34,12 +35,10 @@ type Config struct {
 
 type Service struct {
 	client.Client
-	log                            logr.Logger
-	app                            *v1alpha1.App
-	providers                      []provider.Provider
-	managementClusterBaseDomain    string
-	managementClusterName          string
-	managementClusterIssuerAddress string
+	log               logr.Logger
+	app               *v1alpha1.App
+	providers         []provider.Provider
+	managementCluster app.ManagementClusterProps
 }
 
 func New(c Config) (*Service, error) {
@@ -62,13 +61,15 @@ func New(c Config) (*Service, error) {
 		return nil, microerror.Maskf(invalidConfigError, "no management cluster name given")
 	}
 	s := &Service{
-		Client:                         c.Client,
-		app:                            c.App,
-		log:                            *c.Log,
-		providers:                      c.Providers,
-		managementClusterBaseDomain:    c.ManagementClusterBaseDomain,
-		managementClusterName:          c.ManagementClusterName,
-		managementClusterIssuerAddress: c.ManagementClusterIssuerAddress,
+		Client:    c.Client,
+		app:       c.App,
+		log:       *c.Log,
+		providers: c.Providers,
+		managementCluster: app.ManagementClusterProps{
+			Name:          c.ManagementClusterName,
+			BaseDomain:    c.ManagementClusterBaseDomain,
+			IssuerAddress: c.ManagementClusterIssuerAddress,
+		},
 	}
 
 	return s, nil
@@ -122,7 +123,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		}
 		oldConnectors := getConnectorsFromConfig(oldConfig)
 		// Create apps for each provider and get dex config
-		appConfig, err := s.GetAppConfig(ctx)
+		appConfig, err := app.GetConfig(ctx, s.app, s.Client, s.managementCluster)
 		if err != nil {
 			return microerror.Mask(err)
 		}
@@ -169,7 +170,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 				return microerror.Mask(err)
 			}
 		} else {
-			if err := s.DeleteProviderApps(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name), ctx); err != nil {
+			if err := s.DeleteProviderApps(key.GetIdpAppName(s.managementCluster.Name, s.app.Namespace, s.app.Name), ctx); err != nil {
 				return microerror.Mask(err)
 			}
 			// remove finalizer
@@ -193,7 +194,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 			}
 		}
 		// remove dex secret config
-		s.app.Spec.ExtraConfigs = removeExtraConfig(s.app.Spec.ExtraConfigs, dexSecretConfig)
+		s.app.Spec.ExtraConfigs = app.RemoveExtraConfig(s.app.Spec.ExtraConfigs, dexSecretConfig)
 		if err := s.Update(ctx, s.app); err != nil {
 			if !apierrors.IsNotFound(err) {
 				return microerror.Mask(err)
@@ -205,7 +206,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx context.Context, oldConnectors map[string]dex.Connector) (dex.DexConfig, error) {
+func (s *Service) CreateOrUpdateProviderApps(appConfig app.Config, ctx context.Context, oldConnectors map[string]dex.Connector) (dex.DexConfig, error) {
 	dexConfig := dex.DexConfig{}
 	customerOidcOwner := dex.DexOidcOwner{}
 	giantswarmOidcOwner := dex.DexOidcOwner{}
@@ -289,31 +290,6 @@ func (s *Service) connectorsNeedUpdate(oldConnectors map[string]dex.Connector, n
 	return needsUpdate
 }
 
-func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) {
-	var baseDomain string
-
-	// Get the cluster values configmap if present (workload cluster format)
-	if clusterValuesIsPresent(s.app) {
-		clusterValuesConfigmap := &corev1.ConfigMap{}
-		if err := s.Get(ctx, types.NamespacedName{
-			Name:      s.app.Spec.Config.ConfigMap.Name,
-			Namespace: s.app.Spec.Config.ConfigMap.Namespace},
-			clusterValuesConfigmap); err != nil {
-			return provider.AppConfig{}, err
-		}
-		// Get the base domain
-		baseDomain = getBaseDomainFromClusterValues(clusterValuesConfigmap)
-	}
-	issuerAddress := GetIssuerAddress(baseDomain, s.managementClusterIssuerAddress, s.managementClusterBaseDomain)
-
-	return provider.AppConfig{
-		Name:                 key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
-		RedirectURI:          key.GetRedirectURI(issuerAddress),
-		IdentifierURI:        key.GetIdentifierURI(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name)),
-		SecretValidityMonths: key.SecretValidityMonths,
-	}, nil
-}
-
 func GetDefaultDexConfigSecret(name string, namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -330,26 +306,4 @@ func GetDefaultDexConfigSecret(name string, namespace string) *corev1.Secret {
 		Type: "Opaque",
 		Data: map[string][]byte{},
 	}
-}
-
-func GetIssuerAddress(baseDomain string, managementClusterIssuerAddress string, managementClusterBaseDomain string) string {
-	var issuerAddress string
-	{
-		// Derive issuer address from cluster basedomain if it exists
-		if baseDomain != "" {
-			issuerAddress = key.GetIssuerAddress(baseDomain)
-		}
-
-		// Otherwise fall back to management cluster issuer address if present
-		if issuerAddress == "" {
-			issuerAddress = managementClusterIssuerAddress
-		}
-
-		// If all else fails, fall back to the base domain (only works in vintage)
-		if issuerAddress == "" {
-			clusterDomain := key.GetVintageClusterDomain(managementClusterBaseDomain)
-			issuerAddress = key.GetIssuerAddress(clusterDomain)
-		}
-	}
-	return issuerAddress
 }

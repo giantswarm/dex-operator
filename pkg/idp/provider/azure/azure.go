@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -129,7 +130,7 @@ func (a *Azure) GetOwner() string {
 	return a.Owner
 }
 
-func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
+func (a *Azure) CreateOrUpdateApp(config app.Config, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
 	// Create or update application registration
 	id, err := a.createOrUpdateApplication(config, ctx)
 	if err != nil {
@@ -170,7 +171,7 @@ func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context
 	}, nil
 }
 
-func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context.Context) (string, error) {
+func (a *Azure) createOrUpdateApplication(config app.Config, ctx context.Context) (string, error) {
 	app, err := a.GetApp(config.Name)
 	if err != nil {
 		if !IsNotFound(err) {
@@ -208,7 +209,7 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 	return *id, nil
 }
 
-func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx context.Context, oldSecret string, skipDelete bool) (provider.ProviderSecret, error) {
+func (a *Azure) CreateOrUpdateSecret(id string, config app.Config, ctx context.Context, oldSecret string, skipDelete bool) (provider.ProviderSecret, error) {
 
 	app, err := a.Client.ApplicationsById(id).Get(ctx, nil)
 	if err != nil {
@@ -319,7 +320,7 @@ func (a *Azure) GetApp(name string) (models.Applicationable, error) {
 	return appList[0], nil
 }
 
-func (a *Azure) computeAppUpdatePatch(config provider.AppConfig, app models.Applicationable, parentApp models.Applicationable) (bool, models.Applicationable) {
+func (a *Azure) computeAppUpdatePatch(config app.Config, app models.Applicationable, parentApp models.Applicationable) (bool, models.Applicationable) {
 	appPatch := models.NewApplication()
 	appNeedsUpdate := false
 
@@ -347,7 +348,7 @@ func (a *Azure) computeAppUpdatePatch(config provider.AppConfig, app models.Appl
 // TODO
 // improve output
 // include new service principal creation
-func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (map[string]string, error) {
+func (a *Azure) GetCredentialsForAuthenticatedApp(config app.Config) (map[string]string, error) {
 	ctx := context.Background()
 	app, err := a.GetApp(config.Name)
 	if err != nil {
@@ -398,7 +399,7 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (ma
 	}, nil
 }
 
-func (a *Azure) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {
+func (a *Azure) CleanCredentialsForAuthenticatedApp(config app.Config) error {
 	app, err := a.GetApp(config.Name)
 	if err != nil {
 		if !IsNotFound(err) {
@@ -423,7 +424,7 @@ func (a *Azure) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) e
 	return nil
 }
 
-func (a *Azure) DeleteAuthenticatedApp(config provider.AppConfig) error {
+func (a *Azure) DeleteAuthenticatedApp(config app.Config) error {
 	ctx := context.Background()
 	installation := strings.TrimPrefix(config.Name, DexOperatorName+"-")
 

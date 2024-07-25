@@ -2,15 +2,15 @@ package setup
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/giantswarm/dex-operator/controllers"
+	"github.com/giantswarm/dex-operator/pkg/app"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/simpleprovider"
 	"github.com/giantswarm/dex-operator/pkg/key"
-
-	"os"
 
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
@@ -39,7 +39,7 @@ type SetupConfig struct {
 
 type Setup struct {
 	providers  []provider.Provider
-	appConfig  provider.AppConfig
+	appConfig  app.Config
 	config     Config
 	action     string
 	outputFile string
@@ -231,8 +231,8 @@ func providerAlreadyPresent(providers []provider.Provider, provider provider.Pro
 	return false
 }
 
-func getAppConfigForInstallation(installation string, domains []string) provider.AppConfig {
-	return provider.AppConfig{
+func getAppConfigForInstallation(installation string, domains []string) app.Config {
+	return app.Config{
 		Name:                 key.GetDexOperatorName(installation),
 		SecretValidityMonths: 6,
 		IdentifierURI:        key.GetIdentifierURI(key.GetDexOperatorName(installation)),
