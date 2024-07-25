@@ -61,7 +61,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join(build.Default.GOPATH, "pkg", "mod", "github.com", "giantswarm", "apiextensions-application@v0.6.0", "config", "crd"),
+			filepath.Join(build.Default.GOPATH, "pkg", "mod", "github.com", "giantswarm", "apiextensions-application@v0.6.1", "config", "crd"),
 		},
 		ErrorIfCRDPathMissing: true,
 	}
