@@ -6,5 +6,5 @@ home: "https://github.com/giantswarm/dex-operator"
 icon: https://s.giantswarm.io/app-icons/dex/2/icon_light.svg
 apiVersion: v1
 annotations:
-  application.giantswarm.io/team: "bigmac"
+  application.giantswarm.io/team: "shield"
   config.giantswarm.io/version: 1.x.x
