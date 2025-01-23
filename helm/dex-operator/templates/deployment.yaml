@@ -29,7 +29,7 @@ spec:
         {{- end }}
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.registry }}/{{ .Values.image.name }}:{{ include "image.tag" . }}"
         command:
         - /dex-operator
         args:

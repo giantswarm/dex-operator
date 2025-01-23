@@ -9,14 +9,11 @@ oidc:
 baseDomain: ""
 managementCluster: ""
 
-project:
-  branch: "[[ .Branch ]]"
-  commit: "[[ .SHA ]]"
 image:
   name: "giantswarm/dex-operator"
-  tag: "[[ .Version ]]"
-registry:
-  domain: gsoci.azurecr.io
+  tag: ""
+  registry:
+    domain: gsoci.azurecr.io
 
 pod:
   user:
@@ -36,4 +33,4 @@ securityContext:
 
 global:
   podSecurityStandards:
-    enforced: false
+    enforced: true
