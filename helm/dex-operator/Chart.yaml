@@ -1,5 +1,5 @@
 name: dex-operator
-version: 0.12.2
+version: 0.12.3
 description: "An operator that automates the management of dex connector configurations"
 appVersion: 0.12.2
 home: "https://github.com/giantswarm/dex-operator"
