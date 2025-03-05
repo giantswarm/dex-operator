@@ -154,6 +154,27 @@
                     }
                 }
             }
+        },
+        "hostAliases": {
+          "type": "array",
+          "description": "Host aliases for the pod",
+          "items": {
+            "type": "object",
+            "required": ["ip", "hostnames"],
+            "properties": {
+              "ip": {
+                "type": "string",
+                "description": "IP address of the host"
+              },
+              "hostnames": {
+                "type": "array",
+                "description": "Hostnames for the above IP address",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
     }
 }

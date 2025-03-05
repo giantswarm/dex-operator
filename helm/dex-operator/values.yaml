@@ -34,3 +34,5 @@ securityContext:
 global:
   podSecurityStandards:
     enforced: true
+
+hostAliases: []
