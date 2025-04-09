@@ -27,9 +27,13 @@ spec:
         {{- with .Values.podSecurityContext }}
           {{- . | toYaml | nindent 8 }}
         {{- end }}
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.registry.domain }}/{{ .Values.image.name }}:{{ include "image.tag" . }}"
         command:
         - /dex-operator
         args:

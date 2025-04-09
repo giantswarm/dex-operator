@@ -77,7 +77,7 @@ func main() {
 	flag.StringVar(&giantswarmWriteAllGroups, "giantswarm-write-all-groups", "", "Comma separated list of giantswarm admin groups.")
 	flag.StringVar(&customerWriteAllGroups, "customer-write-all-groups", "", "Comma separated list of customer admin groups.")
 	opts := zap.Options{
-		Development: true,
+		Development: false,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)

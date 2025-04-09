@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.4] - 2025-03-05
+
+### Fixed
+
+- fix issue with image registry parsing
+
+## [0.12.3] - 2025-03-05
+
+### Added
+
+- Add support for hostAliases on Chart level
+
+### Changed
+
+- Change ownership to Team Shield
+
+### Fixed
+
+- Disable zap logger development mode to avoid panicking
+
+## [0.12.2] - 2024-07-25
+
+### Fixed
+
+- Fixes critical CVEs in dex library in https://github.com/giantswarm/dex-operator/pull/110
+
 ## [0.12.1] - 2023-12-06
 
 ### Changed
@@ -206,7 +232,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.12.4...HEAD
+[0.12.4]: https://github.com/giantswarm/dex-operator/compare/v0.12.3...v0.12.4
+[0.12.3]: https://github.com/giantswarm/dex-operator/compare/v0.12.2...v0.12.3
+[0.12.2]: https://github.com/giantswarm/dex-operator/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/giantswarm/dex-operator/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/giantswarm/dex-operator/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/giantswarm/dex-operator/compare/v0.10.1...v0.11.0

@@ -112,3 +112,15 @@ oidc:
 - `$OWNER`: Owner of the connector configuration. `giantswarm` or `customer`.
 - `$CONNECTORTYPE`: The type of dex connector. All valid types can be found in the [dex documentation](https://dexidp.io/docs/connectors/).
 - `$CONNECTORCONFIG`: The connector configuration. Format for each types can likewise be found in the [dex documentation](https://dexidp.io/docs/connectors/). Note that `redirectURI` is not needed since it will be injected for each dex instance.
+
+### Host Aliases
+
+You can define custom host aliases for the dex-operator pod by setting the `hostAliases` parameter:
+
+```yaml
+hostAliases:
+  - ip: "192.168.1.1"
+    hostnames:
+      - "github.com"
+...
+```
