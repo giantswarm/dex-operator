@@ -1,6 +1,7 @@
-CVE-2024-45338 until=2025-04-04
-CVE-2023-48795 until=2025-04-04
-CVE-2024-51744 until=2025-04-04
-CVE-2024-45337 until=2025-04-04
-CVE-2024-24786 until=2025-04-04
-CVE-2025-22869 until=2025-04-04
+CVE-2024-45338 until=2025-05-09 # golang.org/x/net@v0.19.0
+CVE-2025-22870 until=2025-05-09 # golang.org/x/net@v0.19.0
+CVE-2025-22872 until=2025-05-09 # golang.org/x/net@v0.19.0
+CVE-2024-24786 until=2025-05-09 # google.golang.org/protobuf@v1.31.0
+CVE-2023-48795 until=2025-05-09 # golang.org/x/crypto@v0.16.0
+CVE-2024-45337 until=2025-05-09 # golang.org/x/crypto@v0.16.0
+CVE-2025-22869 until=2025-05-09 # golang.org/x/crypto@v0.16.0
