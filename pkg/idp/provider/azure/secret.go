@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/rs/zerolog/log"
 
 	"github.com/dexidp/dex/connector/microsoft"
 	"github.com/giantswarm/microerror"
@@ -16,6 +17,10 @@ func getAzureSecret(secret models.PasswordCredentialable, app models.Application
 	var clientSecret, clientId string
 	{
 		//Get connector data
+		log.Info("Getting secret data")
+		if secret == nil {
+			return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Did not find secret.")
+		}
 		if secret.GetSecretText() == nil || *secret.GetSecretText() == "" {
 			clientSecret = oldSecret
 		} else {
