@@ -259,6 +259,10 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 		}
 		a.Log.Info(fmt.Sprintf("Created secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 	}
+
+	a.Log.Info("DEBUG Secret info:")
+	a.Log.Info(fmt.Sprintf("DEBUG Secret: %v", secret))
+	a.Log.Info(fmt.Sprintf("DEBUG Old Secret: %v", oldSecret))
 	return getAzureSecret(secret, app, oldSecret)
 }
 
