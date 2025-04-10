@@ -65,7 +65,7 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 			return nil, microerror.Mask(err)
 		}
 		client = msgraphsdk.NewGraphServiceClient(adapter)
-		if err != nil {
+		if client == nil {
 			return nil, microerror.Mask(err)
 		}
 	}
@@ -217,6 +217,8 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 	if err != nil {
 		return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
+	a.Log.Info("Running CreateOrUpdateSecret")
+	a.Log.Info(fmt.Sprintf("DEBUG Creating or updating secret for %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 
 	var needsCreation bool
 
