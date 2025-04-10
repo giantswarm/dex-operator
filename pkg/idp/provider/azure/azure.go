@@ -217,7 +217,7 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 	if err != nil {
 		return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
-	a.Log.Info("Running CreateOrUpdateSecret")
+	a.Log.Info("DEBUG Running CreateOrUpdateSecret")
 	a.Log.Info(fmt.Sprintf("DEBUG Creating or updating secret for %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 
 	var needsCreation bool
@@ -231,11 +231,14 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 		needsCreation = true
 	}
 
+	a.Log.Info(fmt.Sprintf("DEBUG Secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
+
 	// Check if we already have a key
 	keyPresent := oldSecret != ""
 
 	// We delete the secret in case it exists and is expired or in case we do not have the key anymore
 	if !needsCreation && (!keyPresent || secretExpired(secret) || secretChanged(secret, oldSecret)) {
+		a.Log.Info(fmt.Sprintf("DEBUG Secret %v of %s app %s for %s in microsoft ad tenant %s is expired or changed", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 		if skipDelete {
 			a.Log.Info(fmt.Sprintf("Skipped deletion of secret %v of app %s in microsoft ad tenant %s", secret.GetKeyId(), id, a.TenantID))
 		} else {
