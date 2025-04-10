@@ -231,7 +231,7 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 		needsCreation = true
 	}
 
-	a.Log.Info(fmt.Sprintf("DEBUG Secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
+	a.Log.Info(fmt.Sprintf("DEBUG Secret of %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 
 	// Check if we already have a key
 	keyPresent := oldSecret != ""
