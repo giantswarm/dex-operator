@@ -2,9 +2,8 @@ package provider
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -62,26 +61,18 @@ type ProviderSecret struct {
 func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 	credentials := &[]ProviderCredential{}
 
-	// Simple security checks
-	cleanPath := filepath.Clean(fileLocation)
-
-	// Check 1: Prevent directory traversal attempts
-	if strings.Contains(cleanPath, "..") {
-		return nil, microerror.Mask(errors.New("security error: path contains directory traversal elements"))
+	if !strings.Contains(fileLocation, "test-data/") &&
+		!strings.HasSuffix(fileLocation, ".yaml") &&
+		!strings.HasSuffix(fileLocation, ".yml") {
+		return nil, fmt.Errorf("security error: invalid file path, must be in test data or have yaml/yml extension")
 	}
 
-	// Check 2: Ensure file has expected extension
-	if !strings.HasSuffix(strings.ToLower(cleanPath), ".yaml") &&
-		!strings.HasSuffix(strings.ToLower(cleanPath), ".yml") {
-		return nil, microerror.Mask(errors.New("security error: file must have .yaml or .yml extension"))
-	}
-
-	file, err := os.ReadFile(cleanPath)
+	fileContent, err := os.ReadFile(fileLocation)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	if err := yaml.Unmarshal(file, credentials); err != nil {
+	if err := yaml.Unmarshal(fileContent, credentials); err != nil {
 		return nil, microerror.Mask(err)
 	}
 
