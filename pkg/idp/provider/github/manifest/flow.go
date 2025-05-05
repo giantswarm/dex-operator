@@ -184,7 +184,13 @@ func findAvailablePort() (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	defer ln.Close()
+
+	defer func() {
+		closeErr := ln.Close()
+		if err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	port := ln.Addr().(*net.TCPAddr).Port
 

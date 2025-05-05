@@ -256,7 +256,7 @@ func (g *Github) UpdateNeeded(app *githubclient.App, config provider.AppConfig) 
 
 func permissionsUpdateNeeded(app *githubclient.App) bool {
 	permissions := app.GetPermissions()
-	return !(permissions.GetEmails() == "read" && permissions.GetMembers() == "read")
+	return permissions.GetEmails() != "read" || permissions.GetMembers() != "read"
 }
 
 func callbackURIPresent(app *githubclient.App, config provider.AppConfig) bool {

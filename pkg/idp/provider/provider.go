@@ -2,7 +2,10 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
@@ -58,8 +61,21 @@ type ProviderSecret struct {
 
 func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 	credentials := &[]ProviderCredential{}
+	// Simple security checks
+	cleanPath := filepath.Clean(fileLocation)
 
-	file, err := os.ReadFile(fileLocation)
+	// Check 1: Prevent directory traversal attempts
+	if strings.Contains(cleanPath, "..") {
+		return nil, microerror.Mask(errors.New("security error: path contains directory traversal elements"))
+	}
+
+	// Check 2: Ensure file has expected extension
+	if !strings.HasSuffix(strings.ToLower(cleanPath), ".yaml") &&
+		!strings.HasSuffix(strings.ToLower(cleanPath), ".yml") {
+		return nil, microerror.Mask(errors.New("security error: file must have .yaml or .yml extension"))
+	}
+
+	file, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
