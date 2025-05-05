@@ -102,7 +102,7 @@ func TestReconcile(t *testing.T) {
 				t.Fatal(err)
 			}
 			result := &corev1.ConfigMap{}
-			if err := service.Get(ctx, types.NamespacedName{
+			if err := service.Client.Get(ctx, types.NamespacedName{
 				Name:      key.GetAuthConfigName(tc.clusterName),
 				Namespace: "org-example"},
 				result); err != nil {

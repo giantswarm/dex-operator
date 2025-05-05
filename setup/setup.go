@@ -168,7 +168,7 @@ func (s *Setup) WriteToFile() error {
 			return microerror.Mask(err)
 		}
 	}
-	err = os.MkdirAll(filepath.Dir(s.outputFile), 0750)
+	err = os.MkdirAll(filepath.Dir(s.outputFile), os.ModePerm)
 	if err != nil {
 		return microerror.Mask(err)
 	}
