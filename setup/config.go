@@ -3,6 +3,7 @@ package setup
 import (
 	"encoding/base64"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -28,7 +29,14 @@ type OidcOwnerProvider struct {
 func GetConfigFromFile(fileLocation string, base64Vars bool) (Config, error) {
 	credentials := &Config{}
 
-	file, err := os.ReadFile(fileLocation)
+	cleanPath := filepath.Clean(fileLocation)
+	realPath, err := filepath.EvalSymlinks(cleanPath)
+	if err != nil {
+
+		realPath = cleanPath
+	}
+
+	file, err := os.ReadFile(realPath)
 	if err != nil {
 		return *credentials, microerror.Maskf(invalidConfigError, "Failed to get config from file: %s", err)
 	}
