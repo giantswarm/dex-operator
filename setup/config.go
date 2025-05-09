@@ -28,27 +28,15 @@ type OidcOwnerProvider struct {
 
 func GetConfigFromFile(fileLocation string, base64Vars bool) (Config, error) {
 	credentials := &Config{}
-	// Clean the path and validate it before reading
+
 	cleanPath := filepath.Clean(fileLocation)
-
-	// Convert to absolute path
-	absPath, err := filepath.Abs(cleanPath)
+	realPath, err := filepath.EvalSymlinks(cleanPath)
 	if err != nil {
-		return *credentials, microerror.Maskf(invalidConfigError, "Failed to get absolute path: %s", err)
+
+		realPath = cleanPath
 	}
 
-	// Validate the file exists
-	fileInfo, err := os.Stat(absPath)
-	if err != nil {
-		return *credentials, microerror.Maskf(invalidConfigError, "Failed to stat file: %s", err)
-	}
-
-	if fileInfo.IsDir() {
-		return *credentials, microerror.Maskf(invalidConfigError, "Path is a directory, not a file")
-	}
-
-	// Read the file with the validated path
-	file, err := os.ReadFile(absPath)
+	file, err := os.ReadFile(realPath)
 	if err != nil {
 		return *credentials, microerror.Maskf(invalidConfigError, "Failed to get config from file: %s", err)
 	}
