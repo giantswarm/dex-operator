@@ -59,7 +59,7 @@ type ProviderSecret struct {
 func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 	credentials := &[]ProviderCredential{}
 
-	file, err := os.ReadFile(fileLocation)
+	file, err := os.ReadFile(fileLocation) //nolint:gosec,G304
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
