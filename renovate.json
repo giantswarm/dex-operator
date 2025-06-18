@@ -1,41 +1,63 @@
 {
   "extends": [
-    "config:base"
+    "config:recommended"
   ],
-  "labels": ["dependencies", "renovate"],
+  "labels": [
+    "dependencies",
+    "renovate"
+  ],
   "packageRules": [
     {
-      "matchPackagePatterns": [".*giantswarm.*"],
-      "groupName": "giantswarm modules"
+      "groupName": "giantswarm modules",
+      "matchPackageNames": [
+        "/.*giantswarm.*/"
+      ]
     },
     {
-      "matchPackagePatterns": ["^k8s.io"],
       "groupName": "k8s modules",
-      "allowedVersions": "< 0.21.0"
+      "allowedVersions": "< 0.21.0",
+      "matchPackageNames": [
+        "/^k8s.io/"
+      ]
     },
     {
-      "matchPackagePatterns": ["^sigs.k8s.io"],
-      "groupName": "sig k8s modules"
+      "groupName": "sig k8s modules",
+      "matchPackageNames": [
+        "/^sigs.k8s.io/"
+      ]
     },
     {
-      "excludePackagePatterns": [".*giantswarm.*" ,"^k8s.io", "^sigs.k8s.io"],
-      "groupName": "misc modules"
+      "groupName": "misc modules",
+      "matchPackageNames": [
+        "!/.*giantswarm.*/",
+        "!/^k8s.io/",
+        "!/^sigs.k8s.io/"
+      ]
     },
     {
-      "matchPackagePatterns": ["^sigs.k8s.io/cluster*"],
       "groupName": "capi modules",
-      "enabled": false
+      "enabled": false,
+      "matchPackageNames": [
+        "/^sigs.k8s.io/cluster*/"
+      ]
     },
     {
-      "matchPackageNames": ["sigs.k8s.io/controller-runtime"],
+      "matchPackageNames": [
+        "sigs.k8s.io/controller-runtime"
+      ],
       "allowedVersions": "< 0.7.0"
     },
     {
-      "matchPackagePatterns": ["^github.com/giantswarm/apiextensions*"],
-      "allowedVersions": ">= 4.0.0"
+      "allowedVersions": ">= 4.0.0",
+      "matchPackageNames": [
+        "/^github.com/giantswarm/apiextensions*/"
+      ]
     }
   ],
-  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
   "dependencyDashboard": true,
   "ignorePaths": [
     ".github/workflows/zz_generated.*",
@@ -48,10 +70,15 @@
     "github.com/imdario/mergo",
     "zricethezav/gitleaks-action"
   ],
-  "regexManagers": [
+  "customManagers": [
     {
-      "fileMatch": ["^helm\\/.+\\/values\\.yaml$"],
-      "matchStrings": ["repo: (?<depName>.*)\n(\\s)*version: (?<currentValue>.*?)\n"],
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^helm\\/.+\\/values\\.yaml$/"
+      ],
+      "matchStrings": [
+        "repo: (?<depName>.*)\n(\\s)*version: (?<currentValue>.*?)\n"
+      ],
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
     }
