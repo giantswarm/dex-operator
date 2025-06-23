@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change connector display names from "Azure AD" to "Entry ID"
 - Resolve updated code linter findings.
 
 ## [0.12.4] - 2025-03-05
