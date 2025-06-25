@@ -14,7 +14,7 @@ import (
 
 const (
 	ProviderName          = "ad"
-	ProviderDisplayName   = "Azure AD"
+	ProviderDisplayName   = "Entra ID"
 	ProviderConnectorType = "microsoft"
 	TenantIDKey           = "tenant-id"
 	ClientIDKey           = "client-id"
