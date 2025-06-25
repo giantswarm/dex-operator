@@ -95,7 +95,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		c := auth.Config{
-			Log: log,
+			Log:                             log,
 			Client:                          r.Client,
 			App:                             app,
 			ManagementClusterName:           r.ManagementCluster,
@@ -116,7 +116,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		c := idp.Config{
-			Log: log,
+			Log:                            log,
 			Client:                         r.Client,
 			App:                            app,
 			Providers:                      providers,
