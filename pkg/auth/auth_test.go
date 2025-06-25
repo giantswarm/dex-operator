@@ -78,13 +78,13 @@ func TestReconcile(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster().Build().Build(), getTestRoleBindings())
-			if tc.existingConfigMap != nil {
-				fakeClientBuilder.WithObjects(tc.existingConfigMap)
-			}
+		fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster(), getTestRoleBindings())
+		if tc.existingConfigMap != nil {
+			fakeClientBuilder = fakeClientBuilder.WithObjects(tc.existingConfigMap)
+		}
 
-			service := Service{
-				Client: fakeClientBuilder.Build(),
+		service := Service{
+			Client: fakeClientBuilder.Build(),
 				log:    ctrl.Log.WithName("test"),
 				app: &v1alpha1.App{
 					ObjectMeta: metav1.ObjectMeta{
