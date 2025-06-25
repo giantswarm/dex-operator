@@ -78,7 +78,7 @@ func TestReconcile(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster(), getTestRoleBindings())
+			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster().Build().Build(), getTestRoleBindings())
 			if tc.existingConfigMap != nil {
 				fakeClientBuilder.WithObjects(tc.existingConfigMap)
 			}

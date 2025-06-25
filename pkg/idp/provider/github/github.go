@@ -37,7 +37,7 @@ const (
 
 type Github struct {
 	Client       *githubclient.Client
-	Log          *logr.Logger
+	Log          logr.Logger
 	Name         string
 	Description  string
 	Type         string
@@ -57,7 +57,7 @@ type Config struct {
 	ClientSecret string
 }
 
-func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
+func New(p provider.ProviderCredential, log logr.Logger) (*Github, error) {
 
 	// get configuration from credentials
 	c, err := newGithubConfig(p, log)
@@ -86,8 +86,8 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
 	}, nil
 }
 
-func newGithubConfig(p provider.ProviderCredential, log *logr.Logger) (Config, error) {
-	if log == nil {
+func newGithubConfig(p provider.ProviderCredential, log logr.Logger) (Config, error) {
+	if (logr.Logger{}) == log {
 		return Config{}, microerror.Maskf(invalidConfigError, "Logger must not be empty.")
 	}
 	if p.Name == "" {

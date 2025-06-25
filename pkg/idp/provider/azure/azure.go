@@ -28,7 +28,7 @@ type Azure struct {
 	Name         string
 	Description  string
 	Client       *msgraphsdk.GraphServiceClient
-	Log          *logr.Logger
+	Log          logr.Logger
 	Owner        string
 	TenantID     string
 	Type         string
@@ -41,7 +41,7 @@ type Config struct {
 	ClientSecret string
 }
 
-func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
+func New(p provider.ProviderCredential, log logr.Logger) (*Azure, error) {
 
 	// get configuration from credentials
 	c, err := newAzureConfig(p, log)
@@ -82,8 +82,8 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Azure, error) {
 	}, nil
 }
 
-func newAzureConfig(p provider.ProviderCredential, log *logr.Logger) (Config, error) {
-	if log == nil {
+func newAzureConfig(p provider.ProviderCredential, log logr.Logger) (Config, error) {
+	if (logr.Logger{}) == log {
 		return Config{}, microerror.Maskf(invalidConfigError, "Logger must not be empty.")
 	}
 	if p.Name == "" {
@@ -199,7 +199,7 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 
 	//Update if needed
 	if needsUpdate, patch := a.computeAppUpdatePatch(config, app, parentApp); needsUpdate {
-		_, err = a.Client.ApplicationsById(*id).Patch(ctx, patch, nil)
+		_, err = a.Client.Applications().ByApplicationId(*id).Patch(ctx, patch, nil)
 		if err != nil {
 			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
@@ -210,7 +210,7 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 
 func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx context.Context, oldSecret string, skipDelete bool) (provider.ProviderSecret, error) {
 
-	app, err := a.Client.ApplicationsById(id).Get(ctx, nil)
+	app, err := a.Client.Applications().ByApplicationId(id).Get(ctx, nil)
 	if err != nil {
 		return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
@@ -244,7 +244,7 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 
 	// Create secret if it does not exist
 	if needsCreation {
-		secret, err = a.Client.ApplicationsById(id).AddPassword().Post(ctx, GetSecretCreateRequestBody(config), nil)
+		secret, err = a.Client.Applications().ByApplicationId(id).AddPassword().Post(ctx, GetSecretCreateRequestBody(config), nil)
 		if err != nil {
 			return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
 		}
@@ -257,7 +257,7 @@ func (a *Azure) DeleteSecret(ctx context.Context, secretID *uuid.UUID, appID str
 	requestBody := applications.NewItemRemovePasswordPostRequestBody()
 	requestBody.SetKeyId(secretID)
 
-	err := a.Client.ApplicationsById(appID).RemovePassword().Post(ctx, requestBody, nil)
+	err := a.Client.Applications().ByApplicationId(appID).RemovePassword().Post(ctx, requestBody, nil)
 	if err != nil {
 		return microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
@@ -272,7 +272,7 @@ func (a *Azure) DeleteApp(name string, ctx context.Context) error {
 		}
 		return microerror.Mask(err)
 	}
-	if err := a.Client.ApplicationsById(appID).Delete(ctx, nil); err != nil {
+	if err := a.Client.Applications().ByApplicationId(appID).Delete(ctx, nil); err != nil {
 		return microerror.Maskf(requestFailedError, PrintOdataError(err))
 	}
 	a.Log.Info(fmt.Sprintf("Deleted %s app %s for %s in microsoft ad tenant %s", a.Type, name, a.Owner, a.TenantID))

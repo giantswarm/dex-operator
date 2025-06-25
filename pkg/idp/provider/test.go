@@ -19,7 +19,7 @@ func GetTestCredential() ProviderCredential {
 	}
 }
 
-func GetTestLogger() *logr.Logger {
+func GetTestLogger() logr.Logger {
 	l := ctrl.Log.WithName("test")
-	return &l
+	return l
 }
