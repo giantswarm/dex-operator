@@ -95,7 +95,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		c := auth.Config{
-			Log:                             &log,
+			Log:                             log,
 			Client:                          r.Client,
 			App:                             app,
 			ManagementClusterName:           r.ManagementCluster,
@@ -116,7 +116,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		c := idp.Config{
-			Log:                            &log,
+			Log:                            log,
 			Client:                         r.Client,
 			App:                            app,
 			Providers:                      providers,
@@ -209,7 +209,7 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 	providers := []provider.Provider{}
 	{
 		for _, p := range providerCredentials {
-			provider, err := NewProvider(p, &r.Log)
+			provider, err := NewProvider(p, r.Log)
 			if err != nil {
 				return nil, microerror.Mask(err)
 			}
@@ -223,7 +223,7 @@ func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
 }
 
-func NewProvider(p provider.ProviderCredential, log *logr.Logger) (provider.Provider, error) {
+func NewProvider(p provider.ProviderCredential, log logr.Logger) (provider.Provider, error) {
 	switch p.Name {
 	case mockprovider.ProviderName:
 		return mockprovider.New(p)

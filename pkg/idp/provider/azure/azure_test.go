@@ -166,7 +166,7 @@ func TestNewConfig(t *testing.T) {
 	testCases := []struct {
 		name        string
 		credentials provider.ProviderCredential
-		log         *logr.Logger
+		log         logr.Logger
 		expectError bool
 	}{
 		{

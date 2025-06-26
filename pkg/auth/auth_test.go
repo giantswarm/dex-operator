@@ -80,7 +80,7 @@ func TestReconcile(t *testing.T) {
 
 			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster(), getTestRoleBindings())
 			if tc.existingConfigMap != nil {
-				fakeClientBuilder.WithObjects(tc.existingConfigMap)
+				fakeClientBuilder = fakeClientBuilder.WithObjects(tc.existingConfigMap)
 			}
 
 			service := Service{
