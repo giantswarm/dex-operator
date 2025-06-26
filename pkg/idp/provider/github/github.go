@@ -211,11 +211,11 @@ func (g *Github) createOrUpdateSecret(config provider.AppConfig, ctx context.Con
 	}
 	if !callbackURIPresent(app, config) {
 		//We return here since we can not automatically set the URI
-		return provider.ProviderSecret{}, microerror.Maskf(missingCallbackURIError, fmt.Sprintf("Callback URI %s is not registered in %s app %s for %s in organization %s.", config.RedirectURI, g.Type, app.GetSlug(), g.Owner, g.Organization))
+		return provider.ProviderSecret{}, microerror.Maskf(missingCallbackURIError, "Callback URI %s is not registered in %s app %s for %s in organization %s", config.RedirectURI, g.Type, app.GetSlug(), g.Owner, g.Organization)
 	}
 	if g.UpdateNeeded(app, config) {
 		//We return here since we can not set the update
-		return provider.ProviderSecret{}, microerror.Maskf(missingCallbackURIError, fmt.Sprintf("%s app %s for %s in github organization %s needs update.", g.Type, app.GetSlug(), g.Owner, g.Organization))
+		return provider.ProviderSecret{}, microerror.Maskf(missingCallbackURIError, "%s app %s for %s in github organization %s needs update", g.Type, app.GetSlug(), g.Owner, g.Organization)
 	}
 	return g.getSecret(app, oldConnector)
 }

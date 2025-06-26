@@ -179,7 +179,7 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 		// Create app if it does not exist
 		app, err = a.Client.Applications().Post(ctx, getAppCreateRequestBody(config), nil)
 		if err != nil {
-			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return "", microerror.Maskf(requestFailedError, "Failed to create application: %s", PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 	}
@@ -194,14 +194,14 @@ func (a *Azure) createOrUpdateApplication(config provider.AppConfig, ctx context
 	}
 	id := app.GetId()
 	if id == nil {
-		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
+		return "", microerror.Maskf(notFoundError, "Could not find ID of app %s", config.Name)
 	}
 
 	//Update if needed
 	if needsUpdate, patch := a.computeAppUpdatePatch(config, app, parentApp); needsUpdate {
 		_, err = a.Client.Applications().ByApplicationId(*id).Patch(ctx, patch, nil)
 		if err != nil {
-			return "", microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return "", microerror.Maskf(requestFailedError, "Failed to update application: %s", PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Updated %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 	}
@@ -212,7 +212,7 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 
 	app, err := a.Client.Applications().ByApplicationId(id).Get(ctx, nil)
 	if err != nil {
-		return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
+		return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, "Failed to get application: %s", PrintOdataError(err))
 	}
 
 	var needsCreation bool
@@ -246,7 +246,7 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 	if needsCreation {
 		secret, err = a.Client.Applications().ByApplicationId(id).AddPassword().Post(ctx, GetSecretCreateRequestBody(config), nil)
 		if err != nil {
-			return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, "Failed to create secret: %s", PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Created secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
 	}
@@ -259,7 +259,7 @@ func (a *Azure) DeleteSecret(ctx context.Context, secretID *uuid.UUID, appID str
 
 	err := a.Client.Applications().ByApplicationId(appID).RemovePassword().Post(ctx, requestBody, nil)
 	if err != nil {
-		return microerror.Maskf(requestFailedError, PrintOdataError(err))
+		return microerror.Maskf(requestFailedError, "Failed to delete secret: %s", PrintOdataError(err))
 	}
 	return nil
 }
@@ -273,7 +273,7 @@ func (a *Azure) DeleteApp(name string, ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 	if err := a.Client.Applications().ByApplicationId(appID).Delete(ctx, nil); err != nil {
-		return microerror.Maskf(requestFailedError, PrintOdataError(err))
+		return microerror.Maskf(requestFailedError, "Failed to delete application: %s", PrintOdataError(err))
 	}
 	a.Log.Info(fmt.Sprintf("Deleted %s app %s for %s in microsoft ad tenant %s", a.Type, name, a.Owner, a.TenantID))
 	return nil
@@ -297,7 +297,7 @@ func (a *Azure) GetApp(name string) (models.Applicationable, error) {
 	o := func() error {
 		result, err := a.Client.Applications().Get(context.Background(), GetAppGetRequestConfig(name))
 		if err != nil {
-			return microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return microerror.Maskf(requestFailedError, "Failed to get applications: %s", PrintOdataError(err))
 		}
 		count := result.GetOdataCount()
 		if *count == 0 {
@@ -368,7 +368,7 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (ma
 		}
 		app, err = a.Client.Applications().Post(ctx, app, nil)
 		if err != nil {
-			return nil, microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return nil, microerror.Maskf(requestFailedError, "Failed to create authenticated app: %s", PrintOdataError(err))
 		}
 		a.Log.Info(fmt.Sprintf("Created %s app %s for %s in microsoft ad tenant %s", a.Type, config.Name, a.Owner, a.TenantID))
 		if app.GetAppId() == nil {
@@ -430,7 +430,7 @@ func (a *Azure) DeleteAuthenticatedApp(config provider.AppConfig) error {
 	// get all the dex-apps
 	dexApps, err := a.Client.Applications().Get(context.Background(), GetAllAppsContainingRequestConfig("dex-app"))
 	if err != nil {
-		return microerror.Maskf(requestFailedError, PrintOdataError(err))
+		return microerror.Maskf(requestFailedError, "Failed to get dex apps: %s", PrintOdataError(err))
 	}
 	count := dexApps.GetOdataCount()
 	if *count != 0 {
@@ -439,7 +439,7 @@ func (a *Azure) DeleteAuthenticatedApp(config provider.AppConfig) error {
 			if strings.Split(*app.GetDisplayName(), "-")[0] == installation {
 				err := a.DeleteApp(*app.GetDisplayName(), ctx)
 				if err != nil {
-					return microerror.Maskf(requestFailedError, PrintOdataError(err))
+					return microerror.Maskf(requestFailedError, "Failed to delete dex app: %s", PrintOdataError(err))
 				}
 			}
 		}
@@ -450,7 +450,7 @@ func (a *Azure) DeleteAuthenticatedApp(config provider.AppConfig) error {
 	if err == nil {
 		err := a.DeleteApp(*dexOperator.GetDisplayName(), ctx)
 		if err != nil {
-			return microerror.Maskf(requestFailedError, PrintOdataError(err))
+			return microerror.Maskf(requestFailedError, "Failed to delete dex operator app: %s", PrintOdataError(err))
 		}
 	} else {
 		if !IsNotFound(err) {

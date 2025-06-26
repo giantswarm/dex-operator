@@ -74,11 +74,11 @@ func newSimpleConfig(p provider.ProviderCredential, log logr.Logger) (Config, er
 	var connectorType, connectorConfig string
 	{
 		if connectorType = p.Credentials[connectorTypeKey]; connectorType == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, fmt.Sprintf("%s must not be empty.", connectorTypeKey))
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty", connectorTypeKey)
 		}
 
 		if connectorConfig = p.Credentials[connectorConfigKey]; connectorConfig == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, fmt.Sprintf("%s must not be empty.", connectorConfigKey))
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty", connectorConfigKey)
 		}
 	}
 
