@@ -3,7 +3,7 @@ package github
 import (
 	githubconnector "github.com/dexidp/dex/connector/github"
 	"github.com/giantswarm/microerror"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func getSecretFromConfig(config string) (string, string, error) {
