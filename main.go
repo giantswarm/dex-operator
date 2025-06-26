@@ -33,6 +33,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/giantswarm/dex-operator/controllers"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -85,10 +87,23 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// Parse groups (handle empty strings)
+	var gsGroups, customerGroups []string
+	if giantswarmWriteAllGroups != "" {
+		gsGroups = strings.Split(giantswarmWriteAllGroups, ",")
+	}
+	if customerWriteAllGroups != "" {
+		customerGroups = strings.Split(customerWriteAllGroups, ",")
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port: 9443,
+		}),
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "bf139543.giantswarm",
@@ -118,8 +133,8 @@ func main() {
 		Scheme:                   mgr.GetScheme(),
 		LabelSelector:            key.DexLabelSelector(),
 		ProviderCredentials:      idpCredentials,
-		GiantswarmWriteAllGroups: strings.Split(giantswarmWriteAllGroups, ","),
-		CustomerWriteAllGroups:   strings.Split(customerWriteAllGroups, ","),
+		GiantswarmWriteAllGroups: gsGroups,
+		CustomerWriteAllGroups:   customerGroups,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
 		os.Exit(1)

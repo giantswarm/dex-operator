@@ -22,7 +22,7 @@ import (
 
 type Config struct {
 	Client                          client.Client
-	Log                             *logr.Logger
+	Log                             logr.Logger
 	App                             *v1alpha1.App
 	ManagementClusterName           string
 	ManagementClusterWriteAllGroups []string
@@ -43,7 +43,7 @@ func New(c Config) (*Service, error) {
 	if c.Client == nil {
 		return nil, microerror.Maskf(invalidConfigError, "client cannot be nil")
 	}
-	if c.Log == nil {
+	if (logr.Logger{}) == c.Log {
 		return nil, microerror.Maskf(invalidConfigError, "log cannot be nil")
 	}
 	if c.ManagementClusterName == "" {
@@ -55,7 +55,7 @@ func New(c Config) (*Service, error) {
 	s := &Service{
 		Client:                          c.Client,
 		app:                             c.App,
-		log:                             *c.Log,
+		log:                             c.Log,
 		managementClusterName:           c.ManagementClusterName,
 		managementClusterWriteAllGroups: c.ManagementClusterWriteAllGroups,
 	}
