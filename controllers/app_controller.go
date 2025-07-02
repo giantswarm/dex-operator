@@ -57,6 +57,7 @@ type AppReconciler struct {
 	ProviderCredentials      string
 	GiantswarmWriteAllGroups []string
 	CustomerWriteAllGroups   []string
+	EnableSelfRenewal        bool
 }
 
 //+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps,verbs=get;list;watch;create;update;patch;delete
@@ -165,7 +166,18 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if err := idpService.Reconcile(ctx); err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
+	if r.EnableSelfRenewal && r.isManagementClusterDexApp(app) {
+		if err := idpService.CheckSelfRenewal(ctx); err != nil {
+			log.Error(err, "self-renewal check failed")
+			// Don't fail the reconciliation, just log the error
+		}
+	}
 	return DefaultRequeue(), nil
+}
+
+func (r *AppReconciler) isManagementClusterDexApp(app *v1alpha1.App) bool {
+	return app.Name == key.MCDexAppDefaultName &&
+		app.Namespace == key.MCDexAppDefaultNamespace
 }
 
 // SetupWithManager sets up the controller with the Manager.
