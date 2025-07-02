@@ -175,6 +175,20 @@
               }
             }
           }
+        },
+        "selfRenewal": {
+            "type": "object",
+            "description": "Configuration for automatic credential self-renewal",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Enable automatic credential self-renewal",
+                    "default": false
+                }
+            },
+            "required": [
+                "enabled"
+            ]
         }
     }
 }
