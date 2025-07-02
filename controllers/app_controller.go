@@ -168,7 +168,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	if r.EnableSelfRenewal && r.isManagementClusterDexApp(app) {
 		if err := idpService.CheckSelfRenewal(ctx); err != nil {
-			log.Error(err, "self-renewal check failed")
+			log.Error(err, "Azure self-renewal check failed")
 			// Don't fail the reconciliation, just log the error
 		}
 	}
@@ -221,7 +221,7 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 	providers := []provider.Provider{}
 	{
 		for _, p := range providerCredentials {
-			provider, err := NewProvider(p, r.Log)
+			provider, err := NewProvider(p, r.Log, r.ManagementCluster)
 			if err != nil {
 				return nil, microerror.Mask(err)
 			}
@@ -235,16 +235,16 @@ func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
 }
 
-func NewProvider(p provider.ProviderCredential, log logr.Logger) (provider.Provider, error) {
+func NewProvider(p provider.ProviderCredential, log logr.Logger, managementClusterName string) (provider.Provider, error) {
 	switch p.Name {
 	case mockprovider.ProviderName:
-		return mockprovider.New(p)
+		return mockprovider.New(p, managementClusterName)
 	case azure.ProviderName:
-		return azure.New(p, log)
+		return azure.New(p, log, managementClusterName)
 	case github.ProviderName:
-		return github.New(p, log)
+		return github.New(p, log, managementClusterName)
 	case simpleprovider.ProviderName:
-		return simpleprovider.New(p, log)
+		return simpleprovider.New(p, log, managementClusterName)
 	}
 	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", p.Name)
 }

@@ -2,33 +2,37 @@ package idp
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/microerror"
-	dto "github.com/prometheus/client_model/go"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// Error definitions
+var renewalError = &microerror.Error{
+	Kind: "renewalError",
+}
 
 const (
 	// RenewalThreshold - renew credentials 30 days before expiry
 	RenewalThreshold = 30 * 24 * time.Hour
-	// SelfRenewalAnnotation marks secrets as self-renewable
-	SelfRenewalAnnotation = "dex-operator.giantswarm.io/self-renewal"
+	// CredentialsSecretName is the standard name for dex-operator credentials
+	CredentialsSecretName = "dex-operator-credentials"
+	// SelfRenewalAnnotation marks when self-renewal was performed
+	SelfRenewalAnnotation = "dex-operator.giantswarm.io/last-self-renewal"
 )
 
-// CheckSelfRenewal checks if the operator's own credentials need renewal
-// This leverages the existing AppInfo metrics and provider infrastructure
+// CheckSelfRenewal checks if the operator's own Azure credentials need renewal
 func (s *Service) CheckSelfRenewal(ctx context.Context) error {
 	s.log.Info("Checking if dex-operator credentials need renewal")
 
-	// Get the app config for the dex-operator itself (reusing existing logic)
+	// Get the app config for the dex-operator itself
 	appConfig, err := s.GetAppConfig(ctx)
 	if err != nil {
 		return microerror.Mask(err)
@@ -43,125 +47,138 @@ func (s *Service) CheckSelfRenewal(ctx context.Context) error {
 	}
 
 	renewalNeeded := false
-	for _, provider := range s.providers {
-		needsRenewal, err := s.checkProviderSelfRenewal(ctx, provider, selfAppConfig)
-		if err != nil {
-			s.log.Error(err, "Failed to check self-renewal", "provider", provider.GetName())
-			continue
-		}
-		if needsRenewal {
-			renewalNeeded = true
+	var azureProvider provider.Provider
+
+	// Only check Azure providers for renewal
+	for _, prov := range s.providers {
+		if prov.GetProviderName() == azure.ProviderName {
+			needsRenewal, err := s.checkAzureProviderSelfRenewal(ctx, prov, selfAppConfig)
+			if err != nil {
+				s.log.Error(err, "Failed to check Azure self-renewal", "provider", prov.GetName())
+				continue
+			}
+			if needsRenewal {
+				renewalNeeded = true
+				azureProvider = prov
+			}
+			break // Only one Azure provider expected
 		}
 	}
 
-	if renewalNeeded {
-		s.log.Info("Self-renewal needed, updating credentials")
-		return s.performSelfRenewal(ctx, selfAppConfig)
+	if renewalNeeded && azureProvider != nil {
+		s.log.Info("Self-renewal needed for Azure credentials, updating...")
+		return s.performAzureSelfRenewal(ctx, azureProvider, selfAppConfig)
 	}
 
-	s.log.Info("No self-renewal needed")
+	s.log.Info("No Azure self-renewal needed")
 	return nil
 }
 
-// checkProviderSelfRenewal checks if a specific provider needs renewal
-func (s *Service) checkProviderSelfRenewal(ctx context.Context, provider provider.Provider, appConfig provider.AppConfig) (bool, error) {
-	// Check the existing AppInfo metric for expiry time
-	// This reuses the existing metric infrastructure
-	metricValue := AppInfo.WithLabelValues(
-		s.app.Name,
-		s.app.Namespace,
-		provider.GetOwner(),
-		provider.GetType(),
-		provider.GetName(),
-		appConfig.Name,
-	)
+// checkAzureProviderSelfRenewal checks if Azure provider needs renewal
+func (s *Service) checkAzureProviderSelfRenewal(ctx context.Context, prov provider.Provider, appConfig provider.AppConfig) (bool, error) {
+	// Cast to Azure provider to access GetCredentialExpiry method
+	azureProvider, ok := prov.(*azure.Azure)
+	if !ok {
+		s.log.Info("Provider is not Azure type, skipping renewal check", "provider", prov.GetName())
+		return false, nil
+	}
 
-	metric := &dto.Metric{}
-	if err := metricValue.Write(metric); err != nil {
-		// If no metric exists, assume renewal is needed
-		s.log.Info("No expiry metric found, assuming renewal needed", "provider", provider.GetName())
+	expiryTime, err := azureProvider.GetCredentialExpiry(ctx)
+	if err != nil {
+		s.log.Info("Could not get Azure credential expiry, assuming renewal needed",
+			"provider", prov.GetName(), "error", err)
 		return true, nil
 	}
 
-	expiryTime := time.Unix(int64(metric.GetGauge().GetValue()), 0)
 	timeUntilExpiry := time.Until(expiryTime)
-
-	s.log.Info("Credential expiry check",
-		"provider", provider.GetName(),
+	s.log.Info("Azure credential expiry check",
+		"provider", prov.GetName(),
 		"expiry", expiryTime,
 		"time_until_expiry", timeUntilExpiry)
 
 	return timeUntilExpiry < RenewalThreshold, nil
 }
 
-// performSelfRenewal performs the actual credential renewal
-func (s *Service) performSelfRenewal(ctx context.Context, appConfig provider.AppConfig) error {
-	// Create a secret to store the new credentials
-	renewalSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.getSelfRenewalSecretName(),
-			Namespace: s.app.Namespace,
-			Labels: map[string]string{
-				key.DexOperatorLabelValue: "true",
-			},
-			Annotations: map[string]string{
-				SelfRenewalAnnotation: time.Now().Format(time.RFC3339),
-			},
-		},
-		Type: corev1.SecretTypeOpaque,
-		Data: make(map[string][]byte),
-	}
+// performAzureSelfRenewal performs the actual Azure credential renewal
+func (s *Service) performAzureSelfRenewal(ctx context.Context, azureProvider provider.Provider, appConfig provider.AppConfig) error {
+	s.log.Info("Renewing Azure credentials", "provider", azureProvider.GetName())
 
-	// Get new credentials from each provider
-	for _, provider := range s.providers {
-		s.log.Info("Renewing credentials", "provider", provider.GetName())
-
-		credentials, err := provider.GetCredentialsForAuthenticatedApp(appConfig)
-		if err != nil {
-			s.log.Error(err, "Failed to get new credentials", "provider", provider.GetName())
-			continue
-		}
-
-		// Store credentials in the secret with provider prefix
-		for key, value := range credentials {
-			secretKey := fmt.Sprintf("%s_%s", provider.GetName(), key)
-			renewalSecret.Data[secretKey] = []byte(value)
-		}
-
-		s.log.Info("Successfully renewed credentials", "provider", provider.GetName())
-	}
-
-	// Create or update the renewal secret
-	existing := &corev1.Secret{}
-	err := s.Get(ctx, types.NamespacedName{
-		Name:      renewalSecret.Name,
-		Namespace: renewalSecret.Namespace,
-	}, existing)
-
-	if client.IgnoreNotFound(err) != nil {
-		return microerror.Mask(err)
-	}
-
+	// Get new credentials from Azure
+	credentials, err := azureProvider.GetCredentialsForAuthenticatedApp(appConfig)
 	if err != nil {
-		// Create new secret
-		if err := s.Create(ctx, renewalSecret); err != nil {
-			return microerror.Mask(err)
-		}
-		s.log.Info("Created self-renewal secret", "secret", renewalSecret.Name)
-	} else {
-		// Update existing secret
-		existing.Data = renewalSecret.Data
-		existing.Annotations[SelfRenewalAnnotation] = time.Now().Format(time.RFC3339)
-		if err := s.Update(ctx, existing); err != nil {
-			return microerror.Mask(err)
-		}
-		s.log.Info("Updated self-renewal secret", "secret", renewalSecret.Name)
+		return microerror.Maskf(renewalError, "Failed to get new Azure credentials: %v", err)
 	}
 
-	return nil
+	s.log.Info("Successfully renewed Azure credentials", "provider", azureProvider.GetName())
+
+	// Update the existing dex-operator-credentials secret
+	return s.updateCredentialsSecret(ctx, azureProvider, credentials)
 }
 
-// getSelfRenewalSecretName returns the name for the self-renewal secret
-func (s *Service) getSelfRenewalSecretName() string {
-	return fmt.Sprintf("%s-renewal-credentials", s.managementClusterName)
+// updateCredentialsSecret updates the existing dex-operator-credentials secret with new Azure credentials
+func (s *Service) updateCredentialsSecret(ctx context.Context, azureProvider provider.Provider, newCredentials map[string]string) error {
+	// Get the existing credentials secret
+	secret := &corev1.Secret{}
+	err := s.Get(ctx, types.NamespacedName{
+		Name:      CredentialsSecretName,
+		Namespace: s.app.Namespace,
+	}, secret)
+	if err != nil {
+		return microerror.Maskf(renewalError, "Failed to get existing credentials secret: %v", err)
+	}
+
+	// Decode the existing credentials
+	credentialsData, exists := secret.Data["credentials"]
+	if !exists {
+		return microerror.Maskf(renewalError, "No credentials data found in secret")
+	}
+
+	// Parse the existing YAML credentials
+	var existingProviders []map[string]interface{}
+	if err := yaml.Unmarshal(credentialsData, &existingProviders); err != nil {
+		return microerror.Maskf(renewalError, "Failed to parse existing credentials: %v", err)
+	}
+
+	// Update the Azure provider credentials
+	updated := false
+	for _, providerConfig := range existingProviders {
+		if name, ok := providerConfig["name"].(string); ok && name == azure.ProviderName {
+			// Update the Azure credentials
+			if credsMap, ok := providerConfig["credentials"].(map[interface{}]interface{}); ok {
+				// Update with new credentials
+				for key, value := range newCredentials {
+					credsMap[key] = value
+				}
+				updated = true
+				s.log.Info("Updated Azure credentials in existing secret")
+				break
+			}
+		}
+	}
+
+	if !updated {
+		return microerror.Maskf(renewalError, "Could not find Azure provider in existing credentials")
+	}
+
+	// Marshal back to YAML
+	updatedData, err := yaml.Marshal(existingProviders)
+	if err != nil {
+		return microerror.Maskf(renewalError, "Failed to marshal updated credentials: %v", err)
+	}
+
+	// Update the secret
+	secret.Data["credentials"] = updatedData
+
+	// Add renewal annotation
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	secret.Annotations[SelfRenewalAnnotation] = time.Now().Format(time.RFC3339)
+
+	if err := s.Update(ctx, secret); err != nil {
+		return microerror.Maskf(renewalError, "Failed to update credentials secret: %v", err)
+	}
+
+	s.log.Info("Successfully updated dex-operator-credentials secret with new Azure credentials")
+	return nil
 }
