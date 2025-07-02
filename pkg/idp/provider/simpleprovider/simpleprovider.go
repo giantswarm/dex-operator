@@ -29,7 +29,7 @@ const (
 // It can also be used in case the idp in question is not supported by the operator.
 // It will create a connector with the given type and config.
 type SimpleProvider struct {
-	Log             *logr.Logger
+	Log             logr.Logger
 	Name            string
 	Description     string
 	Type            string
@@ -43,7 +43,7 @@ type Config struct {
 	connectorConfig string
 }
 
-func New(p provider.ProviderCredential, log *logr.Logger) (*SimpleProvider, error) {
+func New(p provider.ProviderCredential, log logr.Logger) (*SimpleProvider, error) {
 	// get configuration from credentials
 	c, err := newSimpleConfig(p, log)
 	if err != nil {
@@ -60,8 +60,8 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*SimpleProvider, erro
 	}, nil
 }
 
-func newSimpleConfig(p provider.ProviderCredential, log *logr.Logger) (Config, error) {
-	if log == nil {
+func newSimpleConfig(p provider.ProviderCredential, log logr.Logger) (Config, error) {
+	if (logr.Logger{}) == log {
 		return Config{}, microerror.Maskf(invalidConfigError, "Logger must not be empty.")
 	}
 	if p.Name == "" {
@@ -74,11 +74,11 @@ func newSimpleConfig(p provider.ProviderCredential, log *logr.Logger) (Config, e
 	var connectorType, connectorConfig string
 	{
 		if connectorType = p.Credentials[connectorTypeKey]; connectorType == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, fmt.Sprintf("%s must not be empty.", connectorTypeKey))
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty", connectorTypeKey)
 		}
 
 		if connectorConfig = p.Credentials[connectorConfigKey]; connectorConfig == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, fmt.Sprintf("%s must not be empty.", connectorConfigKey))
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty", connectorConfigKey)
 		}
 	}
 

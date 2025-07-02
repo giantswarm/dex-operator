@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2025-06-23
+
 ### Changed
 
+- Update to Go 1.24 and latest libaries
+- Change connector display names from "Azure AD" to "Entry ID"
 - Resolve updated code linter findings.
 
 ## [0.12.4] - 2025-03-05
@@ -236,7 +240,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.12.4...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/giantswarm/dex-operator/compare/v0.12.4...v0.13.0
 [0.12.4]: https://github.com/giantswarm/dex-operator/compare/v0.12.3...v0.12.4
 [0.12.3]: https://github.com/giantswarm/dex-operator/compare/v0.12.2...v0.12.3
 [0.12.2]: https://github.com/giantswarm/dex-operator/compare/v0.12.1...v0.12.2

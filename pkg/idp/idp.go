@@ -24,7 +24,7 @@ import (
 
 type Config struct {
 	Client                         client.Client
-	Log                            *logr.Logger
+	Log                            logr.Logger
 	App                            *v1alpha1.App
 	Providers                      []provider.Provider
 	ManagementClusterBaseDomain    string
@@ -49,7 +49,7 @@ func New(c Config) (*Service, error) {
 	if c.Client == nil {
 		return nil, microerror.Maskf(invalidConfigError, "client cannot be nil")
 	}
-	if c.Log == nil {
+	if (logr.Logger{}) == c.Log {
 		return nil, microerror.Maskf(invalidConfigError, "log cannot be nil")
 	}
 	if c.Providers == nil {
@@ -64,7 +64,7 @@ func New(c Config) (*Service, error) {
 	s := &Service{
 		Client:                         c.Client,
 		app:                            c.App,
-		log:                            *c.Log,
+		log:                            c.Log,
 		providers:                      c.Providers,
 		managementClusterBaseDomain:    c.ManagementClusterBaseDomain,
 		managementClusterName:          c.ManagementClusterName,
