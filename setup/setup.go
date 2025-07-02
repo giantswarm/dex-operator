@@ -38,13 +38,14 @@ type SetupConfig struct {
 }
 
 type Setup struct {
-	providers  []provider.Provider
-	appConfig  provider.AppConfig
-	config     Config
-	action     string
-	outputFile string
-	log        logr.Logger
-	base64Vars bool
+	providers    []provider.Provider
+	appConfig    provider.AppConfig
+	config       Config
+	action       string
+	outputFile   string
+	log          logr.Logger
+	base64Vars   bool
+	installation string
 }
 
 func New(setup SetupConfig) (*Setup, error) {
@@ -58,22 +59,23 @@ func New(setup SetupConfig) (*Setup, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	providers, err := getProvidersFromConfig(config, setup.Provider, log)
+	// Pass installation name to getProvidersFromConfig
+	providers, err := getProvidersFromConfig(config, setup.Provider, log, setup.Installation)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 	appConfig := getAppConfigForInstallation(setup.Installation, setup.Domains)
 
 	return &Setup{
-		providers:  providers,
-		appConfig:  appConfig,
-		action:     setup.Action,
-		config:     config,
-		outputFile: setup.OutputFile,
-		log:        log,
-		base64Vars: setup.Base64Vars,
+		providers:    providers,
+		appConfig:    appConfig,
+		action:       setup.Action,
+		config:       config,
+		outputFile:   setup.OutputFile,
+		log:          log,
+		base64Vars:   setup.Base64Vars,
+		installation: setup.Installation,
 	}, nil
-
 }
 
 func (s *Setup) Run() error {
@@ -175,8 +177,7 @@ func (s *Setup) WriteToFile() error {
 	return os.WriteFile(s.outputFile, data, 0600)
 }
 
-func getProvidersFromConfig(credentials Config, include string, log logr.Logger) ([]provider.Provider, error) {
-
+func getProvidersFromConfig(credentials Config, include string, log logr.Logger, managementClusterName string) ([]provider.Provider, error) {
 	providers := []provider.Provider{}
 	// We are only returning the giantswarm providers. Either all or a specific one.
 	for _, p := range credentials.Oidc.Giantswarm.Providers {
@@ -185,7 +186,7 @@ func getProvidersFromConfig(credentials Config, include string, log logr.Logger)
 			if err := yaml.Unmarshal([]byte(p.Credentials), &c); err != nil {
 				return nil, microerror.Mask(err)
 			}
-			provider, err := controllers.NewProvider(provider.ProviderCredential{Name: p.Name, Owner: "giantswarm", Credentials: c}, log)
+			provider, err := controllers.NewProvider(provider.ProviderCredential{Name: p.Name, Owner: "giantswarm", Credentials: c}, log, managementClusterName)
 			if err != nil {
 				return nil, microerror.Mask(err)
 			}
@@ -217,6 +218,7 @@ func (s *Setup) updateConfig(newCredentials []OidcOwnerProvider) {
 		}
 	}
 }
+
 func (s *Setup) createConfig(newCredentials []OidcOwnerProvider) {
 	s.config = Config{}
 	s.config.Oidc.Giantswarm.Providers = newCredentials
@@ -246,5 +248,4 @@ func getGithubRedirectURLs(domains []string) string {
 		domains[i] = key.GetRedirectURI(domain)
 	}
 	return strings.Join(domains[:], ",")
-
 }
