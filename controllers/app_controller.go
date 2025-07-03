@@ -57,6 +57,7 @@ type AppReconciler struct {
 	ProviderCredentials      string
 	GiantswarmWriteAllGroups []string
 	CustomerWriteAllGroups   []string
+	EnableSelfRenewal        bool
 }
 
 //+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps,verbs=get;list;watch;create;update;patch;delete
@@ -165,7 +166,18 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if err := idpService.Reconcile(ctx); err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
+	if r.EnableSelfRenewal && r.isManagementClusterDexApp(app) {
+		if err := idpService.CheckAndRotateServiceCredentials(ctx); err != nil {
+			r.Log.Error(err, "Service credential rotation failed")
+			// Don't fail the reconciliation, just log the error
+		}
+	}
 	return DefaultRequeue(), nil
+}
+
+func (r *AppReconciler) isManagementClusterDexApp(app *v1alpha1.App) bool {
+	return app.Name == key.MCDexAppDefaultName &&
+		app.Namespace == key.MCDexAppDefaultNamespace
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -207,14 +219,18 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 	}
 
 	providers := []provider.Provider{}
-	{
-		for _, p := range providerCredentials {
-			provider, err := NewProvider(p, r.Log)
-			if err != nil {
-				return nil, microerror.Mask(err)
-			}
-			providers = append(providers, provider)
+	for _, p := range providerCredentials {
+		config := provider.ProviderConfig{
+			Credential:            p,
+			Log:                   r.Log,
+			ManagementClusterName: r.ManagementCluster,
 		}
+
+		provider, err := NewProvider(config)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+		providers = append(providers, provider)
 	}
 	return providers, nil
 }
@@ -223,16 +239,18 @@ func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
 }
 
-func NewProvider(p provider.ProviderCredential, log logr.Logger) (provider.Provider, error) {
+func NewProvider(config provider.ProviderConfig) (provider.Provider, error) {
+	p := config.Credential
+
 	switch p.Name {
 	case mockprovider.ProviderName:
-		return mockprovider.New(p)
+		return mockprovider.New(p, config.ManagementClusterName)
 	case azure.ProviderName:
-		return azure.New(p, log)
+		return azure.New(p, config.Log, config.ManagementClusterName)
 	case github.ProviderName:
-		return github.New(p, log)
+		return github.New(p, config.Log, config.ManagementClusterName)
 	case simpleprovider.ProviderName:
-		return simpleprovider.New(p, log)
+		return simpleprovider.New(p, config.Log, config.ManagementClusterName)
 	}
 	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", p.Name)
 }

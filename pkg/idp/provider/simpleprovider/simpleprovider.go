@@ -43,7 +43,7 @@ type Config struct {
 	connectorConfig string
 }
 
-func New(p provider.ProviderCredential, log logr.Logger) (*SimpleProvider, error) {
+func New(p provider.ProviderCredential, log logr.Logger, managementClusterName string) (*SimpleProvider, error) {
 	// get configuration from credentials
 	c, err := newSimpleConfig(p, log)
 	if err != nil {

@@ -24,15 +24,71 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Ensure Azure implements SelfRenewalProvider
+var _ provider.SelfRenewalProvider = (*Azure)(nil)
+
+// SupportsServiceCredentialRenewal implements SelfRenewalProvider
+func (a *Azure) SupportsServiceCredentialRenewal() bool {
+	return true
+}
+
+func (a *Azure) ShouldRotateServiceCredentials(ctx context.Context, config provider.AppConfig) (bool, error) {
+	const renewalThreshold = 30 * 24 * time.Hour
+
+	appName := key.GetDexOperatorName(a.managementClusterName)
+
+	app, err := a.GetApp(appName)
+	if err != nil {
+		a.Log.Info("Could not get Azure app for credential expiry check, assuming renewal needed",
+			"app", appName, "error", err)
+		return true, nil
+	}
+
+	// Find the current secret for this app
+	secret, err := GetSecret(app, appName)
+	if err != nil {
+		a.Log.Info("Could not get Azure secret for expiry check, assuming renewal needed",
+			"app", appName, "error", err)
+		return true, nil
+	}
+
+	if endDateTime := secret.GetEndDateTime(); endDateTime != nil {
+		timeUntilExpiry := time.Until(*endDateTime)
+		a.Log.Info("Azure credential expiry check",
+			"app", appName,
+			"expiry", *endDateTime,
+			"time_until_expiry", timeUntilExpiry)
+
+		return timeUntilExpiry < renewalThreshold, nil
+	}
+
+	a.Log.Info("No expiry time found for Azure credential, assuming renewal needed", "app", appName)
+	return true, nil
+}
+
+// RotateServiceCredentials implements SelfRenewalProvider
+func (a *Azure) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
+	a.Log.Info("Rotating Azure service credentials", "app", config.Name)
+
+	credentials, err := a.GetCredentialsForAuthenticatedApp(config)
+	if err != nil {
+		return nil, microerror.Maskf(requestFailedError, "Failed to rotate Azure credentials: %v", err)
+	}
+
+	a.Log.Info("Successfully rotated Azure service credentials", "app", config.Name)
+	return credentials, nil
+}
+
 type Azure struct {
-	Name         string
-	Description  string
-	Client       *msgraphsdk.GraphServiceClient
-	Log          logr.Logger
-	Owner        string
-	TenantID     string
-	Type         string
-	clientSecret string
+	Name                  string
+	Description           string
+	Client                *msgraphsdk.GraphServiceClient
+	Log                   logr.Logger
+	Owner                 string
+	TenantID              string
+	Type                  string
+	clientSecret          string
+	managementClusterName string
 }
 
 type Config struct {
@@ -41,8 +97,7 @@ type Config struct {
 	ClientSecret string
 }
 
-func New(p provider.ProviderCredential, log logr.Logger) (*Azure, error) {
-
+func New(p provider.ProviderCredential, log logr.Logger, managementClusterName string) (*Azure, error) {
 	// get configuration from credentials
 	c, err := newAzureConfig(p, log)
 	if err != nil {
@@ -51,7 +106,6 @@ func New(p provider.ProviderCredential, log logr.Logger) (*Azure, error) {
 
 	var client *msgraphsdk.GraphServiceClient
 	{
-
 		cred, err := azidentity.NewClientSecretCredential(c.TenantID, c.ClientID, c.ClientSecret, nil)
 		if err != nil {
 			return nil, microerror.Mask(err)
@@ -70,15 +124,15 @@ func New(p provider.ProviderCredential, log logr.Logger) (*Azure, error) {
 		}
 	}
 	return &Azure{
-
-		Name:         key.GetProviderName(p.Owner, p.Name),
-		Description:  p.GetConnectorDescription(ProviderDisplayName),
-		Log:          log,
-		Type:         ProviderConnectorType,
-		Client:       client,
-		Owner:        p.Owner,
-		TenantID:     c.TenantID,
-		clientSecret: c.ClientSecret,
+		Name:                  key.GetProviderName(p.Owner, p.Name),
+		Description:           p.GetConnectorDescription(ProviderDisplayName),
+		Log:                   log,
+		Type:                  ProviderConnectorType,
+		Client:                client,
+		Owner:                 p.Owner,
+		TenantID:              c.TenantID,
+		clientSecret:          c.ClientSecret,
+		managementClusterName: managementClusterName,
 	}, nil
 }
 
@@ -459,4 +513,25 @@ func (a *Azure) DeleteAuthenticatedApp(config provider.AppConfig) error {
 	}
 	a.Log.Info(fmt.Sprintf("Deleted all %s app resources for installation %s in microsoft ad tenant %s", a.Type, installation, a.TenantID))
 	return nil
+}
+
+func (a *Azure) GetCredentialExpiry(ctx context.Context) (time.Time, error) {
+	appName := key.GetDexOperatorName(a.managementClusterName)
+
+	app, err := a.GetApp(appName)
+	if err != nil {
+		return time.Time{}, microerror.Mask(err)
+	}
+
+	// Find the current secret for this app
+	secret, err := GetSecret(app, appName)
+	if err != nil {
+		return time.Time{}, microerror.Mask(err)
+	}
+
+	if endDateTime := secret.GetEndDateTime(); endDateTime != nil {
+		return *endDateTime, nil
+	}
+
+	return time.Time{}, microerror.Maskf(notFoundError, "no expiry time found for Azure credential")
 }

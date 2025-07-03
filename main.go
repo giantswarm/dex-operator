@@ -65,6 +65,7 @@ func main() {
 		probeAddr                string
 		giantswarmWriteAllGroups string
 		customerWriteAllGroups   string
+		enableSelfRenewal        bool
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&idpCredentials, "idp-credentials-file", "/home/.idp/credentials", "The location of the idp credentials file.")
@@ -78,6 +79,7 @@ func main() {
 	flag.StringVar(&managementCluster, "management-cluster", "", "Name of the management cluster.")
 	flag.StringVar(&giantswarmWriteAllGroups, "giantswarm-write-all-groups", "", "Comma separated list of giantswarm admin groups.")
 	flag.StringVar(&customerWriteAllGroups, "customer-write-all-groups", "", "Comma separated list of customer admin groups.")
+	flag.BoolVar(&enableSelfRenewal, "enable-self-renewal", false, "Enable automatic self-renewal of operator credentials")
 	opts := zap.Options{
 		Development: false,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
@@ -135,6 +137,7 @@ func main() {
 		ProviderCredentials:      idpCredentials,
 		GiantswarmWriteAllGroups: gsGroups,
 		CustomerWriteAllGroups:   customerGroups,
+		EnableSelfRenewal:        enableSelfRenewal,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
 		os.Exit(1)
