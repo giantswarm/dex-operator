@@ -7,6 +7,7 @@ import (
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/key"
+	"github.com/go-logr/logr"
 
 	"github.com/giantswarm/microerror"
 	"gopkg.in/yaml.v2"
@@ -69,4 +70,28 @@ func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 	}
 
 	return *credentials, nil
+}
+
+// SelfRenewalProvider extends the Provider interface for providers that support credential self-renewal
+type SelfRenewalProvider interface {
+	Provider
+
+	// SupportsServiceCredentialRenewal returns true if this provider supports automatic renewal
+	// of its service credentials (the credentials the operator uses to interact with the provider)
+	SupportsServiceCredentialRenewal() bool
+
+	// ShouldRotateServiceCredentials checks if the service credentials need rotation
+	// Returns true if rotation is needed, false otherwise
+	ShouldRotateServiceCredentials(ctx context.Context, config AppConfig) (bool, error)
+
+	// RotateServiceCredentials issues new service credentials for the provider
+	// Returns the new credentials in the same format as GetCredentialsForAuthenticatedApp
+	RotateServiceCredentials(ctx context.Context, config AppConfig) (map[string]string, error)
+}
+
+// ProviderConfig holds configuration for creating providers
+type ProviderConfig struct {
+	Credential            ProviderCredential
+	Log                   logr.Logger
+	ManagementClusterName string
 }
