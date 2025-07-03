@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/microerror"
@@ -20,17 +19,15 @@ var renewalError = &microerror.Error{
 }
 
 const (
-	// RenewalThreshold - renew credentials 30 days before expiry
-	RenewalThreshold = 30 * 24 * time.Hour
 	// CredentialsSecretName is the standard name for dex-operator credentials
 	CredentialsSecretName = "dex-operator-credentials"
 	// SelfRenewalAnnotation marks when self-renewal was performed
 	SelfRenewalAnnotation = "dex-operator.giantswarm.io/last-self-renewal"
 )
 
-// CheckSelfRenewal checks if the operator's own Azure credentials need renewal
-func (s *Service) CheckSelfRenewal(ctx context.Context) error {
-	s.log.Info("Checking if dex-operator credentials need renewal")
+// CheckAndRotateServiceCredentials checks if any providers need credential rotation and performs it
+func (s *Service) CheckAndRotateServiceCredentials(ctx context.Context) error {
+	s.log.Info("Checking if dex-operator service credentials need rotation")
 
 	// Get the app config for the dex-operator itself
 	appConfig, err := s.GetAppConfig(ctx)
@@ -46,77 +43,61 @@ func (s *Service) CheckSelfRenewal(ctx context.Context) error {
 		SecretValidityMonths: key.SecretValidityMonths,
 	}
 
-	renewalNeeded := false
-	var azureProvider provider.Provider
+	rotationNeeded := false
+	var credentialsToUpdate []ProviderCredentialUpdate
 
-	// Only check Azure providers for renewal
+	// Check each provider that supports self-renewal
 	for _, prov := range s.providers {
-		if prov.GetProviderName() == azure.ProviderName {
-			needsRenewal, err := s.checkAzureProviderSelfRenewal(ctx, prov, selfAppConfig)
+		renewalProvider, supportsRenewal := prov.(provider.SelfRenewalProvider)
+		if !supportsRenewal || !renewalProvider.SupportsServiceCredentialRenewal() {
+			s.log.Info("Provider does not support service credential renewal, skipping",
+				"provider", prov.GetName())
+			continue
+		}
+
+		shouldRotate, err := renewalProvider.ShouldRotateServiceCredentials(ctx, selfAppConfig)
+		if err != nil {
+			s.log.Error(err, "Failed to check if service credentials should rotate",
+				"provider", prov.GetName())
+			continue
+		}
+
+		if shouldRotate {
+			s.log.Info("Service credential rotation needed",
+				"provider", prov.GetName())
+
+			newCredentials, err := renewalProvider.RotateServiceCredentials(ctx, selfAppConfig)
 			if err != nil {
-				s.log.Error(err, "Failed to check Azure self-renewal", "provider", prov.GetName())
+				s.log.Error(err, "Failed to rotate service credentials",
+					"provider", prov.GetName())
 				continue
 			}
-			if needsRenewal {
-				renewalNeeded = true
-				azureProvider = prov
-			}
-			break // Only one Azure provider expected
+
+			credentialsToUpdate = append(credentialsToUpdate, ProviderCredentialUpdate{
+				ProviderName: prov.GetProviderName(),
+				Credentials:  newCredentials,
+			})
+			rotationNeeded = true
 		}
 	}
 
-	if renewalNeeded && azureProvider != nil {
-		s.log.Info("Self-renewal needed for Azure credentials, updating...")
-		return s.performAzureSelfRenewal(ctx, azureProvider, selfAppConfig)
+	if rotationNeeded {
+		s.log.Info("Updating credentials secret with rotated credentials")
+		return s.updateCredentialsSecret(ctx, credentialsToUpdate)
 	}
 
-	s.log.Info("No Azure self-renewal needed")
+	s.log.Info("No service credential rotation needed")
 	return nil
 }
 
-// checkAzureProviderSelfRenewal checks if Azure provider needs renewal
-func (s *Service) checkAzureProviderSelfRenewal(ctx context.Context, prov provider.Provider, appConfig provider.AppConfig) (bool, error) {
-	// Cast to Azure provider to access GetCredentialExpiry method
-	azureProvider, ok := prov.(*azure.Azure)
-	if !ok {
-		s.log.Info("Provider is not Azure type, skipping renewal check", "provider", prov.GetName())
-		return false, nil
-	}
-
-	expiryTime, err := azureProvider.GetCredentialExpiry(ctx)
-	if err != nil {
-		s.log.Info("Could not get Azure credential expiry, assuming renewal needed",
-			"provider", prov.GetName(), "error", err)
-		return true, nil
-	}
-
-	timeUntilExpiry := time.Until(expiryTime)
-	s.log.Info("Azure credential expiry check",
-		"provider", prov.GetName(),
-		"expiry", expiryTime,
-		"time_until_expiry", timeUntilExpiry)
-
-	return timeUntilExpiry < RenewalThreshold, nil
+// ProviderCredentialUpdate represents credentials that need to be updated
+type ProviderCredentialUpdate struct {
+	ProviderName string
+	Credentials  map[string]string
 }
 
-// performAzureSelfRenewal performs the actual Azure credential renewal
-func (s *Service) performAzureSelfRenewal(ctx context.Context, azureProvider provider.Provider, appConfig provider.AppConfig) error {
-	s.log.Info("Renewing Azure credentials", "provider", azureProvider.GetName())
-
-	// Get new credentials from Azure
-	credentials, err := azureProvider.GetCredentialsForAuthenticatedApp(appConfig)
-	if err != nil {
-		return microerror.Maskf(renewalError, "Failed to get new Azure credentials: %v", err)
-	}
-
-	s.log.Info("Successfully renewed Azure credentials", "provider", azureProvider.GetName())
-
-	// Update the existing dex-operator-credentials secret
-	return s.updateCredentialsSecret(ctx, azureProvider, credentials)
-}
-
-// updateCredentialsSecret updates the existing dex-operator-credentials secret with new Azure credentials
-func (s *Service) updateCredentialsSecret(ctx context.Context, azureProvider provider.Provider, newCredentials map[string]string) error {
+// updateCredentialsSecret updates the existing dex-operator-credentials secret with rotated credentials
+func (s *Service) updateCredentialsSecret(ctx context.Context, updates []ProviderCredentialUpdate) error {
 	// Get the existing credentials secret
 	secret := &corev1.Secret{}
 	err := s.Get(ctx, types.NamespacedName{
@@ -139,25 +120,29 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, azureProvider pro
 		return microerror.Maskf(renewalError, "Failed to parse existing credentials: %v", err)
 	}
 
-	// Update the Azure provider credentials
-	updated := false
-	for _, providerConfig := range existingProviders {
-		if name, ok := providerConfig["name"].(string); ok && name == azure.ProviderName {
-			// Update the Azure credentials
-			if credsMap, ok := providerConfig["credentials"].(map[interface{}]interface{}); ok {
-				// Update with new credentials
-				for key, value := range newCredentials {
-					credsMap[key] = value
+	// Update credentials for each provider
+	for _, update := range updates {
+		updated := false
+		for _, providerConfig := range existingProviders {
+			if name, ok := providerConfig["name"].(string); ok && name == update.ProviderName {
+				// Update the provider credentials
+				if credsMap, ok := providerConfig["credentials"].(map[interface{}]interface{}); ok {
+					// Update with new credentials
+					for key, value := range update.Credentials {
+						credsMap[key] = value
+					}
+					updated = true
+					s.log.Info("Updated service credentials in existing secret",
+						"provider", update.ProviderName)
+					break
 				}
-				updated = true
-				s.log.Info("Updated Azure credentials in existing secret")
-				break
 			}
 		}
-	}
 
-	if !updated {
-		return microerror.Maskf(renewalError, "Could not find Azure provider in existing credentials")
+		if !updated {
+			return microerror.Maskf(renewalError,
+				"Could not find provider %s in existing credentials", update.ProviderName)
+		}
 	}
 
 	// Marshal back to YAML
@@ -179,6 +164,6 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, azureProvider pro
 		return microerror.Maskf(renewalError, "Failed to update credentials secret: %v", err)
 	}
 
-	s.log.Info("Successfully updated dex-operator-credentials secret with new Azure credentials")
+	s.log.Info("Successfully updated dex-operator-credentials secret with rotated credentials")
 	return nil
 }
