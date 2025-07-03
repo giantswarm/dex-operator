@@ -24,6 +24,61 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Ensure Azure implements SelfRenewalProvider
+var _ provider.SelfRenewalProvider = (*Azure)(nil)
+
+// SupportsServiceCredentialRenewal implements SelfRenewalProvider
+func (a *Azure) SupportsServiceCredentialRenewal() bool {
+	return true
+}
+
+func (a *Azure) ShouldRotateServiceCredentials(ctx context.Context, config provider.AppConfig) (bool, error) {
+	const renewalThreshold = 30 * 24 * time.Hour
+
+	appName := key.GetDexOperatorName(a.managementClusterName)
+
+	app, err := a.GetApp(appName)
+	if err != nil {
+		a.Log.Info("Could not get Azure app for credential expiry check, assuming renewal needed",
+			"app", appName, "error", err)
+		return true, nil
+	}
+
+	// Find the current secret for this app
+	secret, err := GetSecret(app, appName)
+	if err != nil {
+		a.Log.Info("Could not get Azure secret for expiry check, assuming renewal needed",
+			"app", appName, "error", err)
+		return true, nil
+	}
+
+	if endDateTime := secret.GetEndDateTime(); endDateTime != nil {
+		timeUntilExpiry := time.Until(*endDateTime)
+		a.Log.Info("Azure credential expiry check",
+			"app", appName,
+			"expiry", *endDateTime,
+			"time_until_expiry", timeUntilExpiry)
+
+		return timeUntilExpiry < renewalThreshold, nil
+	}
+
+	a.Log.Info("No expiry time found for Azure credential, assuming renewal needed", "app", appName)
+	return true, nil
+}
+
+// RotateServiceCredentials implements SelfRenewalProvider
+func (a *Azure) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
+	a.Log.Info("Rotating Azure service credentials", "app", config.Name)
+
+	credentials, err := a.GetCredentialsForAuthenticatedApp(config)
+	if err != nil {
+		return nil, microerror.Maskf(requestFailedError, "Failed to rotate Azure credentials: %v", err)
+	}
+
+	a.Log.Info("Successfully rotated Azure service credentials", "app", config.Name)
+	return credentials, nil
+}
+
 type Azure struct {
 	Name                  string
 	Description           string

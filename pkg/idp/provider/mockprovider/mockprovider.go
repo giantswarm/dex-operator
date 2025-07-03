@@ -13,6 +13,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var _ provider.Provider = (*MockProvider)(nil)
+
 const (
 	ProviderName          = "mock"
 	ProviderDisplayName   = "Mock Provider"
