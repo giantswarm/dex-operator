@@ -186,7 +186,18 @@ func getProvidersFromConfig(credentials Config, include string, log logr.Logger,
 			if err := yaml.Unmarshal([]byte(p.Credentials), &c); err != nil {
 				return nil, microerror.Mask(err)
 			}
-			provider, err := controllers.NewProvider(provider.ProviderCredential{Name: p.Name, Owner: "giantswarm", Credentials: c}, log, managementClusterName)
+
+			config := provider.ProviderConfig{
+				Credential: provider.ProviderCredential{
+					Name:        p.Name,
+					Owner:       "giantswarm",
+					Credentials: c,
+				},
+				Log:                   log,
+				ManagementClusterName: managementClusterName,
+			}
+
+			provider, err := controllers.NewProvider(config)
 			if err != nil {
 				return nil, microerror.Mask(err)
 			}
