@@ -5,9 +5,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-logr/logr"
+
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/key"
-	"github.com/go-logr/logr"
 
 	"github.com/giantswarm/microerror"
 	"gopkg.in/yaml.v2"
