@@ -244,13 +244,45 @@ func (a *Azure) CreateOrUpdateSecret(id string, config provider.AppConfig, ctx c
 
 	// Create secret if it does not exist
 	if needsCreation {
-		secret, err = a.Client.Applications().ByApplicationId(id).AddPassword().Post(ctx, GetSecretCreateRequestBody(config), nil)
+		// Create new secret and extract the value immediately from the response
+		newSecret, err := a.Client.Applications().ByApplicationId(id).AddPassword().Post(ctx, GetSecretCreateRequestBody(config), nil)
 		if err != nil {
 			return provider.ProviderSecret{}, microerror.Maskf(requestFailedError, "Failed to create secret: %s", PrintOdataError(err))
 		}
-		a.Log.Info(fmt.Sprintf("Created secret %v of %s app %s for %s in microsoft ad tenant %s", secret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
+		a.Log.Info(fmt.Sprintf("Created secret %v of %s app %s for %s in microsoft ad tenant %s", newSecret.GetKeyId(), a.Type, config.Name, a.Owner, a.TenantID))
+
+		// CRITICAL: Extract secret value immediately from creation response
+		return getAzureSecretFromCreationResponse(newSecret, app)
 	}
+
+	// Use existing secret (fallback to old secret value since we can't retrieve it from Azure)
 	return getAzureSecret(secret, app, oldSecret)
+}
+
+func getAzureSecretFromCreationResponse(secret models.PasswordCredentialable, app models.Applicationable) (provider.ProviderSecret, error) {
+	// Get the secret value from creation response (only available once)
+	secretText := secret.GetSecretText()
+	if secretText == nil || *secretText == "" {
+		return provider.ProviderSecret{}, microerror.Maskf(invalidConfigError, "Failed to extract secret value from creation response")
+	}
+
+	// Get client ID
+	clientId := app.GetAppId()
+	if clientId == nil || *clientId == "" {
+		return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Could not find client ID for secret")
+	}
+
+	// Get expiry time
+	endDateTime := secret.GetEndDateTime()
+	if endDateTime == nil {
+		return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Could not find expiry time for secret")
+	}
+
+	return provider.ProviderSecret{
+		ClientSecret: *secretText, // Use the actual secret value from creation response
+		ClientId:     *clientId,
+		EndDateTime:  *endDateTime,
+	}, nil
 }
 
 func (a *Azure) DeleteSecret(ctx context.Context, secretID *uuid.UUID, appID string) error {
