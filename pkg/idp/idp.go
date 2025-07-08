@@ -126,13 +126,16 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		newConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
+		operatorConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
 		if err != nil {
 			return microerror.Mask(err)
 		}
 
-		if updateSecret := s.secretDataNeedsUpdate(oldConfig, newConfig); updateSecret {
-			data, err := json.Marshal(newConfig)
+		// Merge configs with operator precedence over manual Helm configs
+		finalConfig := s.mergeWithOperatorPrecedence(oldConfig, operatorConfig)
+
+		if updateSecret := s.secretDataNeedsUpdate(oldConfig, finalConfig); updateSecret {
+			data, err := json.Marshal(finalConfig)
 			if err != nil {
 				return microerror.Mask(err)
 			}
@@ -157,6 +160,65 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		s.log.Info("Added finalizer to default dex config secret.")
 	}
 	return nil
+}
+
+// mergeWithOperatorPrecedence merges operator-managed configs with existing configs,
+// giving precedence to operator-managed connectors over manual Helm configurations
+func (s *Service) mergeWithOperatorPrecedence(existingConfig, operatorConfig dex.DexConfig) dex.DexConfig {
+	// Start with existing config (includes manual Helm configs)
+	merged := existingConfig
+
+	// Override/add operator-managed Giantswarm connectors
+	if operatorConfig.Oidc.Giantswarm != nil && len(operatorConfig.Oidc.Giantswarm.Connectors) > 0 {
+		if merged.Oidc.Giantswarm == nil {
+			merged.Oidc.Giantswarm = &dex.DexOidcOwner{}
+		}
+
+		// Replace any existing connectors with same type/id with operator-managed ones
+		for _, operatorConnector := range operatorConfig.Oidc.Giantswarm.Connectors {
+			s.replaceOrAddConnector(&merged.Oidc.Giantswarm.Connectors, operatorConnector)
+		}
+	}
+
+	// Override/add operator-managed Customer connectors
+	if operatorConfig.Oidc.Customer != nil && len(operatorConfig.Oidc.Customer.Connectors) > 0 {
+		if merged.Oidc.Customer == nil {
+			merged.Oidc.Customer = &dex.DexOidcOwner{}
+		}
+
+		// Replace any existing connectors with same type/id with operator-managed ones
+		for _, operatorConnector := range operatorConfig.Oidc.Customer.Connectors {
+			s.replaceOrAddConnector(&merged.Oidc.Customer.Connectors, operatorConnector)
+		}
+	}
+
+	return merged
+}
+
+// replaceOrAddConnector replaces an existing connector with the same ID or type,
+// or adds a new connector if no match is found
+func (s *Service) replaceOrAddConnector(connectors *[]dex.Connector, newConnector dex.Connector) {
+	// First try to find by exact ID match
+	for i, existing := range *connectors {
+		if existing.ID == newConnector.ID {
+			(*connectors)[i] = newConnector
+			s.log.Info(fmt.Sprintf("Operator overrode manual config for connector ID '%s' (type: %s)", newConnector.ID, newConnector.Type))
+			return
+		}
+	}
+
+	// Then try to find by type match (for cases where ID might be different)
+	for i, existing := range *connectors {
+		if existing.Type == newConnector.Type {
+			(*connectors)[i] = newConnector
+			s.log.Info(fmt.Sprintf("Operator overrode manual config for connector type '%s' (ID: %s)", newConnector.Type, newConnector.ID))
+			return
+		}
+	}
+
+	// If no match found, add as new connector
+	*connectors = append(*connectors, newConnector)
+	s.log.Info(fmt.Sprintf("Operator added new connector: %s (type: %s)", newConnector.ID, newConnector.Type))
 }
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
