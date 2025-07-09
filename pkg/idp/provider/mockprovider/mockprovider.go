@@ -13,6 +13,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var _ provider.Provider = (*MockProvider)(nil)
+
 const (
 	ProviderName          = "mock"
 	ProviderDisplayName   = "Mock Provider"
@@ -26,7 +28,7 @@ type MockProvider struct {
 	Owner       string
 }
 
-func New(p provider.ProviderCredential) (*MockProvider, error) {
+func New(p provider.ProviderCredential, managementClusterName string) (*MockProvider, error) {
 	return &MockProvider{
 		Name:        key.GetProviderName(p.Owner, ProviderName),
 		Description: p.GetConnectorDescription(ProviderDisplayName),

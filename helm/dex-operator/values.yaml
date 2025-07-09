@@ -36,3 +36,6 @@ global:
     enforced: true
 
 hostAliases: []
+
+selfRenewal:
+  enabled: true

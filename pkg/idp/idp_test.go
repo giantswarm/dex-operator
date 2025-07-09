@@ -801,7 +801,7 @@ func TestGetAppConfig(t *testing.T) {
 }
 
 func getExampleProvider(owner string) provider.Provider {
-	p, _ := mockprovider.New(provider.ProviderCredential{Owner: owner})
+	p, _ := mockprovider.New(provider.ProviderCredential{Owner: owner}, "test-cluster")
 	return p
 }
 

@@ -57,8 +57,7 @@ type Config struct {
 	ClientSecret string
 }
 
-func New(p provider.ProviderCredential, log logr.Logger) (*Github, error) {
-
+func New(p provider.ProviderCredential, log logr.Logger, managementClusterName string) (*Github, error) {
 	// get configuration from credentials
 	c, err := newGithubConfig(p, log)
 	if err != nil {

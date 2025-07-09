@@ -43,6 +43,9 @@ spec:
         - --issuer-address={{ .Values.issuerAddress }}
         - --giantswarm-write-all-groups={{ join "," .Values.oidc.giantswarm.write_all_groups }}
         - --customer-write-all-groups={{ join "," .Values.oidc.customer.write_all_groups }}
+        {{- if .Values.selfRenewal.enabled }}
+        - --enable-self-renewal={{ .Values.selfRenewal.enabled }}
+        {{- end }}
         ports:
         - containerPort: 8080
           name: metrics
