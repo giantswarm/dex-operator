@@ -203,7 +203,6 @@ func TestCreateApp(t *testing.T) {
 					connectorConfigKey: tc.connectorConfig,
 				},
 			}
-			// Updated to pass management cluster name
 			simple, err := New(credential, provider.GetTestLogger(), "test-cluster")
 			if err != nil {
 				t.Fatal(err)
