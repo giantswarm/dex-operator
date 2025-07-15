@@ -59,7 +59,6 @@ func New(setup SetupConfig) (*Setup, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	// Pass installation name to getProvidersFromConfig
 	providers, err := getProvidersFromConfig(config, setup.Provider, log, setup.Installation)
 	if err != nil {
 		return nil, microerror.Mask(err)
