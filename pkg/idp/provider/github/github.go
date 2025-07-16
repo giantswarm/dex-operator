@@ -57,9 +57,11 @@ type Config struct {
 	ClientSecret string
 }
 
-func New(p provider.ProviderCredential, log logr.Logger, managementClusterName string) (*Github, error) {
+var _ provider.Provider = (*Github)(nil)
+
+func New(config provider.ProviderConfig) (*Github, error) {
 	// get configuration from credentials
-	c, err := newGithubConfig(p, log)
+	c, err := newGithubConfig(config.Credential, config.Log)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
@@ -72,12 +74,12 @@ func New(p provider.ProviderCredential, log logr.Logger, managementClusterName s
 	client := githubclient.NewClient(&http.Client{Transport: itr})
 
 	return &Github{
-		Name:         key.GetProviderName(p.Owner, p.Name),
-		Description:  p.GetConnectorDescription(ProviderDisplayName),
-		Log:          log,
+		Name:         key.GetProviderName(config.Credential.Owner, config.Credential.Name),
+		Description:  config.Credential.GetConnectorDescription(ProviderDisplayName),
+		Log:          config.Log,
 		Type:         ProviderConnectorType,
 		Client:       client,
-		Owner:        p.Owner,
+		Owner:        config.Credential.Owner,
 		Organization: c.Organization,
 		Team:         c.Team,
 		id:           c.ClientID,
@@ -354,4 +356,17 @@ func getDeletionURLForOldApp(host string, organization string, slug string) stri
 
 func getDeletionURLForApp(host string, organization string, slug string) string {
 	return fmt.Sprintf("https://%s/organizations/%s/settings/apps/%s/advanced", host, organization, slug)
+}
+
+// Self-renewal methods implementation - Github doesn't support renewal yet
+func (g *Github) SupportsServiceCredentialRenewal() bool {
+	return false
+}
+
+func (g *Github) ShouldRotateServiceCredentials(ctx context.Context, config provider.AppConfig) (bool, error) {
+	return false, nil
+}
+
+func (g *Github) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
+	return nil, microerror.Maskf(invalidConfigError, "Github provider does not support service credential rotation yet")
 }

@@ -168,7 +168,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	if r.EnableSelfRenewal && r.isManagementClusterDexApp(app) {
 		if err := idpService.CheckAndRotateServiceCredentials(ctx); err != nil {
-			r.Log.Error(err, "Service credential rotation failed")
+			log.Error(err, "Service credential rotation failed")
 			// Don't fail the reconciliation, just log the error
 		}
 	}
@@ -240,19 +240,17 @@ func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
 }
 
 func NewProvider(config provider.ProviderConfig) (provider.Provider, error) {
-	p := config.Credential
-
-	switch p.Name {
+	switch config.Credential.Name {
 	case mockprovider.ProviderName:
-		return mockprovider.New(p, config.ManagementClusterName)
+		return mockprovider.New(config)
 	case azure.ProviderName:
-		return azure.New(p, config.Log, config.ManagementClusterName)
+		return azure.New(config)
 	case github.ProviderName:
-		return github.New(p, config.Log, config.ManagementClusterName)
+		return github.New(config)
 	case simpleprovider.ProviderName:
-		return simpleprovider.New(p, config.Log, config.ManagementClusterName)
+		return simpleprovider.New(config)
 	}
-	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", p.Name)
+	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", config.Credential.Name)
 }
 
 func init() {

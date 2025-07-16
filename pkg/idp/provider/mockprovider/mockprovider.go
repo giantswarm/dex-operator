@@ -13,7 +13,9 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var _ provider.Provider = (*MockProvider)(nil)
+var invalidConfigError = &microerror.Error{
+	Kind: "invalidConfigError",
+}
 
 const (
 	ProviderName          = "mock"
@@ -28,12 +30,14 @@ type MockProvider struct {
 	Owner       string
 }
 
-func New(p provider.ProviderCredential, managementClusterName string) (*MockProvider, error) {
+var _ provider.Provider = (*MockProvider)(nil)
+
+func New(config provider.ProviderConfig) (*MockProvider, error) {
 	return &MockProvider{
-		Name:        key.GetProviderName(p.Owner, ProviderName),
-		Description: p.GetConnectorDescription(ProviderDisplayName),
+		Name:        key.GetProviderName(config.Credential.Owner, ProviderName),
+		Description: config.Credential.GetConnectorDescription(ProviderDisplayName),
 		Type:        ProviderConnectorType,
-		Owner:       p.Owner,
+		Owner:       config.Credential.Owner,
 	}, nil
 }
 
@@ -90,6 +94,19 @@ func (m *MockProvider) CleanCredentialsForAuthenticatedApp(config provider.AppCo
 
 func (m *MockProvider) DeleteAuthenticatedApp(config provider.AppConfig) error {
 	return nil
+}
+
+// Self-renewal methods implementation - MockProvider doesn't support renewal
+func (m *MockProvider) SupportsServiceCredentialRenewal() bool {
+	return false
+}
+
+func (m *MockProvider) ShouldRotateServiceCredentials(ctx context.Context, config provider.AppConfig) (bool, error) {
+	return false, nil
+}
+
+func (m *MockProvider) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
+	return nil, microerror.Maskf(invalidConfigError, "Mock provider does not support service credential rotation")
 }
 
 func MockCert() string {

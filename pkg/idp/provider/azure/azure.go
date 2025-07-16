@@ -25,7 +25,7 @@ import (
 )
 
 // Ensure Azure implements SelfRenewalProvider
-var _ provider.SelfRenewalProvider = (*Azure)(nil)
+var _ provider.Provider = (*Azure)(nil)
 
 // SupportsServiceCredentialRenewal implements SelfRenewalProvider
 func (a *Azure) SupportsServiceCredentialRenewal() bool {
@@ -97,9 +97,9 @@ type Config struct {
 	ClientSecret string
 }
 
-func New(p provider.ProviderCredential, log logr.Logger, managementClusterName string) (*Azure, error) {
+func New(config provider.ProviderConfig) (*Azure, error) {
 	// get configuration from credentials
-	c, err := newAzureConfig(p, log)
+	c, err := newAzureConfig(config.Credential, config.Log)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
@@ -124,15 +124,15 @@ func New(p provider.ProviderCredential, log logr.Logger, managementClusterName s
 		}
 	}
 	return &Azure{
-		Name:                  key.GetProviderName(p.Owner, p.Name),
-		Description:           p.GetConnectorDescription(ProviderDisplayName),
-		Log:                   log,
+		Name:                  key.GetProviderName(config.Credential.Owner, config.Credential.Name),
+		Description:           config.Credential.GetConnectorDescription(ProviderDisplayName),
+		Log:                   config.Log,
 		Type:                  ProviderConnectorType,
 		Client:                client,
-		Owner:                 p.Owner,
+		Owner:                 config.Credential.Owner,
 		TenantID:              c.TenantID,
 		clientSecret:          c.ClientSecret,
-		managementClusterName: managementClusterName,
+		managementClusterName: config.ManagementClusterName,
 	}, nil
 }
 

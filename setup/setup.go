@@ -178,7 +178,7 @@ func (s *Setup) WriteToFile() error {
 
 func getProvidersFromConfig(credentials Config, include string, log logr.Logger, managementClusterName string) ([]provider.Provider, error) {
 	providers := []provider.Provider{}
-	// We are only returning the giantswarm providers. Either all or a specific one.
+
 	for _, p := range credentials.Oidc.Giantswarm.Providers {
 		if includeProvider(include, p.Name) {
 			c := map[string]string{}

@@ -46,16 +46,16 @@ func (s *Service) CheckAndRotateServiceCredentials(ctx context.Context) error {
 	rotationNeeded := false
 	var credentialsToUpdate []ProviderCredentialUpdate
 
-	// Check each provider that supports self-renewal
+	// Check each provider for self-renewal capability
 	for _, prov := range s.providers {
-		renewalProvider, supportsRenewal := prov.(provider.SelfRenewalProvider)
-		if !supportsRenewal || !renewalProvider.SupportsServiceCredentialRenewal() {
+		// Simplified check - no type assertion needed anymore
+		if !prov.SupportsServiceCredentialRenewal() {
 			s.log.Info("Provider does not support service credential renewal, skipping",
 				"provider", prov.GetName())
 			continue
 		}
 
-		shouldRotate, err := renewalProvider.ShouldRotateServiceCredentials(ctx, selfAppConfig)
+		shouldRotate, err := prov.ShouldRotateServiceCredentials(ctx, selfAppConfig)
 		if err != nil {
 			s.log.Error(err, "Failed to check if service credentials should rotate",
 				"provider", prov.GetName())
@@ -66,7 +66,7 @@ func (s *Service) CheckAndRotateServiceCredentials(ctx context.Context) error {
 			s.log.Info("Service credential rotation needed",
 				"provider", prov.GetName())
 
-			newCredentials, err := renewalProvider.RotateServiceCredentials(ctx, selfAppConfig)
+			newCredentials, err := prov.RotateServiceCredentials(ctx, selfAppConfig)
 			if err != nil {
 				s.log.Error(err, "Failed to rotate service credentials",
 					"provider", prov.GetName())
@@ -124,8 +124,14 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, updates []Provide
 	for _, update := range updates {
 		updated := false
 		for _, providerConfig := range existingProviders {
-			if name, ok := providerConfig["name"].(string); ok && name == update.ProviderName {
-				// Update the provider credentials
+			name, ok := providerConfig["name"].(string)
+			if !ok {
+				s.log.Info("Skipping provider config with invalid name type", "config", providerConfig)
+				continue
+			}
+
+			if name == update.ProviderName {
+
 				if credsMap, ok := providerConfig["credentials"].(map[interface{}]interface{}); ok {
 					// Update with new credentials
 					for key, value := range update.Credentials {
@@ -154,11 +160,8 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, updates []Provide
 	// Update the secret
 	secret.Data["credentials"] = updatedData
 
-	// Add renewal annotation
-	if secret.Annotations == nil {
-		secret.Annotations = make(map[string]string)
-	}
-	secret.Annotations[SelfRenewalAnnotation] = time.Now().Format(time.RFC3339)
+	// Add renewal annotation using helper function
+	s.addSelfRenewalAnnotation(secret)
 
 	if err := s.Update(ctx, secret); err != nil {
 		return microerror.Maskf(renewalError, "Failed to update credentials secret: %v", err)
@@ -166,4 +169,12 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, updates []Provide
 
 	s.log.Info("Successfully updated dex-operator-credentials secret with rotated credentials")
 	return nil
+}
+
+// addSelfRenewalAnnotation is a helper function to manipulate annotations
+func (s *Service) addSelfRenewalAnnotation(secret *corev1.Secret) {
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	secret.Annotations[SelfRenewalAnnotation] = time.Now().Format(time.RFC3339)
 }
