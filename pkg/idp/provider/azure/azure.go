@@ -24,7 +24,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// Ensure Azure implements SelfRenewalProvider
 var _ provider.Provider = (*Azure)(nil)
 
 // SupportsServiceCredentialRenewal implements SelfRenewalProvider
