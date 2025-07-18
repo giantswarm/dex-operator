@@ -138,7 +138,7 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, updates []Provide
 						credsMap[key] = value
 					}
 					updated = true
-					s.log.Info("Updated service credentials in existing secret",
+					s.log.Info("Credentials for %s should be updated", update.ProviderName
 						"provider", update.ProviderName)
 					break
 				}
