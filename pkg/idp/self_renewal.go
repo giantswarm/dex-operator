@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/giantswarm/dex-operator/pkg/idp/provider"
-	"github.com/giantswarm/dex-operator/pkg/key"
-
 	"github.com/giantswarm/microerror"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
 // Error definitions
@@ -24,6 +24,11 @@ const (
 	// SelfRenewalAnnotation marks when self-renewal was performed
 	SelfRenewalAnnotation = "dex-operator.giantswarm.io/last-self-renewal"
 )
+
+type ProviderCredentialUpdate struct {
+	ProviderName string
+	Credentials  map[string]string
+}
 
 // CheckAndRotateServiceCredentials checks if any providers need credential rotation and performs it
 func (s *Service) CheckAndRotateServiceCredentials(ctx context.Context) error {
@@ -90,12 +95,6 @@ func (s *Service) CheckAndRotateServiceCredentials(ctx context.Context) error {
 	return nil
 }
 
-// ProviderCredentialUpdate represents credentials that need to be updated
-type ProviderCredentialUpdate struct {
-	ProviderName string
-	Credentials  map[string]string
-}
-
 // updateCredentialsSecret updates the existing dex-operator-credentials secret with rotated credentials
 func (s *Service) updateCredentialsSecret(ctx context.Context, updates []ProviderCredentialUpdate) error {
 	// Get the existing credentials secret
@@ -131,14 +130,13 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, updates []Provide
 			}
 
 			if name == update.ProviderName {
-
 				if credsMap, ok := providerConfig["credentials"].(map[interface{}]interface{}); ok {
 					// Update with new credentials
 					for key, value := range update.Credentials {
 						credsMap[key] = value
 					}
 					updated = true
-					s.log.Info("Credentials for %s should be updated", update.ProviderName
+					s.log.Info("Credentials for provider updated",
 						"provider", update.ProviderName)
 					break
 				}
