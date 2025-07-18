@@ -26,7 +26,6 @@ import (
 
 var _ provider.Provider = (*Azure)(nil)
 
-// SupportsServiceCredentialRenewal implements SelfRenewalProvider
 func (a *Azure) SupportsServiceCredentialRenewal() bool {
 	return true
 }
