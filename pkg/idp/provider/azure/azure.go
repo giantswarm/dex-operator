@@ -64,7 +64,6 @@ func (a *Azure) ShouldRotateServiceCredentials(ctx context.Context, config provi
 	return true, nil
 }
 
-// RotateServiceCredentials implements SelfRenewalProvider
 func (a *Azure) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
 	a.Log.Info("Rotating Azure service credentials", "app", config.Name)
 
