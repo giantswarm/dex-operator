@@ -25,6 +25,19 @@ const (
 	SelfRenewalAnnotation = "dex-operator.giantswarm.io/last-self-renewal"
 )
 
+// CredentialsConfig represents the structure of the credentials YAML
+type CredentialsConfig struct {
+	Providers []ProviderConfig `yaml:",inline"`
+}
+
+// ProviderConfig represents a single provider's configuration in the credentials
+type ProviderConfig struct {
+	Name        string            `yaml:"name"`
+	Owner       string            `yaml:"owner"`
+	Credentials map[string]string `yaml:"credentials"`
+	Description string            `yaml:"description,omitempty"`
+}
+
 type ProviderCredentialUpdate struct {
 	ProviderName string
 	Credentials  map[string]string
@@ -113,8 +126,8 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, updates []Provide
 		return microerror.Maskf(renewalError, "No credentials data found in secret")
 	}
 
-	// Parse the existing YAML credentials
-	var existingProviders []map[string]interface{}
+	// Parse the existing YAML credentials using proper structs
+	var existingProviders []ProviderConfig
 	if err := yaml.Unmarshal(credentialsData, &existingProviders); err != nil {
 		return microerror.Maskf(renewalError, "Failed to parse existing credentials: %v", err)
 	}
@@ -122,24 +135,19 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, updates []Provide
 	// Update credentials for each provider
 	for _, update := range updates {
 		updated := false
-		for _, providerConfig := range existingProviders {
-			name, ok := providerConfig["name"].(string)
-			if !ok {
-				s.log.Info("Skipping provider config with invalid name type", "config", providerConfig)
-				continue
-			}
-
-			if name == update.ProviderName {
-				if credsMap, ok := providerConfig["credentials"].(map[interface{}]interface{}); ok {
-					// Update with new credentials
-					for key, value := range update.Credentials {
-						credsMap[key] = value
+		for i := range existingProviders {
+			if existingProviders[i].Name == update.ProviderName {
+				// Update with new credentials
+				for key, value := range update.Credentials {
+					if existingProviders[i].Credentials == nil {
+						existingProviders[i].Credentials = make(map[string]string)
 					}
-					updated = true
-					s.log.Info("Credentials for provider updated",
-						"provider", update.ProviderName)
-					break
+					existingProviders[i].Credentials[key] = value
 				}
+				updated = true
+				s.log.Info("Credentials for provider updated",
+					"provider", update.ProviderName)
+				break
 			}
 		}
 
