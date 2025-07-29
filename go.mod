@@ -18,9 +18,9 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/microsoft/kiota-abstractions-go v1.9.3
 	github.com/microsoft/kiota-authentication-azure-go v1.3.1
-	github.com/microsoftgraph/msgraph-sdk-go v1.79.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.80.0
 	github.com/onsi/ginkgo/v2 v2.23.4
-	github.com/onsi/gomega v1.37.0
+	github.com/onsi/gomega v1.38.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.22.0
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
@@ -136,7 +136,7 @@ require (
 replace (
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.62.0
 	golang.org/x/net => golang.org/x/net v0.42.0
-	google.golang.org/grpc => google.golang.org/grpc v1.74.1
+	google.golang.org/grpc => google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.6
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.27.4
 )
