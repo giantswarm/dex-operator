@@ -136,7 +136,7 @@ require (
 replace (
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.62.0
 	golang.org/x/net => golang.org/x/net v0.42.0
-	google.golang.org/grpc => google.golang.org/grpc v1.74.0
+	google.golang.org/grpc => google.golang.org/grpc v1.74.1
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.6
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.27.4
 )
