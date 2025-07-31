@@ -33,7 +33,6 @@ func (a *Azure) SupportsServiceCredentialRenewal() bool {
 func (a *Azure) ShouldRotateServiceCredentials(ctx context.Context, config provider.AppConfig) (bool, error) {
 	appName := key.GetDexOperatorName(a.managementClusterName)
 
-	// Use the existing GetCredentialExpiry method for consistency
 	expiryTime, err := a.GetCredentialExpiry(ctx)
 	if err != nil {
 		a.Log.Info("Could not get Azure credential expiry, assuming renewal needed",
