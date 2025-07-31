@@ -66,7 +66,6 @@ func (s *Service) CheckAndRotateServiceCredentials(ctx context.Context) error {
 
 	// Check each provider for self-renewal capability
 	for _, prov := range s.providers {
-		// Simplified check - no type assertion needed anymore
 		if !prov.SupportsServiceCredentialRenewal() {
 			s.log.Info("Provider does not support service credential renewal, skipping",
 				"provider", prov.GetName())
