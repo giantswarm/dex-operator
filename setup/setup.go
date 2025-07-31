@@ -28,23 +28,24 @@ const (
 )
 
 type SetupConfig struct {
-	Installation   string
-	CredentialFile string
-	OutputFile     string
-	Provider       string
-	Action         string
-	Domains        []string //domains only matter for github setup
-	Base64Vars     bool
+	ManagementClusterName string
+	CredentialFile        string
+	OutputFile            string
+	Provider              string
+	Action                string
+	Domains               []string
+	Base64Vars            bool
 }
 
 type Setup struct {
-	providers  []provider.Provider
-	appConfig  provider.AppConfig
-	config     Config
-	action     string
-	outputFile string
-	log        logr.Logger
-	base64Vars bool
+	providers             []provider.Provider
+	appConfig             provider.AppConfig
+	config                Config
+	action                string
+	outputFile            string
+	log                   logr.Logger
+	base64Vars            bool
+	managementClusterName string
 }
 
 func New(setup SetupConfig) (*Setup, error) {
@@ -58,22 +59,23 @@ func New(setup SetupConfig) (*Setup, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	providers, err := getProvidersFromConfig(config, setup.Provider, log)
+
+	providers, err := getProvidersFromConfig(config, setup.Provider, log, setup.ManagementClusterName)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	appConfig := getAppConfigForInstallation(setup.Installation, setup.Domains)
+	appConfig := getAppConfigForInstallation(setup.ManagementClusterName, setup.Domains)
 
 	return &Setup{
-		providers:  providers,
-		appConfig:  appConfig,
-		action:     setup.Action,
-		config:     config,
-		outputFile: setup.OutputFile,
-		log:        log,
-		base64Vars: setup.Base64Vars,
+		providers:             providers,
+		appConfig:             appConfig,
+		action:                setup.Action,
+		config:                config,
+		outputFile:            setup.OutputFile,
+		log:                   log,
+		base64Vars:            setup.Base64Vars,
+		managementClusterName: setup.ManagementClusterName,
 	}, nil
-
 }
 
 func (s *Setup) Run() error {
@@ -146,6 +148,7 @@ func (s *Setup) DeleteConfigCredentialsForProviders() error {
 	}
 	return nil
 }
+
 func (s *Setup) CleanConfigCredentialsForProviders() error {
 	for _, p := range s.providers {
 		err := p.CleanCredentialsForAuthenticatedApp(s.appConfig)
@@ -175,17 +178,27 @@ func (s *Setup) WriteToFile() error {
 	return os.WriteFile(s.outputFile, data, 0600)
 }
 
-func getProvidersFromConfig(credentials Config, include string, log logr.Logger) ([]provider.Provider, error) {
-
+func getProvidersFromConfig(credentials Config, include string, log logr.Logger, managementClusterName string) ([]provider.Provider, error) {
 	providers := []provider.Provider{}
-	// We are only returning the giantswarm providers. Either all or a specific one.
+
 	for _, p := range credentials.Oidc.Giantswarm.Providers {
 		if includeProvider(include, p.Name) {
 			c := map[string]string{}
 			if err := yaml.Unmarshal([]byte(p.Credentials), &c); err != nil {
 				return nil, microerror.Mask(err)
 			}
-			provider, err := controllers.NewProvider(provider.ProviderCredential{Name: p.Name, Owner: "giantswarm", Credentials: c}, log)
+
+			config := provider.ProviderConfig{
+				Credential: provider.ProviderCredential{
+					Name:        p.Name,
+					Owner:       "giantswarm",
+					Credentials: c,
+				},
+				Log:                   log,
+				ManagementClusterName: managementClusterName,
+			}
+
+			provider, err := controllers.NewProvider(config)
 			if err != nil {
 				return nil, microerror.Mask(err)
 			}
@@ -217,6 +230,7 @@ func (s *Setup) updateConfig(newCredentials []OidcOwnerProvider) {
 		}
 	}
 }
+
 func (s *Setup) createConfig(newCredentials []OidcOwnerProvider) {
 	s.config = Config{}
 	s.config.Oidc.Giantswarm.Providers = newCredentials
@@ -231,20 +245,18 @@ func providerAlreadyPresent(providers []provider.Provider, provider provider.Pro
 	return false
 }
 
-func getAppConfigForInstallation(installation string, domains []string) provider.AppConfig {
+func getAppConfigForInstallation(managementClusterName string, domains []string) provider.AppConfig {
 	return provider.AppConfig{
-		Name:                 key.GetDexOperatorName(installation),
+		Name:                 key.GetDexOperatorName(managementClusterName),
 		SecretValidityMonths: 6,
-		IdentifierURI:        key.GetIdentifierURI(key.GetDexOperatorName(installation)),
+		IdentifierURI:        key.GetIdentifierURI(key.GetDexOperatorName(managementClusterName)),
 		RedirectURI:          getGithubRedirectURLs(domains),
 	}
 }
 
-// This returns a comma seperated list of callback URLs for github applications
 func getGithubRedirectURLs(domains []string) string {
 	for i, domain := range domains {
 		domains[i] = key.GetRedirectURI(domain)
 	}
 	return strings.Join(domains[:], ",")
-
 }

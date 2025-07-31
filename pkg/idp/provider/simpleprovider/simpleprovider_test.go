@@ -203,7 +203,11 @@ func TestCreateApp(t *testing.T) {
 					connectorConfigKey: tc.connectorConfig,
 				},
 			}
-			simple, err := New(credential, provider.GetTestLogger())
+			providerConfig := provider.ProviderConfig{
+				Credential: credential,
+				Log:        provider.GetTestLogger(),
+			}
+			simple, err := New(providerConfig)
 			if err != nil {
 				t.Fatal(err)
 			}
