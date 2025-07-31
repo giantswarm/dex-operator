@@ -154,19 +154,31 @@ func TestCheckAndRotateServiceCredentials(t *testing.T) {
 					return
 				}
 
-				found := false
-				for _, provider := range providers {
-					if name, ok := provider["name"].(string); ok && name == "test" {
-						if creds, ok := provider["credentials"].(map[interface{}]interface{}); ok {
-							if clientID, ok := creds["client-id"].(string); ok && clientID == "new-client" {
-								found = true
-								break
-							}
-						}
-					}
+				if len(providers) != 1 {
+					t.Errorf("Expected exactly 1 provider, got %d", len(providers))
+					return
 				}
-				if !found {
-					t.Errorf("Expected credentials to be updated with new-client")
+
+				provider := providers[0]
+				if provider["name"] != "test" {
+					t.Errorf("Expected provider name 'test', got %v", provider["name"])
+					return
+				}
+
+				creds, ok := provider["credentials"].(map[interface{}]interface{})
+				if !ok {
+					t.Errorf("Expected credentials to be a map, got %T", provider["credentials"])
+					return
+				}
+
+				if creds["client-id"] != "new-client" {
+					t.Errorf("Expected client-id 'new-client', got %v", creds["client-id"])
+					return
+				}
+
+				if creds["client-secret"] != "new-secret" {
+					t.Errorf("Expected client-secret 'new-secret', got %v", creds["client-secret"])
+					return
 				}
 			},
 		},
@@ -239,22 +251,24 @@ func TestCheckAndRotateServiceCredentials(t *testing.T) {
 				return
 			}
 
-			// Validate rotation was called
+			// Validate rotation was called exactly the expected number of times
 			for _, prov := range tc.providers {
 				if testProv, ok := prov.(*testSelfRenewalProvider); ok {
-					if testProv.supportsRenewal {
-						// Only check rotation calls for providers that support renewal
-						if tc.expectedRotationCalled {
-							// For providers that should rotate and don't have rotation errors,
-							// or for any provider where shouldRotate is true (even if it fails)
-							if testProv.shouldRotate && testProv.rotateCallCount == 0 {
-								t.Errorf("Expected rotation to be called for provider %s", testProv.name)
-							}
-						} else {
-							// For providers that shouldn't rotate (due to shouldRotate=false or check errors)
-							if testProv.rotateCallCount > 0 {
-								t.Errorf("Expected rotation NOT to be called for provider %s", testProv.name)
-							}
+					if testProv.supportsRenewal && testProv.shouldRotate {
+						expectedCalls := 1
+						if testProv.rotateError != nil {
+							// Even if rotation fails, it should still be attempted once
+							expectedCalls = 1
+						}
+						if testProv.rotateCallCount != expectedCalls {
+							t.Errorf("Expected rotation to be called exactly %d time(s) for provider %s, got %d",
+								expectedCalls, testProv.name, testProv.rotateCallCount)
+						}
+					} else {
+						// If provider doesn't support renewal or shouldn't rotate, no calls expected
+						if testProv.rotateCallCount != 0 {
+							t.Errorf("Expected rotation NOT to be called for provider %s, got %d calls",
+								testProv.name, testProv.rotateCallCount)
 						}
 					}
 				}

@@ -31,37 +31,23 @@ func (a *Azure) SupportsServiceCredentialRenewal() bool {
 }
 
 func (a *Azure) ShouldRotateServiceCredentials(ctx context.Context, config provider.AppConfig) (bool, error) {
-	const renewalThreshold = 30 * 24 * time.Hour
-
 	appName := key.GetDexOperatorName(a.managementClusterName)
 
-	app, err := a.GetApp(appName)
+	// Use the existing GetCredentialExpiry method for consistency
+	expiryTime, err := a.GetCredentialExpiry(ctx)
 	if err != nil {
-		a.Log.Info("Could not get Azure app for credential expiry check, assuming renewal needed",
+		a.Log.Info("Could not get Azure credential expiry, assuming renewal needed",
 			"app", appName, "error", err)
 		return true, nil
 	}
 
-	// Find the current secret for this app
-	secret, err := GetSecret(app, appName)
-	if err != nil {
-		a.Log.Info("Could not get Azure secret for expiry check, assuming renewal needed",
-			"app", appName, "error", err)
-		return true, nil
-	}
+	timeUntilExpiry := time.Until(expiryTime)
+	a.Log.Info("Azure credential expiry check",
+		"app", appName,
+		"expiry", expiryTime,
+		"time_until_expiry", timeUntilExpiry)
 
-	if endDateTime := secret.GetEndDateTime(); endDateTime != nil {
-		timeUntilExpiry := time.Until(*endDateTime)
-		a.Log.Info("Azure credential expiry check",
-			"app", appName,
-			"expiry", *endDateTime,
-			"time_until_expiry", timeUntilExpiry)
-
-		return timeUntilExpiry < renewalThreshold, nil
-	}
-
-	a.Log.Info("No expiry time found for Azure credential, assuming renewal needed", "app", appName)
-	return true, nil
+	return timeUntilExpiry < key.CredentialRenewalThreshold, nil
 }
 
 func (a *Azure) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {

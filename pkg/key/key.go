@@ -2,6 +2,7 @@ package key
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,10 +28,9 @@ const (
 	OwnerCustomer                = "customer"
 	OwnerGiantswarmDisplayName   = "Giant Swarm"
 	OwnerCustomerDisplayName     = "Customer"
-)
 
-const (
-	SecretValidityMonths = 3
+	SecretValidityMonths       = 3
+	CredentialRenewalThreshold = 30 * 24 * time.Hour // 30 days before expiry
 )
 
 // IsManagementClusterDexApp checks if the app is the management cluster dex app
