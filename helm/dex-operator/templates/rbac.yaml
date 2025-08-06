@@ -1,9 +1,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "resource.default.name"  . }}
+  name: {{ include "resource.default.name" . }}
   labels:
-  {{- include "labels.common" . | nindent 4 }}
+    {{- include "labels.common" . | nindent 4 }}
 rules:
 - apiGroups:
   - cluster.x-k8s.io
@@ -78,20 +78,29 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - update
+  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "resource.default.name"  . }}
+  name: {{ include "resource.default.name" . }}
   labels:
-  {{- include "labels.common" . | nindent 4 }}
+    {{- include "labels.common" . | nindent 4 }}
 subjects:
 - kind: ServiceAccount
-  name: {{ include "resource.default.name"  . }}
-  namespace: {{ include "resource.default.namespace"  . }}
+  name: {{ include "resource.default.name" . }}
+  namespace: {{ include "resource.default.namespace" . }}
 roleRef:
   kind: ClusterRole
-  name: {{ include "resource.default.name"  . }}
+  name: {{ include "resource.default.name" . }}
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -99,7 +108,7 @@ kind: ClusterRole
 metadata:
   name: {{ include "resource.psp.name" . }}
   labels:
-  {{- include "labels.common" . | nindent 4 }}
+    {{- include "labels.common" . | nindent 4 }}
 rules:
 - apiGroups:
   - extensions
@@ -115,11 +124,11 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ include "resource.psp.name" . }}
   labels:
-  {{- include "labels.common" . | nindent 4 }}
+    {{- include "labels.common" . | nindent 4 }}
 subjects:
 - kind: ServiceAccount
-  name: {{ include "resource.default.name"  . }}
-  namespace: {{ include "resource.default.namespace"  . }}
+  name: {{ include "resource.default.name" . }}
+  namespace: {{ include "resource.default.namespace" . }}
 roleRef:
   kind: ClusterRole
   name: {{ include "resource.psp.name" . }}
@@ -128,9 +137,9 @@ roleRef:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "resource.default.name"  . }}-metrics
+  name: {{ include "resource.default.name" . }}-metrics
   labels:
-  {{- include "labels.common" . | nindent 4 }}
+    {{- include "labels.common" . | nindent 4 }}
 rules:
 - nonResourceURLs:
   - "/metrics"

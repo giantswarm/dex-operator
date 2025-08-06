@@ -6,6 +6,7 @@ import (
 
 	"github.com/giantswarm/microerror"
 	"gopkg.in/yaml.v2"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -23,6 +24,8 @@ const (
 	CredentialsSecretName = "dex-operator-credentials"
 	// SelfRenewalAnnotation marks when self-renewal was performed
 	SelfRenewalAnnotation = "dex-operator.giantswarm.io/last-self-renewal"
+	// RestartAnnotation triggers pod restarts
+	RestartAnnotation = "dex-operator.giantswarm.io/restarted-at"
 )
 
 // CredentialsConfig represents the structure of the credentials YAML
@@ -100,10 +103,92 @@ func (s *Service) CheckAndRotateServiceCredentials(ctx context.Context) error {
 
 	if rotationNeeded {
 		s.log.Info("Updating credentials secret with rotated credentials")
-		return s.updateCredentialsSecret(ctx, credentialsToUpdate)
+		if err := s.updateCredentialsSecret(ctx, credentialsToUpdate); err != nil {
+			return microerror.Mask(err)
+		}
+
+		// Restart pods after successful credential rotation
+		s.log.Info("Triggering pod restarts after credential rotation")
+		if err := s.restartRelatedPods(ctx); err != nil {
+			// Log the error but don't fail the whole operation
+			s.log.Error(err, "Failed to restart some pods after credential rotation")
+		}
+	} else {
+		s.log.Info("No service credential rotation needed")
 	}
 
-	s.log.Info("No service credential rotation needed")
+	return nil
+}
+
+// restartRelatedPods triggers rolling restarts of dex-app and dex-operator deployments
+func (s *Service) restartRelatedPods(ctx context.Context) error {
+	restartTimestamp := time.Now().Format(time.RFC3339)
+
+	// Restart dex-app deployment
+	if err := s.restartDeployment(ctx, "dex-app", s.app.Namespace, restartTimestamp); err != nil {
+		s.log.Error(err, "Failed to restart dex-app deployment")
+		// Continue to try restarting other deployments
+	}
+
+	// Also check for dex-app in giantswarm namespace (management cluster)
+	if err := s.restartDeployment(ctx, "dex-app", "giantswarm", restartTimestamp); err != nil {
+		// This might not exist, so just log at debug level
+		s.log.V(1).Info("Could not restart dex-app in giantswarm namespace", "error", err)
+	}
+
+	// Restart dex-operator deployment
+	if err := s.restartDeployment(ctx, "dex-operator", s.app.Namespace, restartTimestamp); err != nil {
+		s.log.Error(err, "Failed to restart dex-operator deployment")
+	}
+
+	// Also restart dex-operator in giantswarm namespace if different
+	if s.app.Namespace != "giantswarm" {
+		if err := s.restartDeployment(ctx, "dex-operator", "giantswarm", restartTimestamp); err != nil {
+			s.log.V(1).Info("Could not restart dex-operator in giantswarm namespace", "error", err)
+		}
+	}
+
+	return nil
+}
+
+// restartDeployment adds an annotation to trigger a rolling restart of a deployment
+func (s *Service) restartDeployment(ctx context.Context, name, namespace, timestamp string) error {
+	deployment := &appsv1.Deployment{}
+	err := s.Get(ctx, types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}, deployment)
+
+	if err != nil {
+		return microerror.Maskf(renewalError, "Failed to get deployment %s/%s: %v", namespace, name, err)
+	}
+
+	// Add or update the restart annotation on the pod template
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+
+	// Check if we need to update
+	currentTimestamp := deployment.Spec.Template.Annotations[RestartAnnotation]
+	if currentTimestamp == timestamp {
+		s.log.Info("Deployment already restarted with current timestamp",
+			"deployment", name,
+			"namespace", namespace,
+			"timestamp", timestamp)
+		return nil
+	}
+
+	deployment.Spec.Template.Annotations[RestartAnnotation] = timestamp
+
+	if err := s.Update(ctx, deployment); err != nil {
+		return microerror.Maskf(renewalError, "Failed to update deployment %s/%s: %v", namespace, name, err)
+	}
+
+	s.log.Info("Triggered deployment restart after credential rotation",
+		"deployment", name,
+		"namespace", namespace,
+		"timestamp", timestamp)
+
 	return nil
 }
 
