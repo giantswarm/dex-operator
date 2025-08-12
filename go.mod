@@ -2,7 +2,7 @@ module github.com/giantswarm/dex-operator
 
 go 1.24.0
 
-toolchain go1.24.6
+toolchain go1.25.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.11.0
@@ -18,7 +18,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/microsoft/kiota-abstractions-go v1.9.3
 	github.com/microsoft/kiota-authentication-azure-go v1.3.1
-	github.com/microsoftgraph/msgraph-sdk-go v1.82.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.83.0
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
