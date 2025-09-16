@@ -165,19 +165,32 @@ func TestCheckAndRotateServiceCredentials(t *testing.T) {
 					return
 				}
 
-				creds, ok := provider["credentials"].(map[interface{}]interface{})
-				if !ok {
+				// Handle both possible map types that can result from YAML unmarshaling
+				var clientID, clientSecret interface{}
+				var found bool
+
+				if credsMap, ok := provider["credentials"].(map[interface{}]interface{}); ok {
+					clientID = credsMap["client-id"]
+					clientSecret = credsMap["client-secret"]
+					found = true
+				} else if credsMap, ok := provider["credentials"].(map[string]interface{}); ok {
+					clientID = credsMap["client-id"]
+					clientSecret = credsMap["client-secret"]
+					found = true
+				}
+
+				if !found {
 					t.Errorf("Expected credentials to be a map, got %T", provider["credentials"])
 					return
 				}
 
-				if creds["client-id"] != "new-client" {
-					t.Errorf("Expected client-id 'new-client', got %v", creds["client-id"])
+				if clientID != "new-client" {
+					t.Errorf("Expected client-id 'new-client', got %v", clientID)
 					return
 				}
 
-				if creds["client-secret"] != "new-secret" {
-					t.Errorf("Expected client-secret 'new-secret', got %v", creds["client-secret"])
+				if clientSecret != "new-secret" {
+					t.Errorf("Expected client-secret 'new-secret', got %v", clientSecret)
 					return
 				}
 			},
