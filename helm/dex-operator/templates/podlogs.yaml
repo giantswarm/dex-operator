@@ -15,6 +15,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: {{ include "resource.default.namespace" $ }}
   selector:
     matchLabels:
       {{- include "labels.selector" $ | nindent 6 }}
