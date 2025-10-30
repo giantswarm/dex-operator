@@ -1,0 +1,32 @@
+{{- with (.Values.monitoring).podLogs }}
+{{- if .enabled }}
+apiVersion: monitoring.grafana.com/v1alpha2
+kind: PodLogs
+metadata:
+  name: {{ include "resource.default.name" $ }}
+  namespace: {{ include "resource.default.namespace" $ }}
+  labels:
+    {{- include "labels.common" $ | nindent 4 }}
+    {{- with .labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: {{ include "resource.default.namespace" $ }}
+  selector:
+    matchLabels:
+      {{- include "labels.selector" $ | nindent 6 }}
+  relabelings:
+  - action: replace
+    replacement: {{ .tenant }}
+    targetLabel: giantswarm_observability_tenant
+  {{- with .relabelings }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}
