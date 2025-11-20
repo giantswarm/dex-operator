@@ -21,7 +21,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/skratchdot/open-golang/open"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var _ provider.Provider = (*Azure)(nil)
