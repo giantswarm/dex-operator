@@ -10,7 +10,7 @@ import (
 	"github.com/dexidp/dex/server"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
