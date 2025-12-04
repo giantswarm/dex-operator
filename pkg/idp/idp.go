@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
+
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
@@ -30,6 +32,10 @@ type Config struct {
 	ManagementClusterBaseDomain    string
 	ManagementClusterName          string
 	ManagementClusterIssuerAddress string
+
+	// Deprecated: Use Target instead. App is kept for backward compatibility.
+	// If Target is nil and App is set, App will be wrapped in an AppTarget.
+	App *v1alpha1.App
 }
 
 type Service struct {
@@ -43,7 +49,13 @@ type Service struct {
 }
 
 func New(c Config) (*Service, error) {
-	if c.Target == nil {
+	// Backward compatibility: if Target is nil but App is set, wrap App in an AppTarget
+	target := c.Target
+	if target == nil && c.App != nil {
+		target = dextarget.NewAppTarget(context.Background(), c.Client, c.App)
+	}
+
+	if target == nil {
 		return nil, microerror.Maskf(invalidConfigError, "target can not be nil")
 	}
 	if c.Client == nil {
@@ -63,7 +75,7 @@ func New(c Config) (*Service, error) {
 	}
 	s := &Service{
 		Client:                         c.Client,
-		target:                         c.Target,
+		target:                         target,
 		log:                            c.Log,
 		providers:                      c.Providers,
 		managementClusterBaseDomain:    c.ManagementClusterBaseDomain,
