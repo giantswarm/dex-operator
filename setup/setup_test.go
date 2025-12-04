@@ -21,85 +21,85 @@ func TestSetupConfig(t *testing.T) {
 		{
 			name: "case 0",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       IncludeAll,
-				Action:         CleanAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              IncludeAll,
+				Action:                CleanAction,
 			},
 		},
 		{
 			name: "case 1",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_notexist",
-				Provider:       IncludeAll,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_notexist",
+				Provider:              IncludeAll,
+				Action:                UpdateAction,
 			},
 			expectError: true,
 		},
 		{
 			name: "case 2",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_repeat",
-				Provider:       IncludeAll,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_repeat",
+				Provider:              IncludeAll,
+				Action:                UpdateAction,
 			},
 			expectError: true,
 		},
 		{
 			name: "case 3",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_customer",
-				Provider:       IncludeAll,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_customer",
+				Provider:              IncludeAll,
+				Action:                UpdateAction,
 			},
 		},
 		{
 			name: "case 4",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       mockprovider.ProviderName,
-				Action:         CleanAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              mockprovider.ProviderName,
+				Action:                CleanAction,
 			},
 		},
 		{
 			name: "case 5",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       github.ProviderName,
-				Action:         CleanAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              github.ProviderName,
+				Action:                CleanAction,
 			},
 		},
 		{
 			name: "case 6",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_both",
-				Provider:       github.ProviderName,
-				Action:         CleanAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_both",
+				Provider:              github.ProviderName,
+				Action:                CleanAction,
 			},
 		},
 		{
 			name: "case 7",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_empty",
-				Provider:       github.ProviderName,
-				Action:         CleanAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_empty",
+				Provider:              github.ProviderName,
+				Action:                CleanAction,
 			},
 		},
 		{
 			name: "case 8",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_b64",
-				Provider:       IncludeAll,
-				Action:         UpdateAction,
-				Base64Vars:     true,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_b64",
+				Provider:              IncludeAll,
+				Action:                UpdateAction,
+				Base64Vars:            true,
 			},
 		},
 	}
@@ -127,20 +127,20 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 0",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       IncludeAll,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              IncludeAll,
+				Action:                UpdateAction,
 			},
 			expectConfig: getDefaultConfig(),
 		},
 		{
 			name: "case 1",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_customer",
-				Provider:       IncludeAll,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_customer",
+				Provider:              IncludeAll,
+				Action:                UpdateAction,
 			},
 			expectConfig: Config{
 				Oidc: Oidc{
@@ -151,20 +151,20 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 2",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       mockprovider.ProviderName,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              mockprovider.ProviderName,
+				Action:                UpdateAction,
 			},
 			expectConfig: getDefaultConfig(),
 		},
 		{
 			name: "case 3",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       github.ProviderName,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              github.ProviderName,
+				Action:                UpdateAction,
 			},
 			expectConfig: Config{
 				Oidc: Oidc{
@@ -175,10 +175,10 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 4",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_both",
-				Provider:       mockprovider.ProviderName,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_both",
+				Provider:              mockprovider.ProviderName,
+				Action:                UpdateAction,
 			},
 			expectConfig: Config{
 				Oidc: Oidc{
@@ -190,20 +190,20 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 5",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_empty",
-				Provider:       mockprovider.ProviderName,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_empty",
+				Provider:              mockprovider.ProviderName,
+				Action:                UpdateAction,
 			},
 			expectConfig: Config{},
 		},
 		{
 			name: "case 6",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       IncludeAll,
-				Action:         CleanAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              IncludeAll,
+				Action:                CleanAction,
 			},
 			expectConfig: Config{
 				Oidc: Oidc{
@@ -214,10 +214,10 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 7",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       IncludeAll,
-				Action:         "something",
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              IncludeAll,
+				Action:                "something",
 			},
 			expectError: true,
 			expectConfig: Config{
@@ -229,10 +229,10 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 8",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_both",
-				Provider:       IncludeAll,
-				Action:         CreateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_both",
+				Provider:              IncludeAll,
+				Action:                CreateAction,
 			},
 			expectConfig: Config{
 				Oidc: Oidc{
@@ -243,10 +243,10 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 9",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials",
-				Provider:       IncludeAll,
-				Action:         DeleteAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials",
+				Provider:              IncludeAll,
+				Action:                DeleteAction,
 			},
 			expectConfig: Config{
 				Oidc: Oidc{
@@ -257,21 +257,21 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 10",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_b64",
-				Provider:       IncludeAll,
-				Action:         UpdateAction,
-				Base64Vars:     true,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_b64",
+				Provider:              IncludeAll,
+				Action:                UpdateAction,
+				Base64Vars:            true,
 			},
 			expectConfig: getDefaultConfig(),
 		},
 		{
 			name: "case 11",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_simple",
-				Provider:       IncludeAll,
-				Action:         UpdateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_simple",
+				Provider:              IncludeAll,
+				Action:                UpdateAction,
 			},
 			expectConfig: Config{
 				Oidc: Oidc{
@@ -293,10 +293,10 @@ func TestRun(t *testing.T) {
 		{
 			name: "case 12",
 			setup: SetupConfig{
-				Installation:   "test",
-				CredentialFile: "test-data/credentials_simple",
-				Provider:       IncludeAll,
-				Action:         CreateAction,
+				ManagementClusterName: "test",
+				CredentialFile:        "test-data/credentials_simple",
+				Provider:              IncludeAll,
+				Action:                CreateAction,
 			},
 			expectConfig: getDefaultConfig(),
 		},

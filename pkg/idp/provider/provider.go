@@ -9,8 +9,15 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/microerror"
+	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
 )
+
+type ProviderConfig struct {
+	Credential            ProviderCredential
+	Log                   logr.Logger
+	ManagementClusterName string
+}
 
 type Provider interface {
 	CreateOrUpdateApp(AppConfig, context.Context, dex.Connector) (ProviderApp, error)
@@ -22,6 +29,12 @@ type Provider interface {
 	GetProviderName() string
 	GetOwner() string
 	GetType() string
+
+	// Self-renewal methods - all providers must implement these
+	// Providers that don't support renewal should return false from SupportsServiceCredentialRenewal()
+	SupportsServiceCredentialRenewal() bool
+	ShouldRotateServiceCredentials(ctx context.Context, config AppConfig) (bool, error)
+	RotateServiceCredentials(ctx context.Context, config AppConfig) (map[string]string, error)
 }
 
 type AppConfig struct {
