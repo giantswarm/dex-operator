@@ -111,9 +111,10 @@ func (s *Service) CheckAndRotateServiceCredentials(ctx context.Context) error {
 func (s *Service) updateCredentialsSecret(ctx context.Context, updates []ProviderCredentialUpdate) error {
 	// Get the existing credentials secret
 	secret := &corev1.Secret{}
+	nn := s.target.GetNamespacedName()
 	err := s.Get(ctx, types.NamespacedName{
 		Name:      CredentialsSecretName,
-		Namespace: s.app.Namespace,
+		Namespace: nn.Namespace,
 	}, secret)
 	if err != nil {
 		return microerror.Maskf(renewalError, "Failed to get existing credentials secret: %v", err)

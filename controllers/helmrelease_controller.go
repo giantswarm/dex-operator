@@ -17,7 +17,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -25,15 +24,11 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider/github"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider/simpleprovider"
 	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
-// AppReconciler reconciles a App object
-type AppReconciler struct {
+// HelmReleaseReconciler reconciles a Flux HelmRelease object for dex-app
+type HelmReleaseReconciler struct {
 	client.Client
 	Log                      logr.Logger
 	Scheme                   *runtime.Scheme
@@ -47,36 +42,34 @@ type AppReconciler struct {
 	EnableSelfRenewal        bool
 }
 
-//+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=application.giantswarm.io.giantswarm,resources=apps/finalizers,verbs=update
+//+kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases/finalizers,verbs=update
 
-func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("app", req.NamespacedName)
+func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := r.Log.WithValues("helmrelease", req.NamespacedName)
 
-	// Fetch the App instance.
-	app := &v1alpha1.App{}
-	if err := r.Get(ctx, req.NamespacedName, app); err != nil {
+	// Fetch the HelmRelease instance
+	hr := &helmv2.HelmRelease{}
+	if err := r.Get(ctx, req.NamespacedName, hr); err != nil {
 		if apierrors.IsNotFound(err) {
-			// Object not found. Return
 			return ctrl.Result{}, nil
 		}
-
-		// Error reading the object - requeue the request.
 		return ctrl.Result{}, err
 	}
 
-	// Check for HelmRelease with same name (migration warning)
-	// This is informational only - App controller continues to work for backwards compatibility
-	if hasHelmRelease, err := r.hasMatchingHelmRelease(ctx, req.NamespacedName); err != nil {
-		log.Error(err, "Failed to check for matching HelmRelease")
-	} else if hasHelmRelease {
-		log.Info("Warning: HelmRelease with same name exists. Consider migrating from App CR to HelmRelease by deleting this App CR.",
+	// Check for conflicting App CR (backwards compatibility during migration)
+	if conflict, err := r.hasConflictingAppCR(ctx, req.NamespacedName); err != nil {
+		log.Error(err, "Failed to check for conflicting App CR")
+	} else if conflict {
+		log.Info("Skipping HelmRelease reconciliation: App CR with same name exists in namespace. Please delete the App CR first to migrate to HelmRelease.",
 			"namespace", req.Namespace, "name", req.Name)
+		// Requeue to check again later
+		return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
 	}
 
 	// Wrap in DexTarget
-	target := dextarget.NewAppTarget(ctx, r.Client, app)
+	target := dextarget.NewHelmReleaseTarget(ctx, r.Client, hr)
 
 	var authService *auth.Service
 	{
@@ -122,85 +115,110 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	// App is deleted.
-	if !app.DeletionTimestamp.IsZero() {
+	// HelmRelease is deleted
+	if target.IsBeingDeleted() {
 		if err := idpService.ReconcileDelete(ctx); err != nil {
 			return ctrl.Result{}, microerror.Mask(err)
 		}
 		if err := authService.ReconcileDelete(ctx); err != nil {
 			return ctrl.Result{}, microerror.Mask(err)
 		}
-		// remove finalizer
-		if controllerutil.ContainsFinalizer(app, key.DexOperatorFinalizer) {
-			controllerutil.RemoveFinalizer(app, key.DexOperatorFinalizer)
-			if err := r.Update(ctx, app); err != nil {
+		// Remove finalizer
+		if controllerutil.ContainsFinalizer(hr, key.DexOperatorFinalizer) {
+			controllerutil.RemoveFinalizer(hr, key.DexOperatorFinalizer)
+			if err := r.Update(ctx, hr); err != nil {
 				return ctrl.Result{}, err
 			}
-			log.Info("Removed finalizer from dex app instance.")
+			log.Info("Removed finalizer from dex HelmRelease instance.")
 		}
 		return ctrl.Result{}, nil
 	}
 
 	// Add finalizer
-	if !controllerutil.ContainsFinalizer(app, key.DexOperatorFinalizer) {
-		controllerutil.AddFinalizer(app, key.DexOperatorFinalizer)
-		if err := r.Update(ctx, app); err != nil {
+	if !controllerutil.ContainsFinalizer(hr, key.DexOperatorFinalizer) {
+		controllerutil.AddFinalizer(hr, key.DexOperatorFinalizer)
+		if err := r.Update(ctx, hr); err != nil {
 			return ctrl.Result{}, err
 		}
-		log.Info("Added finalizer to dex app instance.")
+		log.Info("Added finalizer to dex HelmRelease instance.")
 	}
 
-	// App is not deleted
+	// Reconcile auth configuration (for workload clusters)
 	if err := authService.Reconcile(ctx); err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
+
+	// Reconcile IDP configuration
 	if err := idpService.Reconcile(ctx); err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
 
-	if r.EnableSelfRenewal && key.IsManagementClusterDexApp(app) {
+	// Self-renewal for management cluster dex HelmRelease
+	if r.EnableSelfRenewal && key.IsManagementClusterDexHelmRelease(hr.Name, hr.Namespace) {
 		if err := idpService.CheckAndRotateServiceCredentials(ctx); err != nil {
 			log.Error(err, "Service credential rotation failed")
 			// Don't fail the reconciliation, just log the error
-			// This prevents self-renewal issues from blocking normal dex operations
 		}
 	}
 
 	return DefaultRequeue(), nil
 }
 
-func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// hasConflictingAppCR checks if an App CR with the same name exists in the same namespace.
+// This is used during migration to prevent both controllers from managing the same resources.
+func (r *HelmReleaseReconciler) hasConflictingAppCR(ctx context.Context, nn types.NamespacedName) (bool, error) {
+	app := &v1alpha1.App{}
+	err := r.Get(ctx, nn, app)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		// If the App CRD is not installed, we can't have any conflicting App CRs
+		if meta.IsNoMatchError(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	// Check if the App CR has the dex-app label or is the MC dex app
+	labels := app.GetLabels()
+	if labels != nil && labels[key.AppLabel] == key.DexAppLabelValue {
+		return true, nil
+	}
+
+	// Also check if it's the management cluster dex app by name
+	if key.IsManagementClusterDexApp(app) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	labelPredicate, err := predicate.LabelSelectorPredicate(r.LabelSelector)
 	if err != nil {
 		return microerror.Mask(err)
 	}
-	namespacedNamePredicate, err := namespacedNamePredicate(key.MCDexDefaultNamespacedName())
+	namespacedNamePredicate, err := helmReleaseNamespacedNamePredicate(key.MCDexHelmReleaseDefaultNamespacedName())
 	if err != nil {
 		return microerror.Mask(err)
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.App{}).
+		For(&helmv2.HelmRelease{}).
 		WithEventFilter(predicate.Or(labelPredicate, namespacedNamePredicate)).
 		Owns(&corev1.Secret{}).
 		Complete(r)
 }
 
-// namespacedNamePredicate constructs a Predicate from a namespaced name.
+// helmReleaseNamespacedNamePredicate constructs a Predicate from a namespaced name.
 // Only objects matching the namespaced name will be admitted.
-func namespacedNamePredicate(s types.NamespacedName) (predicate.Predicate, error) {
+func helmReleaseNamespacedNamePredicate(s types.NamespacedName) (predicate.Predicate, error) {
 	return predicate.NewPredicateFuncs(func(o client.Object) bool {
 		return o.GetName() == s.Name && o.GetNamespace() == s.Namespace
 	}), nil
 }
 
-func DefaultRequeue() reconcile.Result {
-	return ctrl.Result{
-		Requeue:      true,
-		RequeueAfter: time.Minute * 5,
-	}
-}
-
-func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
+func (r *HelmReleaseReconciler) GetProviders() ([]provider.Provider, error) {
 	providerCredentials, err := provider.ReadCredentials(r.ProviderCredentials)
 	if err != nil {
 		return nil, microerror.Mask(err)
@@ -223,55 +241,13 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 	return providers, nil
 }
 
-func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
+func (r *HelmReleaseReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
 }
 
-// hasMatchingHelmRelease checks if a HelmRelease with the same name exists in the same namespace.
-// This is used to warn users during migration that both resources exist.
-func (r *AppReconciler) hasMatchingHelmRelease(ctx context.Context, nn types.NamespacedName) (bool, error) {
-	hr := &helmv2.HelmRelease{}
-	err := r.Get(ctx, nn, hr)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
-		}
-		// If the HelmRelease CRD is not installed, we can't have any HelmReleases
-		if meta.IsNoMatchError(err) {
-			return false, nil
-		}
-		return false, err
+func DefaultHelmReleaseRequeue() reconcile.Result {
+	return ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: time.Minute * 5,
 	}
-
-	// Check if the HelmRelease has the dex-app label
-	labels := hr.GetLabels()
-	if labels != nil && labels[key.AppLabel] == key.DexAppLabelValue {
-		return true, nil
-	}
-
-	// Also check if it's the management cluster dex HelmRelease by name
-	if key.IsManagementClusterDexHelmRelease(hr.Name, hr.Namespace) {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func NewProvider(config provider.ProviderConfig) (provider.Provider, error) {
-	switch config.Credential.Name {
-	case mockprovider.ProviderName:
-		return mockprovider.New(config)
-	case azure.ProviderName:
-		return azure.New(config)
-	case github.ProviderName:
-		return github.New(config)
-	case simpleprovider.ProviderName:
-		return simpleprovider.New(config)
-	}
-	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", config.Credential.Name)
-}
-
-func init() {
-	// Register custom metrics with the global prometheus registry
-	metrics.Registry.MustRegister(idp.AppInfo)
 }
