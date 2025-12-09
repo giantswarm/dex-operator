@@ -4,14 +4,17 @@ import (
 	"context"
 	"time"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -20,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/giantswarm/dex-operator/pkg/auth"
+	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
@@ -63,6 +67,18 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	// Check for HelmRelease with same name (migration warning)
+	// This is informational only - App controller continues to work for backwards compatibility
+	if hasHelmRelease, err := r.hasMatchingHelmRelease(ctx, req.NamespacedName); err != nil {
+		log.Error(err, "Failed to check for matching HelmRelease")
+	} else if hasHelmRelease {
+		klog.Warningf("a HelmRelease with same name as this App CR exists (namespace=%s, name=%s). The HelmRelease will be given preference, and this App CR will be ignored. Refer to <put a doc link here> for more information.",
+			req.Namespace, req.Name)
+	}
+
+	// Wrap in DexTarget
+	target := dextarget.NewAppTarget(ctx, r.Client, app)
+
 	var authService *auth.Service
 	{
 		writeAllGroups, err := r.GetWriteAllGroups()
@@ -73,7 +89,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		c := auth.Config{
 			Log:                             log,
 			Client:                          r.Client,
-			App:                             app,
+			Target:                          target,
 			ManagementClusterName:           r.ManagementCluster,
 			ManagementClusterWriteAllGroups: writeAllGroups,
 		}
@@ -94,7 +110,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		c := idp.Config{
 			Log:                            log,
 			Client:                         r.Client,
-			App:                            app,
+			Target:                         target,
 			Providers:                      providers,
 			ManagementClusterBaseDomain:    r.BaseDomain,
 			ManagementClusterIssuerAddress: r.IssuerAddress,
@@ -210,6 +226,36 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 
 func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
+}
+
+// hasMatchingHelmRelease checks if a HelmRelease with the same name exists in the same namespace.
+// This is used to warn users during migration that both resources exist.
+func (r *AppReconciler) hasMatchingHelmRelease(ctx context.Context, nn types.NamespacedName) (bool, error) {
+	hr := &helmv2.HelmRelease{}
+	err := r.Get(ctx, nn, hr)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		// If the HelmRelease CRD is not installed, we can't have any HelmReleases
+		if meta.IsNoMatchError(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	// Check if the HelmRelease has the dex-app label
+	labels := hr.GetLabels()
+	if labels != nil && labels[key.AppLabel] == key.DexAppLabelValue {
+		return true, nil
+	}
+
+	// Also check if it's the management cluster dex HelmRelease by name
+	if key.IsManagementClusterDexHelmRelease(hr.Name, hr.Namespace) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func NewProvider(config provider.ProviderConfig) (provider.Provider, error) {

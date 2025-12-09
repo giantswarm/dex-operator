@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -52,10 +53,13 @@ func TestCreateProviderApps(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			ctx := context.Background()
+			app := getExampleApp()
+			target := dextarget.NewAppTarget(ctx, nil, app)
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
-				app:       getExampleApp(),
+				target:    target,
 			}
 			_, err := s.CreateOrUpdateProviderApps(tc.appConfig, context.Background(), map[string]dex.Connector{})
 			if err != nil && !tc.expectError {
@@ -463,12 +467,14 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 				Name:        "hello",
 			}
 			ctx := context.Background()
+			app := getExampleApp()
+			target := dextarget.NewAppTarget(ctx, nil, app)
 
 			//Initial reconcile, creating apps
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
-				app:       getExampleApp(),
+				target:    target,
 			}
 			config, err := s.CreateOrUpdateProviderApps(appConfig, ctx, map[string]dex.Connector{})
 			if err != nil {
@@ -779,10 +785,13 @@ func TestGetAppConfig(t *testing.T) {
 				fakeClientBuilder.WithObjects(tc.clusterValuesConfigMap)
 			}
 
+			fakeClient := fakeClientBuilder.Build()
+			target := dextarget.NewAppTarget(ctx, fakeClient, tc.app)
+
 			service := Service{
-				Client:                         fakeClientBuilder.Build(),
+				Client:                         fakeClient,
 				log:                            ctrl.Log.WithName("test"),
-				app:                            tc.app,
+				target:                         target,
 				managementClusterName:          tc.managementClusterName,
 				managementClusterBaseDomain:    tc.managementClusterBaseDomain,
 				managementClusterIssuerAddress: tc.managementClusterIssuerAddress,
