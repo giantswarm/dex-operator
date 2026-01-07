@@ -67,13 +67,15 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	// Check for HelmRelease with same name (migration warning)
-	// This is informational only - App controller continues to work for backwards compatibility
+	// Check for HelmRelease with same name - HelmRelease takes priority
+	// If a HelmRelease exists, skip App reconciliation to avoid conflicts
 	if hasHelmRelease, err := r.hasMatchingHelmRelease(ctx, req.NamespacedName); err != nil {
 		log.Error(err, "Failed to check for matching HelmRelease")
 	} else if hasHelmRelease {
 		klog.Warningf("a HelmRelease with same name as this App CR exists (namespace=%s, name=%s). The HelmRelease will be given preference, and this App CR will be ignored. Refer to <put a doc link here> for more information.",
 			req.Namespace, req.Name)
+		// Requeue to check again later in case the HelmRelease is deleted
+		return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
 	}
 
 	// Wrap in DexTarget

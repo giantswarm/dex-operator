@@ -5,12 +5,10 @@ import (
 	"time"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
-	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -58,15 +56,8 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// Check for conflicting App CR (backwards compatibility during migration)
-	if conflict, err := r.hasConflictingAppCR(ctx, req.NamespacedName); err != nil {
-		log.Error(err, "Failed to check for conflicting App CR")
-	} else if conflict {
-		log.Info("Skipping HelmRelease reconciliation: App CR with same name exists in namespace. Please delete the App CR first to migrate to HelmRelease.",
-			"namespace", req.Namespace, "name", req.Name)
-		// Requeue to check again later
-		return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
-	}
+	// HelmRelease takes priority over App CR
+	// The App controller will skip reconciliation if a HelmRelease exists
 
 	// Wrap in DexTarget
 	target := dextarget.NewHelmReleaseTarget(ctx, r.Client, hr)
@@ -162,36 +153,6 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	return DefaultRequeue(), nil
-}
-
-// hasConflictingAppCR checks if an App CR with the same name exists in the same namespace.
-// This is used during migration to prevent both controllers from managing the same resources.
-func (r *HelmReleaseReconciler) hasConflictingAppCR(ctx context.Context, nn types.NamespacedName) (bool, error) {
-	app := &v1alpha1.App{}
-	err := r.Get(ctx, nn, app)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
-		}
-		// If the App CRD is not installed, we can't have any conflicting App CRs
-		if meta.IsNoMatchError(err) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	// Check if the App CR has the dex-app label or is the MC dex app
-	labels := app.GetLabels()
-	if labels != nil && labels[key.AppLabel] == key.DexAppLabelValue {
-		return true, nil
-	}
-
-	// Also check if it's the management cluster dex app by name
-	if key.IsManagementClusterDexApp(app) {
-		return true, nil
-	}
-
-	return false, nil
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
