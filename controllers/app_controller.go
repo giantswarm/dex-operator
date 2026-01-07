@@ -14,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -72,8 +71,8 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if hasHelmRelease, err := r.hasMatchingHelmRelease(ctx, req.NamespacedName); err != nil {
 		log.Error(err, "Failed to check for matching HelmRelease")
 	} else if hasHelmRelease {
-		klog.Warningf("a HelmRelease with same name as this App CR exists (namespace=%s, name=%s). The HelmRelease will be given preference, and this App CR will be ignored. Refer to <put a doc link here> for more information.",
-			req.Namespace, req.Name)
+		log.Info("HelmRelease with same name exists, skipping App reconciliation. The HelmRelease takes priority.",
+			"namespace", req.Namespace, "name", req.Name)
 		// Requeue to check again later in case the HelmRelease is deleted
 		return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
 	}
