@@ -24,21 +24,6 @@ func getTestCredential() provider.ProviderCredential {
 	}
 }
 
-// getTestCredentialWithClientAuth returns a credential with optional client credentials.
-// Use this for testing standard OIDC authorization code flow support.
-func getTestCredentialWithClientAuth() provider.ProviderCredential {
-	return provider.ProviderCredential{
-		Name:  ProviderName,
-		Owner: "giantswarm",
-		Credentials: map[string]string{
-			IssuerKey:             "https://dex.central.example.com",
-			ClientIDKey:           "test-client-id",
-			ClientSecretKey:       "test-client-secret",
-			CentralClusterNameKey: "central",
-		},
-	}
-}
-
 func TestNewConfig(t *testing.T) {
 	testCases := []struct {
 		name        string

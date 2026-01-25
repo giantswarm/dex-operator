@@ -26,6 +26,11 @@ const (
 	ClientIDKey           = "clientID"
 	ClientSecretKey       = "clientSecret"
 	CentralClusterNameKey = "centralClusterName"
+
+	// staticConfigExpiryYears is the number of years until static OIDC config expires.
+	// Since this provider uses static configuration (no dynamic secrets), we use a
+	// far-future expiry to avoid unnecessary rotation.
+	staticConfigExpiryYears = 10
 )
 
 // Config holds the configuration for the Giant Swarm SSO provider.
@@ -172,8 +177,7 @@ func (g *GiantSwarmSSO) CreateOrUpdateApp(config provider.AppConfig, ctx context
 			Name:   g.Description,
 			Config: connectorConfig,
 		},
-		// Static config, use a far future expiry
-		SecretEndDateTime: time.Now().AddDate(10, 0, 0),
+		SecretEndDateTime: time.Now().AddDate(staticConfigExpiryYears, 0, 0),
 	}, nil
 }
 
