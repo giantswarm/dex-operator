@@ -23,6 +23,7 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/idp"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/giantswarmsso"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/github"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/simpleprovider"
@@ -222,6 +223,8 @@ func NewProvider(config provider.ProviderConfig) (provider.Provider, error) {
 		return github.New(config)
 	case simpleprovider.ProviderName:
 		return simpleprovider.New(config)
+	case giantswarmsso.ProviderName:
+		return giantswarmsso.New(config)
 	}
 	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", config.Credential.Name)
 }

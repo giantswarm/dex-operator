@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `giantswarmsso` provider for cross-cluster SSO via RFC 8693 token exchange. This enables users authenticated on a central cluster to access other management clusters without re-authenticating. The central cluster issuer and name are configurable.
+
 ## [0.14.0] - 2025-07-31
 
 ### Added
