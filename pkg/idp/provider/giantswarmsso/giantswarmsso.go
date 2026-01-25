@@ -19,8 +19,8 @@ const (
 	ProviderType        = "oidc"
 
 	// Configuration keys for credentials
-	IssuerKey              = "issuer"
-	CentralClusterNameKey  = "centralClusterName"
+	IssuerKey             = "issuer"
+	CentralClusterNameKey = "centralClusterName"
 )
 
 // Config holds the configuration for the Giant Swarm SSO provider.

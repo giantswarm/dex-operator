@@ -2,8 +2,10 @@ package giantswarmsso
 
 import (
 	"context"
-	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/go-logr/logr"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
@@ -89,30 +91,15 @@ func TestNewConfig(t *testing.T) {
 		},
 	}
 
-	for i, tc := range testCases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			var log = provider.GetTestLogger()
-			if !tc.log {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var log logr.Logger
+			if tc.log {
 				log = provider.GetTestLogger()
-				// Create empty logger for test
-				log = log.WithName("") // This is still valid, so we need different approach
 			}
+			// When tc.log is false, log remains zero value (logr.Logger{})
 
-			config := provider.ProviderConfig{
-				Credential:            tc.credentials,
-				Log:                   provider.GetTestLogger(),
-				ManagementClusterName: "test",
-			}
-
-			if !tc.log {
-				config.Log = provider.GetTestLogger()
-			}
-
-			_, err := newConfig(tc.credentials, config.Log)
-			if tc.log == false {
-				// Skip the log check for now, focus on credential validation
-				return
-			}
+			_, err := newConfig(tc.credentials, log)
 			if err != nil && !tc.expectError {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -168,8 +155,8 @@ func TestNew(t *testing.T) {
 		},
 	}
 
-	for i, tc := range testCases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			config := provider.ProviderConfig{
 				Credential:            tc.credentials,
 				Log:                   provider.GetTestLogger(),
@@ -270,8 +257,8 @@ func TestCreateOrUpdateApp(t *testing.T) {
 		},
 	}
 
-	for i, tc := range testCases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			config := provider.ProviderConfig{
 				Credential:            tc.credentials,
 				Log:                   provider.GetTestLogger(),
@@ -352,7 +339,7 @@ func TestConnectorConfig(t *testing.T) {
 	}
 
 	for _, expected := range expectedStrings {
-		if !containsString(app.Connector.Config, expected) {
+		if !strings.Contains(app.Connector.Config, expected) {
 			t.Errorf("expected connector config to contain %q, got:\n%s", expected, app.Connector.Config)
 		}
 	}
@@ -381,17 +368,4 @@ func TestSelfRenewalNotSupported(t *testing.T) {
 	if shouldRotate {
 		t.Error("expected ShouldRotateServiceCredentials to return false")
 	}
-}
-
-func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstring(s, substr))
-}
-
-func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
