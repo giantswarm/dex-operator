@@ -129,6 +129,14 @@ oidc:
 - Client credentials are optional and only needed if you also want standard OIDC authorization code flow support
 - All management clusters trust the central cluster's Dex as an identity source (unidirectional trust)
 
+**About `insecureEnableGroups`**:
+
+The connector uses `insecureEnableGroups: true` to preserve group claims from the central Dex instance. Despite the "insecure" naming, this setting is safe and required for our use case:
+
+- **Why the name?** The naming stems from [Dex issue #1065](https://github.com/dexidp/dex/issues/1065), which identified that blindly trusting group claims from arbitrary upstream OIDC providers could be a security concern in certain scenarios.
+- **Why it's safe here:** In Giant Swarm's cross-cluster SSO setup, the upstream provider is our own trusted central Dex instance, not an arbitrary third-party provider. All management clusters are under Giant Swarm's control.
+- **Why it's required:** Group claims are essential for Kubernetes RBAC (e.g., `oidc-admins`, team-based access policies). Without this setting, group claims would be stripped from tokens, breaking authorization.
+
 ### Simple Provider
 
 The simple provider does not implement a client and therefore does not communicate with identity providers or create new configuration.

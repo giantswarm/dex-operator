@@ -4,12 +4,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/giantswarm/dex-operator/pkg/idp/provider"
-
-	"github.com/dexidp/dex/connector/microsoft"
 	"github.com/giantswarm/microerror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"gopkg.in/yaml.v2"
+
+	"github.com/giantswarm/dex-operator/pkg/dex/connectors"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 )
 
 func getAzureSecret(secret models.PasswordCredentialable, app models.Applicationable, oldSecret string) (provider.ProviderSecret, error) {
@@ -77,7 +77,7 @@ func getSecretFromConfig(config string) (string, error) {
 		return "", nil
 	}
 	configData := []byte(config)
-	connectorConfig := &microsoft.Config{}
+	connectorConfig := &connectors.MicrosoftConfig{}
 	if err := yaml.Unmarshal(configData, connectorConfig); err != nil {
 		return "", microerror.Mask(err)
 	}

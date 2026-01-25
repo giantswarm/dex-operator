@@ -6,12 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/giantswarm/dex-operator/pkg/dex"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider"
-	"github.com/giantswarm/dex-operator/pkg/key"
-
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/dexidp/dex/connector/microsoft"
 	"github.com/giantswarm/backoff"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
@@ -22,6 +17,11 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/skratchdot/open-golang/open"
 	"gopkg.in/yaml.v2"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/dex/connectors"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
 var _ provider.Provider = (*Azure)(nil)
@@ -185,7 +185,7 @@ func (a *Azure) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context
 	}
 
 	// Write to connector
-	connectorConfig := &microsoft.Config{
+	connectorConfig := &connectors.MicrosoftConfig{
 		ClientID:     secret.ClientId,
 		ClientSecret: secret.ClientSecret,
 		RedirectURI:  config.RedirectURI,

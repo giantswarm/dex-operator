@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/giantswarm/dex-operator/pkg/dex"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider"
-	"github.com/giantswarm/dex-operator/pkg/key"
-
-	"github.com/dexidp/dex/connector/mock"
 	"github.com/giantswarm/microerror"
 	"gopkg.in/yaml.v2"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/dex/connectors"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
 var invalidConfigError = &microerror.Error{
@@ -58,7 +58,7 @@ func (m *MockProvider) GetOwner() string {
 }
 
 func (m *MockProvider) CreateOrUpdateApp(config provider.AppConfig, ctx context.Context, oldConnector dex.Connector) (provider.ProviderApp, error) {
-	connectorConfig := &mock.PasswordConfig{
+	connectorConfig := &connectors.MockPasswordConfig{
 		Username: "test",
 		Password: "test",
 	}

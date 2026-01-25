@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dexidp/dex/server"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
@@ -160,19 +159,41 @@ func (s *SimpleProvider) injectRedirectURI(redirectURI string) string {
 	return config
 }
 
+// knownConnectorTypes is a list of connector types supported by Dex.
+// See: https://dexidp.io/docs/connectors/
+var knownConnectorTypes = map[string]bool{
+	"oidc":            true,
+	"ldap":            true,
+	"saml":            true,
+	"github":          true,
+	"gitlab":          true,
+	"google":          true,
+	"microsoft":       true,
+	"authproxy":       true,
+	"bitbucket-cloud": true,
+	"openshift":       true,
+	"atlassian-crowd": true,
+	"gitea":           true,
+	"oauth":           true,
+	"keystone":        true,
+	"linkedin":        true,
+	// Mock connectors for testing
+	"mockCallback": true,
+	"mockPassword": true,
+}
+
 func (s *SimpleProvider) validateConnectorConfig(connectorConfig string) error {
-	// validate that the connector type is an existing type
-	f, ok := server.ConnectorsConfig[s.ConnectorType]
-	if !ok {
+	// Validate that the connector type is a known Dex connector type.
+	// Note: The actual Dex instance will perform full validation at runtime.
+	if !knownConnectorTypes[s.ConnectorType] {
 		return microerror.Maskf(invalidConfigError, "Unknown connector type %q", s.ConnectorType)
 	}
 
-	// validate that connector config is valid for the given connector type
-	connConfig := f()
+	// Validate that the connector config is valid YAML
 	if len(connectorConfig) != 0 {
-		data := []byte(connectorConfig)
-		if err := yaml.Unmarshal(data, connConfig); err != nil {
-			return microerror.Maskf(invalidConfigError, "Parse connector config: %v", err)
+		var configMap map[string]interface{}
+		if err := yaml.Unmarshal([]byte(connectorConfig), &configMap); err != nil {
+			return microerror.Maskf(invalidConfigError, "Invalid YAML in connector config: %v", err)
 		}
 	}
 

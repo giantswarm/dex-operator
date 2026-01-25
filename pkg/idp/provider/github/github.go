@@ -7,18 +7,18 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/giantswarm/dex-operator/pkg/dex"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider"
-	"github.com/giantswarm/dex-operator/pkg/idp/provider/github/manifest"
-	"github.com/giantswarm/dex-operator/pkg/key"
-	"github.com/giantswarm/dex-operator/pkg/yaml"
-
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	githubconnector "github.com/dexidp/dex/connector/github"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	githubclient "github.com/google/go-github/v50/github"
 	"github.com/skratchdot/open-golang/open"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/dex/connectors"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/github/manifest"
+	"github.com/giantswarm/dex-operator/pkg/key"
+	"github.com/giantswarm/dex-operator/pkg/yaml"
 )
 
 const (
@@ -167,10 +167,10 @@ func (g *Github) CreateOrUpdateApp(config provider.AppConfig, ctx context.Contex
 		return provider.ProviderApp{}, microerror.Mask(err)
 	}
 
-	connectorConfig := &githubconnector.Config{
+	connectorConfig := &connectors.GitHubConfig{
 		ClientID:     secret.ClientId,
 		ClientSecret: secret.ClientSecret,
-		Orgs: []githubconnector.Org{
+		Orgs: []connectors.GitHubOrg{
 			{
 				Name:  g.Organization,
 				Teams: []string{g.Team},

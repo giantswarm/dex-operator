@@ -2,18 +2,17 @@ package giantswarmsso
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"time"
 
-	"github.com/dexidp/dex/server"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	"gopkg.in/yaml.v2"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/dex/connectors"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/key"
+	"github.com/giantswarm/dex-operator/pkg/yaml"
 )
 
 const (
@@ -155,18 +154,17 @@ func (g *GiantSwarmSSO) CreateOrUpdateApp(config provider.AppConfig, ctx context
 		return provider.ProviderApp{}, nil
 	}
 
-	// Build OIDC connector config as YAML
-	// Using raw YAML instead of struct because the dex library version doesn't
-	// include all fields we need (like insecureEnableGroups for group claims)
-	//
+	// Build OIDC connector config using the Dex OIDC connector struct.
 	// For RFC 8693 token exchange, clientID and clientSecret are NOT required
 	// in the connector config - the issuer alone is sufficient to validate
 	// subject tokens. Client credentials are configured separately in staticClients.
 	// However, we include them if provided for standard OIDC flow support.
 	connectorConfig := g.buildConnectorConfig(config.RedirectURI)
 
-	// Validate the connector config against Dex's OIDC connector schema
-	if err := validateConnectorConfig(connectorConfig); err != nil {
+	// Use MarshalWithJsonAnnotations to preserve field names like "clientID", "redirectURI"
+	// as defined in the Dex OIDC connector struct's JSON tags.
+	data, err := yaml.MarshalWithJsonAnnotations(connectorConfig)
+	if err != nil {
 		return provider.ProviderApp{}, microerror.Mask(err)
 	}
 
@@ -175,59 +173,34 @@ func (g *GiantSwarmSSO) CreateOrUpdateApp(config provider.AppConfig, ctx context
 			Type:   ProviderType,
 			ID:     g.Name,
 			Name:   g.Description,
-			Config: connectorConfig,
+			Config: string(data),
 		},
 		SecretEndDateTime: time.Now().AddDate(staticConfigExpiryYears, 0, 0),
 	}, nil
 }
 
-// buildConnectorConfig creates the OIDC connector configuration YAML.
+// buildConnectorConfig creates the OIDC connector configuration.
 // For RFC 8693 token exchange, clientID and clientSecret are optional.
-func (g *GiantSwarmSSO) buildConnectorConfig(redirectURI string) string {
-	var config string
-
-	// Start with required issuer
-	config = fmt.Sprintf("issuer: %s", g.config.Issuer)
-
-	// Add optional clientID and clientSecret if provided
-	// These are NOT required for RFC 8693 token exchange, but may be needed
-	// for standard OIDC authorization code flow
-	if g.config.ClientID != "" {
-		config = fmt.Sprintf("%s\nclientID: %s", config, g.config.ClientID)
+func (g *GiantSwarmSSO) buildConnectorConfig(redirectURI string) *connectors.OIDCConfig {
+	// InsecureEnableGroups: Despite the "insecure" naming, this setting is safe and
+	// required for our use case. The name stems from Dex issue #1065 which identified
+	// that blindly trusting group claims from arbitrary upstream providers could be
+	// risky. However, in Giant Swarm's cross-cluster SSO setup:
+	// - The upstream provider is our own trusted central Dex instance
+	// - Group claims are essential for Kubernetes RBAC (e.g., oidc-admins, team-based access)
+	// - All management clusters are under Giant Swarm's control
+	// Without this setting, group claims would be stripped from tokens, breaking authorization.
+	// See: https://github.com/dexidp/dex/issues/1065
+	return &connectors.OIDCConfig{
+		Issuer:       g.config.Issuer,
+		ClientID:     g.config.ClientID,
+		ClientSecret: g.config.ClientSecret,
+		RedirectURI:  redirectURI,
+		Scopes:       []string{"openid", "profile", "email", "groups"},
+		// InsecureEnableGroups enables passing through group claims from the upstream
+		// OIDC provider. This is required for Kubernetes RBAC based on group membership.
+		InsecureEnableGroups: true,
 	}
-	if g.config.ClientSecret != "" {
-		config = fmt.Sprintf("%s\nclientSecret: %s", config, g.config.ClientSecret)
-	}
-
-	// Add redirectURI and other required fields
-	config = fmt.Sprintf(`%s
-redirectURI: %s
-insecureEnableGroups: true
-scopes:
-  - openid
-  - profile
-  - email
-  - groups`, config, redirectURI)
-
-	return config
-}
-
-// validateConnectorConfig validates the OIDC connector configuration against Dex's schema.
-func validateConnectorConfig(connectorConfig string) error {
-	f, ok := server.ConnectorsConfig[ProviderType]
-	if !ok {
-		return microerror.Maskf(invalidConfigError, "unknown connector type %q", ProviderType)
-	}
-
-	connConfig := f()
-	if len(connectorConfig) != 0 {
-		data := []byte(connectorConfig)
-		if err := yaml.Unmarshal(data, connConfig); err != nil {
-			return microerror.Maskf(invalidConfigError, "invalid connector config: %v", err)
-		}
-	}
-
-	return nil
 }
 
 func (g *GiantSwarmSSO) DeleteApp(name string, ctx context.Context) error {
