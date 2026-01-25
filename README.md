@@ -94,10 +94,10 @@ The `--workload-cluster` flag also allows creation of callback URLs for up to 9 
 
 ### Giant Swarm SSO Provider
 
-The Giant Swarm SSO provider (`giantswarmsso`) creates an OIDC connector that points to a central Giant Swarm Dex instance (e.g., Gazelle).
+The Giant Swarm SSO provider (`giantswarmsso`) creates an OIDC connector that points to a central Giant Swarm Dex instance.
 This enables [RFC 8693 OAuth 2.0 Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693) for cross-cluster single sign-on.
 
-**Use case**: Users authenticated on a central cluster (e.g., Gazelle) can seamlessly access resources on other management clusters without re-authenticating.
+**Use case**: Users authenticated on a central cluster can seamlessly access resources on other management clusters without re-authenticating.
 
 The configuration for Giant Swarm SSO in `values` looks like this:
 ```yaml
@@ -113,8 +113,8 @@ oidc:
         # clientSecret: $CLIENT_SECRET
 ```
 
-- `$ISSUER`: The OIDC issuer URL of the central Dex instance (e.g., `https://dex.gazelle.awsprod.gigantic.io`). **Must use HTTPS**.
-- `$CENTRAL_CLUSTER_NAME`: The name of the central cluster (e.g., `gazelle`). The provider will skip creating a connector on this cluster to avoid self-referencing.
+- `$ISSUER`: The OIDC issuer URL of the central Dex instance (e.g., `https://dex.central.example.com`). **Must use HTTPS**.
+- `$CENTRAL_CLUSTER_NAME`: The name of the central cluster (e.g., `central`). The provider will skip creating a connector on this cluster to avoid self-referencing.
 - `$CLIENT_ID` (optional): OAuth2 client ID registered with the central Dex instance. Not required for RFC 8693 token exchange.
 - `$CLIENT_SECRET` (optional): OAuth2 client secret. Not required for RFC 8693 token exchange.
 

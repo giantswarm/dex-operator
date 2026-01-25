@@ -300,23 +300,23 @@ func TestCreateOrUpdateApp(t *testing.T) {
 				Name:  ProviderName,
 				Owner: "giantswarm",
 				Credentials: map[string]string{
-					IssuerKey:             "https://dex.gazelle.awsprod.gigantic.io",
-					CentralClusterNameKey: "gazelle",
+					IssuerKey:             "https://dex.mycentral.example.com",
+					CentralClusterNameKey: "mycentral",
 				},
 			},
-			managementClusterName: "gazelle", // matches the configured central cluster
+			managementClusterName: "mycentral", // matches the configured central cluster
 			appConfig:             provider.GetTestConfig(),
 
 			expectEmptyConnector: true,
 		},
 		{
-			name: "case 3 - non-central cluster with gazelle config",
+			name: "case 3 - non-central cluster with central config",
 			credentials: provider.ProviderCredential{
 				Name:  ProviderName,
 				Owner: "giantswarm",
 				Credentials: map[string]string{
-					IssuerKey:             "https://dex.gazelle.awsprod.gigantic.io",
-					CentralClusterNameKey: "gazelle",
+					IssuerKey:             "https://dex.mycentral.example.com",
+					CentralClusterNameKey: "mycentral",
 				},
 			},
 			managementClusterName: "gorilla",

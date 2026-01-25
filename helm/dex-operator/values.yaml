@@ -6,12 +6,12 @@ oidc:
     providers: []
     write_all_groups: []
     # Example: Giant Swarm SSO provider for cross-cluster SSO via RFC 8693 token exchange
-    # Uncomment and configure to enable SSO from a central cluster (e.g., Gazelle)
+    # Uncomment and configure to enable SSO from a central cluster
     # providers:
     # - name: giantswarmsso
     #   credentials:
-    #     issuer: "https://dex.gazelle.awsprod.gigantic.io"
-    #     centralClusterName: "gazelle"
+    #     issuer: "https://dex.central.example.com"
+    #     centralClusterName: "central"
     #     # Optional - only needed for standard OIDC authorization code flow
     #     # clientID: "your-client-id"
     #     # clientSecret: "your-client-secret"

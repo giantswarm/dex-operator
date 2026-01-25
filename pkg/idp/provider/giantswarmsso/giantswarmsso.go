@@ -35,13 +35,13 @@ const (
 
 // Config holds the configuration for the Giant Swarm SSO provider.
 type Config struct {
-	// Issuer is the OIDC issuer URL of the central Dex instance (e.g., "https://dex.gazelle.awsprod.gigantic.io")
+	// Issuer is the OIDC issuer URL of the central Dex instance (e.g., "https://dex.central.example.com")
 	Issuer string
 	// ClientID is the OAuth2 client ID registered with the central Dex instance
 	ClientID string
 	// ClientSecret is the OAuth2 client secret for authentication with the central Dex instance
 	ClientSecret string
-	// CentralClusterName is the name of the central cluster to skip (e.g., "gazelle")
+	// CentralClusterName is the name of the central cluster to skip (e.g., "central")
 	CentralClusterName string
 }
 
