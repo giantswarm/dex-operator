@@ -3,10 +3,13 @@ package giantswarmsso
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
+	"github.com/dexidp/dex/server"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v2"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
@@ -20,6 +23,8 @@ const (
 
 	// Configuration keys for credentials
 	IssuerKey             = "issuer"
+	ClientIDKey           = "clientID"
+	ClientSecretKey       = "clientSecret"
 	CentralClusterNameKey = "centralClusterName"
 )
 
@@ -27,6 +32,10 @@ const (
 type Config struct {
 	// Issuer is the OIDC issuer URL of the central Dex instance (e.g., "https://dex.gazelle.awsprod.gigantic.io")
 	Issuer string
+	// ClientID is the OAuth2 client ID registered with the central Dex instance
+	ClientID string
+	// ClientSecret is the OAuth2 client secret for authentication with the central Dex instance
+	ClientSecret string
 	// CentralClusterName is the name of the central cluster to skip (e.g., "gazelle")
 	CentralClusterName string
 }
@@ -73,10 +82,20 @@ func newConfig(p provider.ProviderCredential, log logr.Logger) (Config, error) {
 		return Config{}, microerror.Maskf(invalidConfigError, "Credential owner must not be empty.")
 	}
 
-	var issuer, centralClusterName string
+	var issuer, clientID, clientSecret, centralClusterName string
 	{
 		if issuer = p.Credentials[IssuerKey]; issuer == "" {
 			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", IssuerKey)
+		}
+		// Validate issuer is a valid HTTPS URL
+		if err := validateIssuerURL(issuer); err != nil {
+			return Config{}, microerror.Mask(err)
+		}
+		if clientID = p.Credentials[ClientIDKey]; clientID == "" {
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientIDKey)
+		}
+		if clientSecret = p.Credentials[ClientSecretKey]; clientSecret == "" {
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientSecretKey)
 		}
 		if centralClusterName = p.Credentials[CentralClusterNameKey]; centralClusterName == "" {
 			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", CentralClusterNameKey)
@@ -85,8 +104,25 @@ func newConfig(p provider.ProviderCredential, log logr.Logger) (Config, error) {
 
 	return Config{
 		Issuer:             issuer,
+		ClientID:           clientID,
+		ClientSecret:       clientSecret,
 		CentralClusterName: centralClusterName,
 	}, nil
+}
+
+// validateIssuerURL validates that the issuer is a valid HTTPS URL.
+func validateIssuerURL(issuer string) error {
+	parsed, err := url.Parse(issuer)
+	if err != nil {
+		return microerror.Maskf(invalidConfigError, "issuer is not a valid URL: %v", err)
+	}
+	if parsed.Scheme != "https" {
+		return microerror.Maskf(invalidConfigError, "issuer must use HTTPS scheme, got %q", parsed.Scheme)
+	}
+	if parsed.Host == "" {
+		return microerror.Maskf(invalidConfigError, "issuer must have a valid host")
+	}
+	return nil
 }
 
 func (g *GiantSwarmSSO) GetName() string {
@@ -117,13 +153,20 @@ func (g *GiantSwarmSSO) CreateOrUpdateApp(config provider.AppConfig, ctx context
 	// Using raw YAML instead of struct because the dex library version doesn't
 	// include all fields we need (like insecureEnableGroups for group claims)
 	connectorConfig := fmt.Sprintf(`issuer: %s
+clientID: %s
+clientSecret: %s
 redirectURI: %s
 insecureEnableGroups: true
 scopes:
   - openid
   - profile
   - email
-  - groups`, g.config.Issuer, config.RedirectURI)
+  - groups`, g.config.Issuer, g.config.ClientID, g.config.ClientSecret, config.RedirectURI)
+
+	// Validate the connector config against Dex's OIDC connector schema
+	if err := validateConnectorConfig(connectorConfig); err != nil {
+		return provider.ProviderApp{}, microerror.Mask(err)
+	}
 
 	return provider.ProviderApp{
 		Connector: dex.Connector{
@@ -135,6 +178,24 @@ scopes:
 		// Static config, use a far future expiry
 		SecretEndDateTime: time.Now().AddDate(10, 0, 0),
 	}, nil
+}
+
+// validateConnectorConfig validates the OIDC connector configuration against Dex's schema.
+func validateConnectorConfig(connectorConfig string) error {
+	f, ok := server.ConnectorsConfig[ProviderType]
+	if !ok {
+		return microerror.Maskf(invalidConfigError, "unknown connector type %q", ProviderType)
+	}
+
+	connConfig := f()
+	if len(connectorConfig) != 0 {
+		data := []byte(connectorConfig)
+		if err := yaml.Unmarshal(data, connConfig); err != nil {
+			return microerror.Maskf(invalidConfigError, "invalid connector config: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (g *GiantSwarmSSO) DeleteApp(name string, ctx context.Context) error {

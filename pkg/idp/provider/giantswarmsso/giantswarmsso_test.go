@@ -17,6 +17,8 @@ func getTestCredential() provider.ProviderCredential {
 		Owner: "giantswarm",
 		Credentials: map[string]string{
 			IssuerKey:             "https://dex.central.example.com",
+			ClientIDKey:           "test-client-id",
+			ClientSecretKey:       "test-client-secret",
 			CentralClusterNameKey: "central",
 		},
 	}
@@ -41,6 +43,8 @@ func TestNewConfig(t *testing.T) {
 				Name:  ProviderName,
 				Owner: "giantswarm",
 				Credentials: map[string]string{
+					ClientIDKey:           "test-client-id",
+					ClientSecretKey:       "test-client-secret",
 					CentralClusterNameKey: "central",
 				},
 			},
@@ -53,7 +57,9 @@ func TestNewConfig(t *testing.T) {
 				Name:  ProviderName,
 				Owner: "giantswarm",
 				Credentials: map[string]string{
-					IssuerKey: "https://dex.central.example.com",
+					IssuerKey:       "https://dex.central.example.com",
+					ClientIDKey:     "test-client-id",
+					ClientSecretKey: "test-client-secret",
 				},
 			},
 			log:         true,
@@ -65,6 +71,8 @@ func TestNewConfig(t *testing.T) {
 				Owner: "giantswarm",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.central.example.com",
+					ClientIDKey:           "test-client-id",
+					ClientSecretKey:       "test-client-secret",
 					CentralClusterNameKey: "central",
 				},
 			},
@@ -77,6 +85,8 @@ func TestNewConfig(t *testing.T) {
 				Name: ProviderName,
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.central.example.com",
+					ClientIDKey:           "test-client-id",
+					ClientSecretKey:       "test-client-secret",
 					CentralClusterNameKey: "central",
 				},
 			},
@@ -88,6 +98,79 @@ func TestNewConfig(t *testing.T) {
 			credentials: getTestCredential(),
 			log:         true,
 			expectError: false,
+		},
+		{
+			name: "case 6 - missing clientID",
+			credentials: provider.ProviderCredential{
+				Name:  ProviderName,
+				Owner: "giantswarm",
+				Credentials: map[string]string{
+					IssuerKey:             "https://dex.central.example.com",
+					ClientSecretKey:       "test-client-secret",
+					CentralClusterNameKey: "central",
+				},
+			},
+			log:         true,
+			expectError: true,
+		},
+		{
+			name: "case 7 - missing clientSecret",
+			credentials: provider.ProviderCredential{
+				Name:  ProviderName,
+				Owner: "giantswarm",
+				Credentials: map[string]string{
+					IssuerKey:             "https://dex.central.example.com",
+					ClientIDKey:           "test-client-id",
+					CentralClusterNameKey: "central",
+				},
+			},
+			log:         true,
+			expectError: true,
+		},
+		{
+			name: "case 8 - issuer with HTTP scheme (not HTTPS)",
+			credentials: provider.ProviderCredential{
+				Name:  ProviderName,
+				Owner: "giantswarm",
+				Credentials: map[string]string{
+					IssuerKey:             "http://dex.central.example.com",
+					ClientIDKey:           "test-client-id",
+					ClientSecretKey:       "test-client-secret",
+					CentralClusterNameKey: "central",
+				},
+			},
+			log:         true,
+			expectError: true,
+		},
+		{
+			name: "case 9 - issuer with invalid URL",
+			credentials: provider.ProviderCredential{
+				Name:  ProviderName,
+				Owner: "giantswarm",
+				Credentials: map[string]string{
+					IssuerKey:             "not-a-valid-url",
+					ClientIDKey:           "test-client-id",
+					ClientSecretKey:       "test-client-secret",
+					CentralClusterNameKey: "central",
+				},
+			},
+			log:         true,
+			expectError: true,
+		},
+		{
+			name: "case 10 - issuer with empty host",
+			credentials: provider.ProviderCredential{
+				Name:  ProviderName,
+				Owner: "giantswarm",
+				Credentials: map[string]string{
+					IssuerKey:             "https://",
+					ClientIDKey:           "test-client-id",
+					ClientSecretKey:       "test-client-secret",
+					CentralClusterNameKey: "central",
+				},
+			},
+			log:         true,
+			expectError: true,
 		},
 	}
 
@@ -135,6 +218,8 @@ func TestNew(t *testing.T) {
 				Description: "Custom SSO",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.mycentral.example.com",
+					ClientIDKey:           "custom-client-id",
+					ClientSecretKey:       "custom-client-secret",
 					CentralClusterNameKey: "mycentral",
 				},
 			},
@@ -226,6 +311,8 @@ func TestCreateOrUpdateApp(t *testing.T) {
 				Owner: "giantswarm",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.gazelle.awsprod.gigantic.io",
+					ClientIDKey:           "gazelle-client-id",
+					ClientSecretKey:       "gazelle-client-secret",
 					CentralClusterNameKey: "gazelle",
 				},
 			},
@@ -241,6 +328,8 @@ func TestCreateOrUpdateApp(t *testing.T) {
 				Owner: "giantswarm",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.gazelle.awsprod.gigantic.io",
+					ClientIDKey:           "gazelle-client-id",
+					ClientSecretKey:       "gazelle-client-secret",
 					CentralClusterNameKey: "gazelle",
 				},
 			},
@@ -303,6 +392,8 @@ func TestConnectorConfig(t *testing.T) {
 		Owner: "giantswarm",
 		Credentials: map[string]string{
 			IssuerKey:             "https://dex.mycentral.example.com",
+			ClientIDKey:           "my-client-id",
+			ClientSecretKey:       "my-client-secret",
 			CentralClusterNameKey: "mycentral",
 		},
 	}
@@ -328,9 +419,11 @@ func TestConnectorConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify the connector config contains expected values (using configured issuer)
+	// Verify the connector config contains expected values (using configured values)
 	expectedStrings := []string{
 		"issuer: https://dex.mycentral.example.com",
+		"clientID: my-client-id",
+		"clientSecret: my-client-secret",
 		"insecureEnableGroups: true",
 		"redirectURI: https://dex.grizzly.example.com/callback",
 		"scopes:",
@@ -342,6 +435,62 @@ func TestConnectorConfig(t *testing.T) {
 		if !strings.Contains(app.Connector.Config, expected) {
 			t.Errorf("expected connector config to contain %q, got:\n%s", expected, app.Connector.Config)
 		}
+	}
+}
+
+func TestValidateIssuerURL(t *testing.T) {
+	testCases := []struct {
+		name        string
+		issuer      string
+		expectError bool
+	}{
+		{
+			name:        "valid HTTPS URL",
+			issuer:      "https://dex.example.com",
+			expectError: false,
+		},
+		{
+			name:        "valid HTTPS URL with path",
+			issuer:      "https://dex.example.com/dex",
+			expectError: false,
+		},
+		{
+			name:        "valid HTTPS URL with port",
+			issuer:      "https://dex.example.com:443",
+			expectError: false,
+		},
+		{
+			name:        "HTTP scheme rejected",
+			issuer:      "http://dex.example.com",
+			expectError: true,
+		},
+		{
+			name:        "empty scheme rejected",
+			issuer:      "dex.example.com",
+			expectError: true,
+		},
+		{
+			name:        "empty host rejected",
+			issuer:      "https://",
+			expectError: true,
+		},
+		{
+			name:        "ftp scheme rejected",
+			issuer:      "ftp://dex.example.com",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateIssuerURL(tc.issuer)
+			if err != nil && !tc.expectError {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if err == nil && tc.expectError {
+				t.Fatalf("expected an error, got success")
+			}
+		})
 	}
 }
 
