@@ -91,12 +91,13 @@ func newConfig(p provider.ProviderCredential, log logr.Logger) (Config, error) {
 		if err := validateIssuerURL(issuer); err != nil {
 			return Config{}, microerror.Mask(err)
 		}
-		if clientID = p.Credentials[ClientIDKey]; clientID == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientIDKey)
-		}
-		if clientSecret = p.Credentials[ClientSecretKey]; clientSecret == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientSecretKey)
-		}
+		// clientID and clientSecret are optional for RFC 8693 token exchange flow.
+		// For token exchange, the OIDC connector only needs the issuer to validate
+		// subject tokens. Client credentials are configured separately in staticClients.
+		// However, if provided, they will be included in the connector config for
+		// standard OIDC authorization code flow support.
+		clientID = p.Credentials[ClientIDKey]
+		clientSecret = p.Credentials[ClientSecretKey]
 		if centralClusterName = p.Credentials[CentralClusterNameKey]; centralClusterName == "" {
 			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", CentralClusterNameKey)
 		}
@@ -152,16 +153,12 @@ func (g *GiantSwarmSSO) CreateOrUpdateApp(config provider.AppConfig, ctx context
 	// Build OIDC connector config as YAML
 	// Using raw YAML instead of struct because the dex library version doesn't
 	// include all fields we need (like insecureEnableGroups for group claims)
-	connectorConfig := fmt.Sprintf(`issuer: %s
-clientID: %s
-clientSecret: %s
-redirectURI: %s
-insecureEnableGroups: true
-scopes:
-  - openid
-  - profile
-  - email
-  - groups`, g.config.Issuer, g.config.ClientID, g.config.ClientSecret, config.RedirectURI)
+	//
+	// For RFC 8693 token exchange, clientID and clientSecret are NOT required
+	// in the connector config - the issuer alone is sufficient to validate
+	// subject tokens. Client credentials are configured separately in staticClients.
+	// However, we include them if provided for standard OIDC flow support.
+	connectorConfig := g.buildConnectorConfig(config.RedirectURI)
 
 	// Validate the connector config against Dex's OIDC connector schema
 	if err := validateConnectorConfig(connectorConfig); err != nil {
@@ -178,6 +175,37 @@ scopes:
 		// Static config, use a far future expiry
 		SecretEndDateTime: time.Now().AddDate(10, 0, 0),
 	}, nil
+}
+
+// buildConnectorConfig creates the OIDC connector configuration YAML.
+// For RFC 8693 token exchange, clientID and clientSecret are optional.
+func (g *GiantSwarmSSO) buildConnectorConfig(redirectURI string) string {
+	var config string
+
+	// Start with required issuer
+	config = fmt.Sprintf("issuer: %s", g.config.Issuer)
+
+	// Add optional clientID and clientSecret if provided
+	// These are NOT required for RFC 8693 token exchange, but may be needed
+	// for standard OIDC authorization code flow
+	if g.config.ClientID != "" {
+		config = fmt.Sprintf("%s\nclientID: %s", config, g.config.ClientID)
+	}
+	if g.config.ClientSecret != "" {
+		config = fmt.Sprintf("%s\nclientSecret: %s", config, g.config.ClientSecret)
+	}
+
+	// Add redirectURI and other required fields
+	config = fmt.Sprintf(`%s
+redirectURI: %s
+insecureEnableGroups: true
+scopes:
+  - openid
+  - profile
+  - email
+  - groups`, config, redirectURI)
+
+	return config
 }
 
 // validateConnectorConfig validates the OIDC connector configuration against Dex's schema.

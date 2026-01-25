@@ -11,7 +11,22 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 )
 
+// getTestCredential returns a minimal valid credential for RFC 8693 token exchange.
+// For token exchange, clientID and clientSecret are NOT required.
 func getTestCredential() provider.ProviderCredential {
+	return provider.ProviderCredential{
+		Name:  ProviderName,
+		Owner: "giantswarm",
+		Credentials: map[string]string{
+			IssuerKey:             "https://dex.central.example.com",
+			CentralClusterNameKey: "central",
+		},
+	}
+}
+
+// getTestCredentialWithClientAuth returns a credential with optional client credentials.
+// Use this for testing standard OIDC authorization code flow support.
+func getTestCredentialWithClientAuth() provider.ProviderCredential {
 	return provider.ProviderCredential{
 		Name:  ProviderName,
 		Owner: "giantswarm",
@@ -43,8 +58,6 @@ func TestNewConfig(t *testing.T) {
 				Name:  ProviderName,
 				Owner: "giantswarm",
 				Credentials: map[string]string{
-					ClientIDKey:           "test-client-id",
-					ClientSecretKey:       "test-client-secret",
 					CentralClusterNameKey: "central",
 				},
 			},
@@ -57,9 +70,7 @@ func TestNewConfig(t *testing.T) {
 				Name:  ProviderName,
 				Owner: "giantswarm",
 				Credentials: map[string]string{
-					IssuerKey:       "https://dex.central.example.com",
-					ClientIDKey:     "test-client-id",
-					ClientSecretKey: "test-client-secret",
+					IssuerKey: "https://dex.central.example.com",
 				},
 			},
 			log:         true,
@@ -71,8 +82,6 @@ func TestNewConfig(t *testing.T) {
 				Owner: "giantswarm",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.central.example.com",
-					ClientIDKey:           "test-client-id",
-					ClientSecretKey:       "test-client-secret",
 					CentralClusterNameKey: "central",
 				},
 			},
@@ -85,8 +94,6 @@ func TestNewConfig(t *testing.T) {
 				Name: ProviderName,
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.central.example.com",
-					ClientIDKey:           "test-client-id",
-					ClientSecretKey:       "test-client-secret",
 					CentralClusterNameKey: "central",
 				},
 			},
@@ -100,32 +107,32 @@ func TestNewConfig(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "case 6 - missing clientID",
+			name: "case 6 - valid without clientID/clientSecret (RFC 8693 token exchange)",
 			credentials: provider.ProviderCredential{
 				Name:  ProviderName,
 				Owner: "giantswarm",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.central.example.com",
-					ClientSecretKey:       "test-client-secret",
 					CentralClusterNameKey: "central",
 				},
 			},
 			log:         true,
-			expectError: true,
+			expectError: false,
 		},
 		{
-			name: "case 7 - missing clientSecret",
+			name: "case 7 - valid with clientID/clientSecret (standard OIDC flow)",
 			credentials: provider.ProviderCredential{
 				Name:  ProviderName,
 				Owner: "giantswarm",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.central.example.com",
 					ClientIDKey:           "test-client-id",
+					ClientSecretKey:       "test-client-secret",
 					CentralClusterNameKey: "central",
 				},
 			},
 			log:         true,
-			expectError: true,
+			expectError: false,
 		},
 		{
 			name: "case 8 - issuer with HTTP scheme (not HTTPS)",
@@ -218,8 +225,6 @@ func TestNew(t *testing.T) {
 				Description: "Custom SSO",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.mycentral.example.com",
-					ClientIDKey:           "custom-client-id",
-					ClientSecretKey:       "custom-client-secret",
 					CentralClusterNameKey: "mycentral",
 				},
 			},
@@ -311,8 +316,6 @@ func TestCreateOrUpdateApp(t *testing.T) {
 				Owner: "giantswarm",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.gazelle.awsprod.gigantic.io",
-					ClientIDKey:           "gazelle-client-id",
-					ClientSecretKey:       "gazelle-client-secret",
 					CentralClusterNameKey: "gazelle",
 				},
 			},
@@ -328,8 +331,6 @@ func TestCreateOrUpdateApp(t *testing.T) {
 				Owner: "giantswarm",
 				Credentials: map[string]string{
 					IssuerKey:             "https://dex.gazelle.awsprod.gigantic.io",
-					ClientIDKey:           "gazelle-client-id",
-					ClientSecretKey:       "gazelle-client-secret",
 					CentralClusterNameKey: "gazelle",
 				},
 			},
@@ -386,7 +387,65 @@ func TestCreateOrUpdateApp(t *testing.T) {
 	}
 }
 
-func TestConnectorConfig(t *testing.T) {
+func TestConnectorConfigWithoutClientCredentials(t *testing.T) {
+	// Test RFC 8693 token exchange mode - no client credentials
+	credential := provider.ProviderCredential{
+		Name:  ProviderName,
+		Owner: "giantswarm",
+		Credentials: map[string]string{
+			IssuerKey:             "https://dex.mycentral.example.com",
+			CentralClusterNameKey: "mycentral",
+		},
+	}
+	config := provider.ProviderConfig{
+		Credential:            credential,
+		Log:                   provider.GetTestLogger(),
+		ManagementClusterName: "grizzly",
+	}
+
+	sso, err := New(config)
+	if err != nil {
+		t.Fatalf("unexpected error creating provider: %v", err)
+	}
+
+	appConfig := provider.AppConfig{
+		RedirectURI:          "https://dex.grizzly.example.com/callback",
+		Name:                 "grizzly-dex",
+		SecretValidityMonths: 6,
+	}
+
+	app, err := sso.CreateOrUpdateApp(appConfig, context.Background(), dex.Connector{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify the connector config contains expected values for token exchange
+	expectedStrings := []string{
+		"issuer: https://dex.mycentral.example.com",
+		"insecureEnableGroups: true",
+		"redirectURI: https://dex.grizzly.example.com/callback",
+		"scopes:",
+		"openid",
+		"groups",
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(app.Connector.Config, expected) {
+			t.Errorf("expected connector config to contain %q, got:\n%s", expected, app.Connector.Config)
+		}
+	}
+
+	// Verify clientID and clientSecret are NOT present
+	if strings.Contains(app.Connector.Config, "clientID") {
+		t.Errorf("expected connector config to NOT contain clientID for token exchange mode, got:\n%s", app.Connector.Config)
+	}
+	if strings.Contains(app.Connector.Config, "clientSecret") {
+		t.Errorf("expected connector config to NOT contain clientSecret for token exchange mode, got:\n%s", app.Connector.Config)
+	}
+}
+
+func TestConnectorConfigWithClientCredentials(t *testing.T) {
+	// Test standard OIDC flow mode - with client credentials
 	credential := provider.ProviderCredential{
 		Name:  ProviderName,
 		Owner: "giantswarm",
@@ -419,7 +478,7 @@ func TestConnectorConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify the connector config contains expected values (using configured values)
+	// Verify the connector config contains all expected values including client credentials
 	expectedStrings := []string{
 		"issuer: https://dex.mycentral.example.com",
 		"clientID: my-client-id",
