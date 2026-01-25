@@ -14,8 +14,12 @@ The `app controller` configures callback URIs and other settings and writes the 
 ## providers
 
 Providers need to implement the `provider.Provider` interface.
-Currently supported providers are `azure active directory` and `github`.
-In addition, the `simple` provider offers a basic way to include any identity provider [supported by dex](https://dexidp.io/docs/connectors/).
+Currently supported providers are `azure active directory`, `github`, `giantswarmsso`, and `simple`.
+
+- **Azure Active Directory**: Configures app registration in an Azure AD tenant with automatic secret rotation.
+- **GitHub**: Configures app registration in a GitHub organization.
+- **Giant Swarm SSO**: Enables cross-cluster SSO via RFC 8693 token exchange with a central Dex instance.
+- **Simple**: Distributes existing connector configuration without communicating with identity providers.
 
 ### adding dex-operator credentials for gs installations
 
@@ -87,6 +91,43 @@ Unfortunately it also does not allow for access to workload cluster callback URL
 However, it will provide metrics that allow alerting when rotation is needed.
 In that case [opsctl](https://github.com/giantswarm/opsctl) supports the update via the `create dexconfig --provider github --update` command.
 The `--workload-cluster` flag also allows creation of callback URLs for up to 9 workload clusters.
+
+### Giant Swarm SSO Provider
+
+The Giant Swarm SSO provider (`giantswarmsso`) creates an OIDC connector that points to a central Giant Swarm Dex instance (e.g., Gazelle).
+This enables [RFC 8693 OAuth 2.0 Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693) for cross-cluster single sign-on.
+
+**Use case**: Users authenticated on a central cluster (e.g., Gazelle) can seamlessly access resources on other management clusters without re-authenticating.
+
+The configuration for Giant Swarm SSO in `values` looks like this:
+```yaml
+oidc:
+  giantswarm:
+    providers:
+    - name: giantswarmsso
+      credentials:
+        issuer: $ISSUER
+        centralClusterName: $CENTRAL_CLUSTER_NAME
+        # Optional - only needed for standard OIDC authorization code flow
+        # clientID: $CLIENT_ID
+        # clientSecret: $CLIENT_SECRET
+```
+
+- `$ISSUER`: The OIDC issuer URL of the central Dex instance (e.g., `https://dex.gazelle.awsprod.gigantic.io`). **Must use HTTPS**.
+- `$CENTRAL_CLUSTER_NAME`: The name of the central cluster (e.g., `gazelle`). The provider will skip creating a connector on this cluster to avoid self-referencing.
+- `$CLIENT_ID` (optional): OAuth2 client ID registered with the central Dex instance. Not required for RFC 8693 token exchange.
+- `$CLIENT_SECRET` (optional): OAuth2 client secret. Not required for RFC 8693 token exchange.
+
+**Features**:
+- Automatically skips the central cluster itself (no self-referencing connector)
+- Preserves group claims for proper RBAC (`insecureEnableGroups: true`)
+- Validates issuer URL (HTTPS required)
+- Validates connector configuration against Dex schema
+
+**Security notes**:
+- RFC 8693 token exchange only requires the `issuer` URL for subject token validation
+- Client credentials are optional and only needed if you also want standard OIDC authorization code flow support
+- All management clusters trust the central cluster's Dex as an identity source (unidirectional trust)
 
 ### Simple Provider
 
