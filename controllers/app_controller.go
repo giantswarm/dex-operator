@@ -66,10 +66,13 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// Check for HelmRelease with same name - HelmRelease takes priority
-	// If a HelmRelease exists, skip App reconciliation to avoid conflicts
-	if hasHelmRelease, err := r.hasMatchingHelmRelease(ctx, req.NamespacedName); err != nil {
-		log.Error(err, "Failed to check for matching HelmRelease")
-	} else if hasHelmRelease {
+	// If a HelmRelease exists, skip App reconciliation to avoid conflicts.
+	// We fail if we can't determine the state to avoid dual reconciliation.
+	hasHelmRelease, err := r.hasMatchingHelmRelease(ctx, req.NamespacedName)
+	if err != nil {
+		return ctrl.Result{}, microerror.Mask(err)
+	}
+	if hasHelmRelease {
 		log.Info("HelmRelease with same name exists, skipping App reconciliation. The HelmRelease takes priority.",
 			"namespace", req.Namespace, "name", req.Name)
 		// Requeue to check again later in case the HelmRelease is deleted
