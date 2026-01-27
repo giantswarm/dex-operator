@@ -152,7 +152,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	return DefaultRequeue(), nil
+	return DefaultHelmReleaseRequeue(), nil
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
