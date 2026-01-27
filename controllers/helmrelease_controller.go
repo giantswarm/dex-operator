@@ -53,7 +53,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, microerror.Mask(err)
 	}
 
 	// HelmRelease takes priority over App CR
@@ -118,7 +118,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if controllerutil.ContainsFinalizer(hr, key.DexOperatorFinalizer) {
 			controllerutil.RemoveFinalizer(hr, key.DexOperatorFinalizer)
 			if err := r.Update(ctx, hr); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, microerror.Mask(err)
 			}
 			log.Info("Removed finalizer from dex HelmRelease instance.")
 		}
@@ -129,7 +129,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if !controllerutil.ContainsFinalizer(hr, key.DexOperatorFinalizer) {
 		controllerutil.AddFinalizer(hr, key.DexOperatorFinalizer)
 		if err := r.Update(ctx, hr); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, microerror.Mask(err)
 		}
 		log.Info("Added finalizer to dex HelmRelease instance.")
 	}
