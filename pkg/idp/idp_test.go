@@ -53,9 +53,8 @@ func TestCreateProviderApps(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			ctx := context.Background()
 			app := getExampleApp()
-			target := dextarget.NewAppTarget(ctx, nil, app)
+			target := dextarget.NewAppTarget(app)
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
@@ -468,7 +467,7 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 			}
 			ctx := context.Background()
 			app := getExampleApp()
-			target := dextarget.NewAppTarget(ctx, nil, app)
+			target := dextarget.NewAppTarget(app)
 
 			//Initial reconcile, creating apps
 			s := Service{
@@ -786,7 +785,7 @@ func TestGetAppConfig(t *testing.T) {
 			}
 
 			fakeClient := fakeClientBuilder.Build()
-			target := dextarget.NewAppTarget(ctx, fakeClient, tc.app)
+			target := dextarget.NewAppTarget(tc.app)
 
 			service := Service{
 				Client:                         fakeClient,

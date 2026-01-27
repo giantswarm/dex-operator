@@ -18,16 +18,12 @@ import (
 // HelmReleaseTarget wraps a Flux HelmRelease to implement the DexTarget interface
 type HelmReleaseTarget struct {
 	*helmv2.HelmRelease
-	ctx    context.Context
-	client client.Client
 }
 
 // NewHelmReleaseTarget creates a new HelmReleaseTarget wrapper
-func NewHelmReleaseTarget(ctx context.Context, c client.Client, hr *helmv2.HelmRelease) *HelmReleaseTarget {
+func NewHelmReleaseTarget(hr *helmv2.HelmRelease) *HelmReleaseTarget {
 	return &HelmReleaseTarget{
 		HelmRelease: hr,
-		ctx:         ctx,
-		client:      c,
 	}
 }
 
@@ -46,7 +42,7 @@ func (h *HelmReleaseTarget) GetOrganizationLabel() string {
 	return h.GetLabels()[label.Organization]
 }
 
-func (h *HelmReleaseTarget) HasUserConfigWithConnectors(c client.Client) (bool, error) {
+func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c client.Client) (bool, error) {
 	// For HelmRelease, check if any valuesFrom references contain connector configuration
 	// that would conflict with dex-operator managed connectors
 	for _, vf := range h.Spec.ValuesFrom {
@@ -60,7 +56,7 @@ func (h *HelmReleaseTarget) HasUserConfigWithConnectors(c client.Client) (bool, 
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{}
 			// HelmRelease valuesFrom must be in the same namespace
-			if err := c.Get(h.ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, cm); err != nil {
+			if err := c.Get(ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, cm); err != nil {
 				// If we can't fetch, skip this check
 				continue
 			}
@@ -72,7 +68,7 @@ func (h *HelmReleaseTarget) HasUserConfigWithConnectors(c client.Client) (bool, 
 
 		case "Secret":
 			secret := &corev1.Secret{}
-			if err := c.Get(h.ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, secret); err != nil {
+			if err := c.Get(ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, secret); err != nil {
 				continue
 			}
 			valuesKey := vf.ValuesKey

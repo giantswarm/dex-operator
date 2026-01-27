@@ -18,16 +18,12 @@ import (
 // AppTarget wraps a Giant Swarm App CR to implement the DexTarget interface
 type AppTarget struct {
 	*v1alpha1.App
-	ctx    context.Context
-	client client.Client
 }
 
 // NewAppTarget creates a new AppTarget wrapper
-func NewAppTarget(ctx context.Context, c client.Client, app *v1alpha1.App) *AppTarget {
+func NewAppTarget(app *v1alpha1.App) *AppTarget {
 	return &AppTarget{
-		App:    app,
-		ctx:    ctx,
-		client: c,
+		App: app,
 	}
 }
 
@@ -46,14 +42,14 @@ func (a *AppTarget) GetOrganizationLabel() string {
 	return a.GetLabels()[label.Organization]
 }
 
-func (a *AppTarget) HasUserConfigWithConnectors(c client.Client) (bool, error) {
+func (a *AppTarget) HasUserConfigWithConnectors(ctx context.Context, c client.Client) (bool, error) {
 	// Check if user configmap is present
 	if a.Spec.UserConfig.ConfigMap.Name == "" && a.Spec.UserConfig.ConfigMap.Namespace == "" {
 		return false, nil
 	}
 
 	userConfigMap := &corev1.ConfigMap{}
-	if err := c.Get(a.ctx, types.NamespacedName{
+	if err := c.Get(ctx, types.NamespacedName{
 		Name:      a.Spec.UserConfig.ConfigMap.Name,
 		Namespace: a.Spec.UserConfig.ConfigMap.Namespace},
 		userConfigMap); err != nil {

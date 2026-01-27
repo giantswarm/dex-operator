@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -33,6 +34,13 @@ type Config struct {
 	ManagementClusterName          string
 	ManagementClusterIssuerAddress string
 
+	// Owner is the object that owns the created secrets (HelmRelease or App).
+	// This is used to set OwnerReferences on the secrets so that changes to
+	// owned secrets trigger reconciliation of the owner.
+	Owner client.Object
+	// Scheme is required for setting OwnerReferences.
+	Scheme *runtime.Scheme
+
 	// Deprecated: Use Target instead. App is kept for backward compatibility.
 	// If Target is nil and App is set, App will be wrapped in an AppTarget.
 	App *v1alpha1.App
@@ -46,13 +54,15 @@ type Service struct {
 	managementClusterBaseDomain    string
 	managementClusterName          string
 	managementClusterIssuerAddress string
+	owner                          client.Object
+	scheme                         *runtime.Scheme
 }
 
 func New(c Config) (*Service, error) {
 	// Backward compatibility: if Target is nil but App is set, wrap App in an AppTarget
 	target := c.Target
 	if target == nil && c.App != nil {
-		target = dextarget.NewAppTarget(context.Background(), c.Client, c.App)
+		target = dextarget.NewAppTarget(c.App)
 	}
 
 	if target == nil {
@@ -73,6 +83,12 @@ func New(c Config) (*Service, error) {
 	if c.ManagementClusterName == "" {
 		return nil, microerror.Maskf(invalidConfigError, "no management cluster name given")
 	}
+	if c.Owner == nil {
+		return nil, microerror.Maskf(invalidConfigError, "owner cannot be nil")
+	}
+	if c.Scheme == nil {
+		return nil, microerror.Maskf(invalidConfigError, "scheme cannot be nil")
+	}
 	s := &Service{
 		Client:                         c.Client,
 		target:                         target,
@@ -81,6 +97,8 @@ func New(c Config) (*Service, error) {
 		managementClusterBaseDomain:    c.ManagementClusterBaseDomain,
 		managementClusterName:          c.ManagementClusterName,
 		managementClusterIssuerAddress: c.ManagementClusterIssuerAddress,
+		owner:                          c.Owner,
+		scheme:                         c.Scheme,
 	}
 
 	return s, nil
@@ -89,7 +107,7 @@ func New(c Config) (*Service, error) {
 func (s *Service) Reconcile(ctx context.Context) error {
 	// We do not handle targets that have connectors in user configs set up due to a bug where configuration in secrets can be overwritten
 	//TODO: solve this gracefully
-	hasUserConnectors, err := s.target.HasUserConfigWithConnectors(s.Client)
+	hasUserConnectors, err := s.target.HasUserConfigWithConnectors(ctx, s.Client)
 	if err != nil {
 		return microerror.Mask(err)
 	}
@@ -119,6 +137,11 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			return microerror.Mask(err)
 		} else {
 			secret = GetDefaultDexConfigSecret(secretName, nn.Namespace)
+			// Set OwnerReference so that the controller watches this secret
+			// and reconciles when it changes
+			if err := controllerutil.SetControllerReference(s.owner, secret, s.scheme); err != nil {
+				return microerror.Mask(err)
+			}
 			if err := s.Create(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}

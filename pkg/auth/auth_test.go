@@ -93,7 +93,7 @@ func TestReconcile(t *testing.T) {
 			}
 
 			fakeClient := fakeClientBuilder.Build()
-			target := dextarget.NewAppTarget(ctx, fakeClient, app)
+			target := dextarget.NewAppTarget(app)
 
 			service := Service{
 				Client:                          fakeClient,

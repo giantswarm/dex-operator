@@ -1,6 +1,8 @@
 package dextarget
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -21,7 +23,7 @@ type DexTarget interface {
 
 	// HasUserConfigWithConnectors returns true if the target has user-defined connector config
 	// that should prevent dex-operator from managing connectors
-	HasUserConfigWithConnectors(client client.Client) (bool, error)
+	HasUserConfigWithConnectors(ctx context.Context, client client.Client) (bool, error)
 
 	// HasClusterValuesConfig returns true if the target has a cluster values configmap reference
 	HasClusterValuesConfig() bool

@@ -45,7 +45,7 @@ func New(c Config) (*Service, error) {
 	// Backward compatibility: if Target is nil but App is set, wrap App in an AppTarget
 	target := c.Target
 	if target == nil && c.App != nil {
-		target = dextarget.NewAppTarget(context.Background(), c.Client, c.App)
+		target = dextarget.NewAppTarget(c.App)
 	}
 
 	if target == nil {

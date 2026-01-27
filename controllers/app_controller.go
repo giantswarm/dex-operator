@@ -78,7 +78,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// Wrap in DexTarget
-	target := dextarget.NewAppTarget(ctx, r.Client, app)
+	target := dextarget.NewAppTarget(app)
 
 	var authService *auth.Service
 	{
@@ -116,6 +116,8 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			ManagementClusterBaseDomain:    r.BaseDomain,
 			ManagementClusterIssuerAddress: r.IssuerAddress,
 			ManagementClusterName:          r.ManagementCluster,
+			Owner:                          app,
+			Scheme:                         r.Scheme,
 		}
 
 		idpService, err = idp.New(c)

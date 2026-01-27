@@ -229,7 +229,7 @@ func TestCheckAndRotateServiceCredentials(t *testing.T) {
 			}
 			fakeClient := fakeClientBuilder.Build()
 			app := getTestApp()
-			target := dextarget.NewAppTarget(ctx, fakeClient, app)
+			target := dextarget.NewAppTarget(app)
 
 			service := Service{
 				Client:                fakeClient,
@@ -367,7 +367,7 @@ func TestUpdateCredentialsSecret(t *testing.T) {
 				WithObjects(tc.existingSecret).
 				Build()
 			app := getTestApp()
-			target := dextarget.NewAppTarget(ctx, fakeClient, app)
+			target := dextarget.NewAppTarget(app)
 
 			service := Service{
 				Client: fakeClient,

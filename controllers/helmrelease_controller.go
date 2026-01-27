@@ -60,7 +60,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// The App controller will skip reconciliation if a HelmRelease exists
 
 	// Wrap in DexTarget
-	target := dextarget.NewHelmReleaseTarget(ctx, r.Client, hr)
+	target := dextarget.NewHelmReleaseTarget(hr)
 
 	var authService *auth.Service
 	{
@@ -98,6 +98,8 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			ManagementClusterBaseDomain:    r.BaseDomain,
 			ManagementClusterIssuerAddress: r.IssuerAddress,
 			ManagementClusterName:          r.ManagementCluster,
+			Owner:                          hr,
+			Scheme:                         r.Scheme,
 		}
 
 		idpService, err = idp.New(c)
