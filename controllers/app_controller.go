@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/giantswarm/dex-operator/pkg/auth"
 	"github.com/giantswarm/dex-operator/pkg/dextarget"
@@ -195,13 +194,6 @@ func namespacedNamePredicate(s types.NamespacedName) (predicate.Predicate, error
 	return predicate.NewPredicateFuncs(func(o client.Object) bool {
 		return o.GetName() == s.Name && o.GetNamespace() == s.Namespace
 	}), nil
-}
-
-func DefaultRequeue() reconcile.Result {
-	return ctrl.Result{
-		Requeue:      true,
-		RequeueAfter: time.Minute * 5,
-	}
 }
 
 func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {

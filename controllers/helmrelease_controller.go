@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"time"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/giantswarm/microerror"
@@ -16,7 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/giantswarm/dex-operator/pkg/auth"
 	"github.com/giantswarm/dex-operator/pkg/dextarget"
@@ -154,7 +152,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	return DefaultHelmReleaseRequeue(), nil
+	return DefaultRequeue(), nil
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -206,11 +204,4 @@ func (r *HelmReleaseReconciler) GetProviders() ([]provider.Provider, error) {
 
 func (r *HelmReleaseReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
-}
-
-func DefaultHelmReleaseRequeue() reconcile.Result {
-	return ctrl.Result{
-		Requeue:      true,
-		RequeueAfter: time.Minute * 5,
-	}
 }
