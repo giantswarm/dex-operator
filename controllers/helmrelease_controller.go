@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -27,6 +28,7 @@ import (
 type HelmReleaseReconciler struct {
 	client.Client
 	Log                      logr.Logger
+	Recorder                 record.EventRecorder
 	Scheme                   *runtime.Scheme
 	LabelSelector            metav1.LabelSelector
 	BaseDomain               string
@@ -148,6 +150,9 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if r.EnableSelfRenewal && key.IsManagementClusterDexHelmRelease(hr.Name, hr.Namespace) {
 		if err := idpService.CheckAndRotateServiceCredentials(ctx); err != nil {
 			log.Error(err, "Service credential rotation failed")
+			// Emit a warning event so users can monitor rotation failures
+			r.Recorder.Event(hr, corev1.EventTypeWarning, "CredentialRotationFailed",
+				"Failed to rotate service credentials: "+err.Error())
 			// Don't fail the reconciliation, just log the error
 		}
 	}

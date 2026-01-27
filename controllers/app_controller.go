@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -35,6 +36,7 @@ import (
 type AppReconciler struct {
 	client.Client
 	Log                      logr.Logger
+	Recorder                 record.EventRecorder
 	Scheme                   *runtime.Scheme
 	LabelSelector            metav1.LabelSelector
 	BaseDomain               string
@@ -167,6 +169,9 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if r.EnableSelfRenewal && key.IsManagementClusterDexApp(app) {
 		if err := idpService.CheckAndRotateServiceCredentials(ctx); err != nil {
 			log.Error(err, "Service credential rotation failed")
+			// Emit a warning event so users can monitor rotation failures
+			r.Recorder.Event(app, corev1.EventTypeWarning, "CredentialRotationFailed",
+				"Failed to rotate service credentials: "+err.Error())
 			// Don't fail the reconciliation, just log the error
 			// This prevents self-renewal issues from blocking normal dex operations
 		}
