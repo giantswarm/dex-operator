@@ -84,24 +84,6 @@ func GetVintageDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
 	}
 }
 
-// userConfigMapPresent checks if the app has a user config map defined
-func userConfigMapPresent(app *v1alpha1.App) bool {
-	if app.Spec.UserConfig.ConfigMap.Name == "" && app.Spec.UserConfig.ConfigMap.Namespace == "" {
-		return false
-	}
-	return true
-}
-
-// connectorsDefinedInUserConfigMap checks if connectors are defined in user configmap
-func connectorsDefinedInUserConfigMap(userConfigmap *corev1.ConfigMap) bool {
-	values := userConfigmap.Data[key.ValuesConfigMapKey]
-	rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.ConnectorsKey))
-	if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
-		return true
-	}
-	return false
-}
-
 // removeExtraConfig removes the specified config from the extra configs list
 func removeExtraConfig(extraConfigs []v1alpha1.AppExtraConfig, dexSecretConfig v1alpha1.AppExtraConfig) []v1alpha1.AppExtraConfig {
 	if extraConfigs == nil {
