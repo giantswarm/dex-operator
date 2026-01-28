@@ -128,7 +128,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// App Controller (existing)
+	// App Controller
 	if err = (&controllers.AppReconciler{
 		BaseDomain:               baseDomain,
 		IssuerAddress:            issuerAddress,
