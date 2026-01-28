@@ -64,7 +64,11 @@ func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c c
 			if valuesKey == "" {
 				valuesKey = "values.yaml"
 			}
-			values = cm.Data[valuesKey]
+		    if data, ok := cm.Data[valuesKey]; !ok {
+               // Log the error first, then
+               continue
+            }
+             values = data
 
 		case "Secret":
 			secret := &corev1.Secret{}
