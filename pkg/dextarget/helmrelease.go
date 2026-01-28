@@ -8,6 +8,7 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/giantswarm/k8smetadata/pkg/label"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +44,8 @@ func (h *HelmReleaseTarget) GetOrganizationLabel() string {
 }
 
 func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c client.Client) (bool, error) {
+	log := logr.FromContextOrDiscard(ctx)
+
 	// For HelmRelease, check if any valuesFrom references contain connector configuration
 	// that would conflict with dex-operator managed connectors
 	for _, vf := range h.Spec.ValuesFrom {
@@ -57,22 +60,25 @@ func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c c
 			cm := &corev1.ConfigMap{}
 			// HelmRelease valuesFrom must be in the same namespace
 			if err := c.Get(ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, cm); err != nil {
-				// If we can't fetch, skip this check
+				log.Error(err, "Failed to fetch ConfigMap referenced in valuesFrom, skipping connector check",
+					"configmap", vf.Name, "namespace", h.Namespace)
 				continue
 			}
 			valuesKey := vf.ValuesKey
 			if valuesKey == "" {
 				valuesKey = "values.yaml"
 			}
-		    if data, ok := cm.Data[valuesKey]; !ok {
-               // Log the error first, then
-               continue
-            }
-             values = data
+			data, ok := cm.Data[valuesKey]
+			if !ok {
+				continue
+			}
+			values = data
 
 		case "Secret":
 			secret := &corev1.Secret{}
 			if err := c.Get(ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, secret); err != nil {
+				log.Error(err, "Failed to fetch Secret referenced in valuesFrom, skipping connector check",
+					"secret", vf.Name, "namespace", h.Namespace)
 				continue
 			}
 			valuesKey := vf.ValuesKey
