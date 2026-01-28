@@ -171,7 +171,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			log.Error(err, "Service credential rotation failed")
 			// Emit a warning event so users can monitor rotation failures
 			r.Recorder.Event(app, corev1.EventTypeWarning, "CredentialRotationFailed",
-				"Failed to rotate service credentials: "+err.Error())
+				"Failed to rotate service credentials")
 			// Don't fail the reconciliation, just log the error
 			// This prevents self-renewal issues from blocking normal dex operations
 		}
