@@ -57,7 +57,10 @@ func (a *AppTarget) HasUserConfigWithConnectors(ctx context.Context, c client.Cl
 	}
 
 	// Check if connectors are defined in user configmap
-	values := userConfigMap.Data[key.ValuesConfigMapKey]
+	values, ok := userConfigMap.Data[key.ValuesConfigMapKey]
+	if !ok {
+		return false, nil
+	}
 	rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.ConnectorsKey))
 	if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
 		return true, nil
