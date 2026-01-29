@@ -10,7 +10,7 @@ import (
 
 	"github.com/dexidp/dex/connector/mock"
 	"github.com/giantswarm/microerror"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var invalidConfigError = &microerror.Error{
