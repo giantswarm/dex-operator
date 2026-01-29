@@ -17,6 +17,7 @@ import (
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 )
 
@@ -227,11 +228,13 @@ func TestCheckAndRotateServiceCredentials(t *testing.T) {
 				fakeClientBuilder = fakeClientBuilder.WithObjects(tc.existingSecret)
 			}
 			fakeClient := fakeClientBuilder.Build()
+			app := getTestApp()
+			target := dextarget.NewAppTarget(app)
 
 			service := Service{
 				Client:                fakeClient,
 				log:                   ctrl.Log.WithName("test"),
-				app:                   getTestApp(),
+				target:                target,
 				providers:             tc.providers,
 				managementClusterName: "test-cluster",
 			}
@@ -363,11 +366,13 @@ func TestUpdateCredentialsSecret(t *testing.T) {
 				WithScheme(scheme).
 				WithObjects(tc.existingSecret).
 				Build()
+			app := getTestApp()
+			target := dextarget.NewAppTarget(app)
 
 			service := Service{
 				Client: fakeClient,
 				log:    ctrl.Log.WithName("test"),
-				app:    getTestApp(),
+				target: target,
 			}
 
 			err := service.updateCredentialsSecret(ctx, tc.updates)

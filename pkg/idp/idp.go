@@ -6,17 +6,20 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
+
 	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/key"
 
-	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -25,26 +28,45 @@ import (
 type Config struct {
 	Client                         client.Client
 	Log                            logr.Logger
-	App                            *v1alpha1.App
+	Target                         dextarget.DexTarget
 	Providers                      []provider.Provider
 	ManagementClusterBaseDomain    string
 	ManagementClusterName          string
 	ManagementClusterIssuerAddress string
+
+	// Owner is the object that owns the created secrets (HelmRelease or App).
+	// This is used to set OwnerReferences on the secrets so that changes to
+	// owned secrets trigger reconciliation of the owner.
+	Owner client.Object
+	// Scheme is required for setting OwnerReferences.
+	Scheme *runtime.Scheme
+
+	// Deprecated: Use Target instead. App is kept for backward compatibility.
+	// If Target is nil and App is set, App will be wrapped in an AppTarget.
+	App *v1alpha1.App
 }
 
 type Service struct {
 	client.Client
 	log                            logr.Logger
-	app                            *v1alpha1.App
+	target                         dextarget.DexTarget
 	providers                      []provider.Provider
 	managementClusterBaseDomain    string
 	managementClusterName          string
 	managementClusterIssuerAddress string
+	owner                          client.Object
+	scheme                         *runtime.Scheme
 }
 
 func New(c Config) (*Service, error) {
-	if c.App == nil {
-		return nil, microerror.Maskf(invalidConfigError, "app can not be nil")
+	// Backward compatibility: if Target is nil but App is set, wrap App in an AppTarget
+	target := c.Target
+	if target == nil && c.App != nil {
+		target = dextarget.NewAppTarget(c.App)
+	}
+
+	if target == nil {
+		return nil, microerror.Maskf(invalidConfigError, "target can not be nil")
 	}
 	if c.Client == nil {
 		return nil, microerror.Maskf(invalidConfigError, "client cannot be nil")
@@ -61,57 +83,69 @@ func New(c Config) (*Service, error) {
 	if c.ManagementClusterName == "" {
 		return nil, microerror.Maskf(invalidConfigError, "no management cluster name given")
 	}
+	if c.Owner == nil {
+		return nil, microerror.Maskf(invalidConfigError, "owner cannot be nil")
+	}
+	if c.Scheme == nil {
+		return nil, microerror.Maskf(invalidConfigError, "scheme cannot be nil")
+	}
 	s := &Service{
 		Client:                         c.Client,
-		app:                            c.App,
+		target:                         target,
 		log:                            c.Log,
 		providers:                      c.Providers,
 		managementClusterBaseDomain:    c.ManagementClusterBaseDomain,
 		managementClusterName:          c.ManagementClusterName,
 		managementClusterIssuerAddress: c.ManagementClusterIssuerAddress,
+		owner:                          c.Owner,
+		scheme:                         c.Scheme,
 	}
 
 	return s, nil
 }
 
 func (s *Service) Reconcile(ctx context.Context) error {
-	// We do not handle apps that have connectors in user configmaps set up due to a bug where configuration in secrets can be overwritten
+	// We do not handle targets that have connectors in user configs set up due to a bug where configuration in secrets can be overwritten
 	//TODO: solve this gracefully
-	if userConfigMapPresent(s.app) {
-		userConfigMap := &corev1.ConfigMap{}
-		if err := s.Get(ctx, types.NamespacedName{
-			Name:      s.app.Spec.UserConfig.ConfigMap.Name,
-			Namespace: s.app.Spec.UserConfig.ConfigMap.Namespace},
-			userConfigMap); err != nil {
-			return microerror.Mask(err)
-		}
-		if connectorsDefinedInUserConfigMap(userConfigMap) {
-			s.log.Info("Dex app has a user configmap set up with connector configuration. Cancelling reconcillation. We recommend to move configuration to a user secret.")
-			return s.ReconcileDelete(ctx)
-		}
+	hasUserConnectors, err := s.target.HasUserConfigWithConnectors(ctx, s.Client)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	if hasUserConnectors {
+		s.log.Info(fmt.Sprintf("Dex %s has user config with connector configuration. Cancelling reconciliation. We recommend to move configuration to a managed secret.", s.target.GetTargetType()))
+		return s.ReconcileDelete(ctx)
 	}
 
-	// Add secret config to app instance
-	dexSecretConfig := GetDexSecretConfig(types.NamespacedName{Namespace: s.app.Namespace, Name: s.app.Name})
-	if !dexSecretConfigIsPresent(s.app, dexSecretConfig) {
-		s.app.Spec.ExtraConfigs = append(s.app.Spec.ExtraConfigs, dexSecretConfig)
-		if err := s.Update(ctx, s.app); err != nil {
+	nn := s.target.GetNamespacedName()
+	secretName := key.GetDexConfigName(nn.Name)
+
+	// Add secret config to target instance if not present
+	if !s.target.HasSecretConfig(secretName) {
+		if err := s.target.AddSecretConfig(secretName, nn.Namespace); err != nil {
 			return microerror.Mask(err)
 		}
-		s.log.Info("Added secret config to dex app instance.")
+		if err := s.Update(ctx, s.target.GetObject()); err != nil {
+			return microerror.Mask(err)
+		}
+		s.log.Info(fmt.Sprintf("Added secret config to dex %s instance.", s.target.GetTargetType()))
 	}
 
 	// Fetch secret
 	secret := &corev1.Secret{}
-	if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
+	if err := s.Get(ctx, types.NamespacedName{Name: secretName, Namespace: nn.Namespace}, secret); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return microerror.Mask(err)
 		} else {
-			secret = GetDefaultDexConfigSecret(dexSecretConfig.Name, dexSecretConfig.Namespace)
+			secret = GetDefaultDexConfigSecret(secretName, nn.Namespace)
+			// Set OwnerReference so that the controller watches this secret
+			// and reconciles when it changes
+			if err := controllerutil.SetControllerReference(s.owner, secret, s.scheme); err != nil {
+				return microerror.Mask(err)
+			}
 			if err := s.Create(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}
-			s.log.Info("Created default dex config secret for dex app instance.")
+			s.log.Info(fmt.Sprintf("Created default dex config secret for dex %s instance.", s.target.GetTargetType()))
 		}
 	}
 	{
@@ -137,14 +171,14 @@ func (s *Service) Reconcile(ctx context.Context) error {
 				return microerror.Mask(err)
 			}
 			// Fetching the newest version of the secret. If we are here we assume that it exists.
-			if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
+			if err := s.Get(ctx, types.NamespacedName{Name: secretName, Namespace: nn.Namespace}, secret); err != nil {
 				return microerror.Mask(err)
 			}
 			secret.Data = map[string][]byte{"default": data}
 			if err := s.Update(ctx, secret); err != nil {
 				return microerror.Mask(err)
 			}
-			s.log.Info("Updated default dex config secret for dex app instance.")
+			s.log.Info(fmt.Sprintf("Updated default dex config secret for dex %s instance.", s.target.GetTargetType()))
 		}
 	}
 
@@ -160,16 +194,18 @@ func (s *Service) Reconcile(ctx context.Context) error {
 }
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
-	// Fetch secret if present
-	dexSecretConfig := GetDexSecretConfig(types.NamespacedName{Namespace: s.app.Namespace, Name: s.app.Name})
-	if dexSecretConfigIsPresent(s.app, dexSecretConfig) {
+	nn := s.target.GetNamespacedName()
+	secretName := key.GetDexConfigName(nn.Name)
+
+	// Check if secret config is present
+	if s.target.HasSecretConfig(secretName) {
 		secret := &corev1.Secret{}
-		if err := s.Get(ctx, types.NamespacedName{Name: dexSecretConfig.Name, Namespace: dexSecretConfig.Namespace}, secret); err != nil {
+		if err := s.Get(ctx, types.NamespacedName{Name: secretName, Namespace: nn.Namespace}, secret); err != nil {
 			if !apierrors.IsNotFound(err) {
 				return microerror.Mask(err)
 			}
 		} else {
-			if err := s.DeleteProviderApps(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name), ctx); err != nil {
+			if err := s.DeleteProviderApps(key.GetIdpAppName(s.managementClusterName, nn.Namespace, nn.Name), ctx); err != nil {
 				return microerror.Mask(err)
 			}
 			// remove finalizer
@@ -189,17 +225,19 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 					return microerror.Mask(err)
 				}
 			} else {
-				s.log.Info("Deleted default dex config secret for dex app instance.")
+				s.log.Info(fmt.Sprintf("Deleted default dex config secret for dex %s instance.", s.target.GetTargetType()))
 			}
 		}
 		// remove dex secret config
-		s.app.Spec.ExtraConfigs = removeExtraConfig(s.app.Spec.ExtraConfigs, dexSecretConfig)
-		if err := s.Update(ctx, s.app); err != nil {
+		if err := s.target.RemoveSecretConfig(secretName, nn.Namespace); err != nil {
+			return microerror.Mask(err)
+		}
+		if err := s.Update(ctx, s.target.GetObject()); err != nil {
 			if !apierrors.IsNotFound(err) {
 				return microerror.Mask(err)
 			}
 		} else {
-			s.log.Info("Removed dex config secret reference from dex app instance.")
+			s.log.Info(fmt.Sprintf("Removed dex config secret reference from dex %s instance.", s.target.GetTargetType()))
 		}
 	}
 	return nil
@@ -209,6 +247,7 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 	dexConfig := dex.DexConfig{}
 	customerOidcOwner := dex.DexOidcOwner{}
 	giantswarmOidcOwner := dex.DexOidcOwner{}
+	nn := s.target.GetNamespacedName()
 	for _, provider := range s.providers {
 		// Create the app on the identity provider
 		providerApp, err := provider.CreateOrUpdateApp(appConfig, ctx, oldConnectors[provider.GetName()])
@@ -224,7 +263,7 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 		default:
 			return dexConfig, microerror.Maskf(invalidConfigError, "Owner %s is not known.", provider.GetOwner())
 		}
-		AppInfo.WithLabelValues(s.app.Name, s.app.Namespace, provider.GetOwner(), provider.GetType(), provider.GetName(), appConfig.Name).Set(float64(providerApp.SecretEndDateTime.Unix()))
+		AppInfo.WithLabelValues(nn.Name, nn.Namespace, provider.GetOwner(), provider.GetType(), provider.GetName(), appConfig.Name).Set(float64(providerApp.SecretEndDateTime.Unix()))
 	}
 	if len(customerOidcOwner.Connectors) > 0 {
 		dexConfig.Oidc.Customer = &customerOidcOwner
@@ -236,13 +275,14 @@ func (s *Service) CreateOrUpdateProviderApps(appConfig provider.AppConfig, ctx c
 }
 
 func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error {
+	nn := s.target.GetNamespacedName()
 	for _, provider := range s.providers {
 
 		if err := provider.DeleteApp(appName, ctx); err != nil {
 			return microerror.Mask(err)
 		}
 		s.log.Info(fmt.Sprintf("Deleted app %s of type %s for %s.", provider.GetName(), provider.GetType(), provider.GetOwner()))
-		AppInfo.DeleteLabelValues(s.app.Name, s.app.Namespace, provider.GetOwner(), provider.GetType(), provider.GetName(), appName)
+		AppInfo.DeleteLabelValues(nn.Name, nn.Namespace, provider.GetOwner(), provider.GetType(), provider.GetName(), appName)
 	}
 	return nil
 }
@@ -291,13 +331,15 @@ func (s *Service) connectorsNeedUpdate(oldConnectors map[string]dex.Connector, n
 
 func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) {
 	var baseDomain string
+	nn := s.target.GetNamespacedName()
 
 	// Get the cluster values configmap if present (workload cluster format)
-	if clusterValuesIsPresent(s.app) {
+	if s.target.HasClusterValuesConfig() {
 		clusterValuesConfigmap := &corev1.ConfigMap{}
+		cmName, cmNamespace := s.target.GetClusterValuesConfigMapRef()
 		if err := s.Get(ctx, types.NamespacedName{
-			Name:      s.app.Spec.Config.ConfigMap.Name,
-			Namespace: s.app.Spec.Config.ConfigMap.Namespace},
+			Name:      cmName,
+			Namespace: cmNamespace},
 			clusterValuesConfigmap); err != nil {
 			return provider.AppConfig{}, err
 		}
@@ -307,9 +349,9 @@ func (s *Service) GetAppConfig(ctx context.Context) (provider.AppConfig, error) 
 	issuerAddress := GetIssuerAddress(baseDomain, s.managementClusterIssuerAddress, s.managementClusterBaseDomain)
 
 	return provider.AppConfig{
-		Name:                 key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name),
+		Name:                 key.GetIdpAppName(s.managementClusterName, nn.Namespace, nn.Name),
 		RedirectURI:          key.GetRedirectURI(issuerAddress),
-		IdentifierURI:        key.GetIdentifierURI(key.GetIdpAppName(s.managementClusterName, s.app.Namespace, s.app.Name)),
+		IdentifierURI:        key.GetIdentifierURI(key.GetIdpAppName(s.managementClusterName, nn.Namespace, nn.Name)),
 		SecretValidityMonths: key.SecretValidityMonths,
 	}, nil
 }

@@ -4,22 +4,25 @@ import (
 	"context"
 	"time"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/giantswarm/dex-operator/pkg/auth"
+	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/azure"
@@ -33,6 +36,7 @@ import (
 type AppReconciler struct {
 	client.Client
 	Log                      logr.Logger
+	Recorder                 record.EventRecorder
 	Scheme                   *runtime.Scheme
 	LabelSelector            metav1.LabelSelector
 	BaseDomain               string
@@ -63,6 +67,23 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	// Check for HelmRelease with same name - HelmRelease takes priority
+	// If a HelmRelease exists, skip App reconciliation to avoid conflicts.
+	// We fail if we can't determine the state to avoid dual reconciliation.
+	hasHelmRelease, err := r.hasMatchingHelmRelease(ctx, req.NamespacedName)
+	if err != nil {
+		return ctrl.Result{}, microerror.Mask(err)
+	}
+	if hasHelmRelease {
+		log.Info("HelmRelease with same name exists, skipping App reconciliation. The HelmRelease takes priority.",
+			"namespace", req.Namespace, "name", req.Name)
+		// Requeue to check again later in case the HelmRelease is deleted
+		return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
+	}
+
+	// Wrap in DexTarget
+	target := dextarget.NewAppTarget(app)
+
 	var authService *auth.Service
 	{
 		writeAllGroups, err := r.GetWriteAllGroups()
@@ -73,7 +94,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		c := auth.Config{
 			Log:                             log,
 			Client:                          r.Client,
-			App:                             app,
+			Target:                          target,
 			ManagementClusterName:           r.ManagementCluster,
 			ManagementClusterWriteAllGroups: writeAllGroups,
 		}
@@ -94,11 +115,13 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		c := idp.Config{
 			Log:                            log,
 			Client:                         r.Client,
-			App:                            app,
+			Target:                         target,
 			Providers:                      providers,
 			ManagementClusterBaseDomain:    r.BaseDomain,
 			ManagementClusterIssuerAddress: r.IssuerAddress,
 			ManagementClusterName:          r.ManagementCluster,
+			Owner:                          app,
+			Scheme:                         r.Scheme,
 		}
 
 		idpService, err = idp.New(c)
@@ -146,6 +169,9 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if r.EnableSelfRenewal && key.IsManagementClusterDexApp(app) {
 		if err := idpService.CheckAndRotateServiceCredentials(ctx); err != nil {
 			log.Error(err, "Service credential rotation failed")
+			// Emit a warning event so users can monitor rotation failures
+			r.Recorder.Event(app, corev1.EventTypeWarning, "CredentialRotationFailed",
+				"Failed to rotate service credentials")
 			// Don't fail the reconciliation, just log the error
 			// This prevents self-renewal issues from blocking normal dex operations
 		}
@@ -178,13 +204,6 @@ func namespacedNamePredicate(s types.NamespacedName) (predicate.Predicate, error
 	}), nil
 }
 
-func DefaultRequeue() reconcile.Result {
-	return ctrl.Result{
-		Requeue:      true,
-		RequeueAfter: time.Minute * 5,
-	}
-}
-
 func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 	providerCredentials, err := provider.ReadCredentials(r.ProviderCredentials)
 	if err != nil {
@@ -210,6 +229,36 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 
 func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
+}
+
+// hasMatchingHelmRelease checks if a HelmRelease with the same name exists in the same namespace.
+// This is used to warn users during migration that both resources exist.
+func (r *AppReconciler) hasMatchingHelmRelease(ctx context.Context, nn types.NamespacedName) (bool, error) {
+	hr := &helmv2.HelmRelease{}
+	err := r.Get(ctx, nn, hr)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		// If the HelmRelease CRD is not installed, we can't have any HelmReleases
+		if meta.IsNoMatchError(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	// Check if the HelmRelease has the dex-app label
+	labels := hr.GetLabels()
+	if labels != nil && labels[key.AppLabel] == key.DexAppLabelValue {
+		return true, nil
+	}
+
+	// Also check if it's the management cluster dex HelmRelease by name
+	if key.IsManagementClusterDexHelmRelease(hr.Name, hr.Namespace) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func NewProvider(config provider.ProviderConfig) (provider.Provider, error) {
