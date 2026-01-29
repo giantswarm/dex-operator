@@ -3,7 +3,7 @@ package yaml
 import (
 	"encoding/json"
 
-	yamllib "gopkg.in/yaml.v2"
+	yamllib "gopkg.in/yaml.v3"
 
 	"github.com/giantswarm/microerror"
 )
