@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
@@ -55,7 +56,7 @@ func TestReconcile(t *testing.T) {
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.GetAuthConfigName("wc"),
-					Namespace: "example",
+					Namespace: "org-example",
 				},
 				Data: map[string]string{
 					key.ValuesConfigMapKey: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_x\n  - group_y\n",
@@ -83,16 +84,21 @@ func TestReconcile(t *testing.T) {
 				fakeClientBuilder = fakeClientBuilder.WithObjects(tc.existingConfigMap)
 			}
 
-			service := Service{
-				Client: fakeClientBuilder.Build(),
-				log:    ctrl.Log.WithName("test"),
-				app: &v1alpha1.App{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test",
-						Namespace: "org-example",
-						Labels:    map[string]string{label.Cluster: tc.clusterName, label.Organization: "example"},
-					},
+			app := &v1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "org-example",
+					Labels:    map[string]string{label.Cluster: tc.clusterName, label.Organization: "example"},
 				},
+			}
+
+			fakeClient := fakeClientBuilder.Build()
+			target := dextarget.NewAppTarget(app)
+
+			service := Service{
+				Client:                          fakeClient,
+				log:                             ctrl.Log.WithName("test"),
+				target:                          target,
 				managementClusterWriteAllGroups: tc.writeAllGroups,
 				managementClusterName:           tc.managementClusterName,
 			}

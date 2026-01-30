@@ -31,6 +31,14 @@ const (
 
 	SecretValidityMonths       = 3
 	CredentialRenewalThreshold = 30 * 24 * time.Hour // 30 days before expiry
+
+	// DexSecretConfigPriority is the priority for the dex secret config in App CR extraConfigs
+	DexSecretConfigPriority = 25
+
+	// HelmRelease-specific constants
+	// Note: HelmRelease does not have a priority system like App CR
+	// Values are merged in order, with later values overwriting earlier ones
+	MCDexHelmReleaseDefaultName = "dex-app"
 )
 
 // IsManagementClusterDexApp checks if the app is the management cluster dex app
@@ -53,6 +61,18 @@ func MCDexDefaultNamespacedName() types.NamespacedName {
 		Name:      MCDexAppDefaultName,
 		Namespace: MCDexAppDefaultNamespace,
 	}
+}
+
+func MCDexHelmReleaseDefaultNamespacedName() types.NamespacedName {
+	return types.NamespacedName{
+		Name:      MCDexHelmReleaseDefaultName,
+		Namespace: MCDexAppDefaultNamespace,
+	}
+}
+
+// IsManagementClusterDexHelmRelease checks if the HelmRelease is the management cluster dex-app
+func IsManagementClusterDexHelmRelease(name, namespace string) bool {
+	return name == MCDexHelmReleaseDefaultName && namespace == MCDexAppDefaultNamespace
 }
 
 func GetProviderName(owner string, name string) string {

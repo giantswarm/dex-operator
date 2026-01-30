@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -52,10 +53,12 @@ func TestCreateProviderApps(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			app := getExampleApp()
+			target := dextarget.NewAppTarget(app)
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
-				app:       getExampleApp(),
+				target:    target,
 			}
 			_, err := s.CreateOrUpdateProviderApps(tc.appConfig, context.Background(), map[string]dex.Connector{})
 			if err != nil && !tc.expectError {
@@ -136,224 +139,6 @@ func TestGetBaseDomain(t *testing.T) {
 			baseDomain := getBaseDomainFromClusterValues(cm)
 			if baseDomain != tc.expectedDomain {
 				t.Fatalf("Expected %v to be equal to %v", baseDomain, tc.expectedDomain)
-			}
-		})
-	}
-}
-
-func TestUserConfigMap(t *testing.T) {
-	testCases := []struct {
-		name           string
-		app            *v1alpha1.App
-		expectedResult bool
-	}{
-		{
-			name:           "case 0",
-			app:            getExampleApp(),
-			expectedResult: false,
-		},
-		{
-			name: "case 0",
-			app: &v1alpha1.App{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test",
-					Namespace: "example",
-				},
-				Spec: v1alpha1.AppSpec{
-					UserConfig: v1alpha1.AppSpecUserConfig{},
-				},
-			},
-			expectedResult: false,
-		},
-		{
-			name: "case 1",
-			app: &v1alpha1.App{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test",
-					Namespace: "example",
-				},
-				Spec: v1alpha1.AppSpec{
-					UserConfig: v1alpha1.AppSpecUserConfig{
-						ConfigMap: v1alpha1.AppSpecUserConfigConfigMap{},
-					},
-				},
-			},
-			expectedResult: false,
-		},
-		{
-			name: "case 2",
-			app: &v1alpha1.App{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test",
-					Namespace: "example",
-				},
-				Spec: v1alpha1.AppSpec{
-					UserConfig: v1alpha1.AppSpecUserConfig{
-						ConfigMap: v1alpha1.AppSpecUserConfigConfigMap{
-							Name:      "test",
-							Namespace: "test",
-						},
-					},
-				},
-			},
-			expectedResult: true,
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			if userConfigMapPresent(tc.app) != tc.expectedResult {
-				t.Fatalf("expected result to be %v", tc.expectedResult)
-			}
-		})
-	}
-}
-
-func TestUserConnectors(t *testing.T) {
-	testCases := []struct {
-		name           string
-		data           map[string]string
-		expectedResult bool
-	}{
-		{
-			name: "case 0",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.io
-					somethingelse: "false"
-					the:
-					  big:
-					    connectors:
-						- id: a
-						  name: b
-					object:
-					  yes: no
-					`,
-			},
-			expectedResult: true,
-		},
-		{
-			name: "case 1",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.io
-					somethingelse: "false"
-					object:
-					  yes: no
-					`,
-			},
-			expectedResult: false,
-		},
-		{
-			name: "case 2",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.io
-					somethingelse: "false"
-					the:
-					  small:
-					    connectors: []
-					object:
-					  yes: no
-					`,
-			},
-			expectedResult: true,
-		},
-		{
-			name: "case 3",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.io
-					somethingelse: "false"
-					the:
-					  small:
-					    connectors: []
-					  big:
-					    connectors: []
-					object:
-					  yes: no
-					`,
-			},
-			expectedResult: true,
-		},
-		{
-			name: "case 4",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.io
-					somethingelse: "false"
-					the:
-					  big:
-					    connectors: null
-					object:
-					  yes: no
-					`,
-			},
-			expectedResult: true,
-		},
-		{
-			name: "case 5",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.io
-					somethingelse: "false"
-					the:
-					  big:
-					    connectors:
-					object:
-					  yes: no
-					`,
-			},
-			expectedResult: true,
-		},
-		{
-			name: "case 6",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.io
-					somethingelse: "false"
-					the:
-					  small:
-					    connectors: []
-					  big:
-					    connectors:
-					    - id: a
-						  name: b
-					object:
-					  yes: no
-					`,
-			},
-			expectedResult: true,
-		},
-		{
-			name: "case 7",
-			data: map[string]string{
-				key.ValuesConfigMapKey: `
-					something: "12"
-					baseDomain: hello.connectors.io
-					somethingelse: "false"
-					object:
-					  yes: no
-					`,
-			},
-			expectedResult: false,
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			cm := &corev1.ConfigMap{
-				Data: tc.data,
-			}
-			if connectorsDefinedInUserConfigMap(cm) != tc.expectedResult {
-				t.Fatalf("Expected %v to be equal to %v", connectorsDefinedInUserConfigMap(cm), tc.expectedResult)
 			}
 		})
 	}
@@ -463,12 +248,14 @@ func TestGetOldConnectorsFromSecret(t *testing.T) {
 				Name:        "hello",
 			}
 			ctx := context.Background()
+			app := getExampleApp()
+			target := dextarget.NewAppTarget(app)
 
 			//Initial reconcile, creating apps
 			s := Service{
 				providers: tc.providers,
 				log:       ctrl.Log.WithName("test"),
-				app:       getExampleApp(),
+				target:    target,
 			}
 			config, err := s.CreateOrUpdateProviderApps(appConfig, ctx, map[string]dex.Connector{})
 			if err != nil {
@@ -779,10 +566,13 @@ func TestGetAppConfig(t *testing.T) {
 				fakeClientBuilder.WithObjects(tc.clusterValuesConfigMap)
 			}
 
+			fakeClient := fakeClientBuilder.Build()
+			target := dextarget.NewAppTarget(tc.app)
+
 			service := Service{
-				Client:                         fakeClientBuilder.Build(),
+				Client:                         fakeClient,
 				log:                            ctrl.Log.WithName("test"),
-				app:                            tc.app,
+				target:                         target,
 				managementClusterName:          tc.managementClusterName,
 				managementClusterBaseDomain:    tc.managementClusterBaseDomain,
 				managementClusterIssuerAddress: tc.managementClusterIssuerAddress,

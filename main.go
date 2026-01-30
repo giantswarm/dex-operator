@@ -23,6 +23,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +51,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(capi.AddToScheme(scheme))
+	utilruntime.Must(helmv2.AddToScheme(scheme))
 
 	//+kubebuilder:scaffold:scheme
 }
@@ -126,12 +128,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// App Controller
 	if err = (&controllers.AppReconciler{
 		BaseDomain:               baseDomain,
 		IssuerAddress:            issuerAddress,
 		ManagementCluster:        managementCluster,
 		Client:                   mgr.GetClient(),
 		Log:                      ctrl.Log.WithName("controllers").WithName("App"),
+		Recorder:                 mgr.GetEventRecorderFor("app-controller"),
 		Scheme:                   mgr.GetScheme(),
 		LabelSelector:            key.DexLabelSelector(),
 		ProviderCredentials:      idpCredentials,
@@ -140,6 +144,25 @@ func main() {
 		EnableSelfRenewal:        enableSelfRenewal,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
+		os.Exit(1)
+	}
+
+	// HelmRelease Controller
+	if err = (&controllers.HelmReleaseReconciler{
+		BaseDomain:               baseDomain,
+		IssuerAddress:            issuerAddress,
+		ManagementCluster:        managementCluster,
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("HelmRelease"),
+		Recorder:                 mgr.GetEventRecorderFor("helmrelease-controller"),
+		Scheme:                   mgr.GetScheme(),
+		LabelSelector:            key.DexLabelSelector(),
+		ProviderCredentials:      idpCredentials,
+		GiantswarmWriteAllGroups: gsGroups,
+		CustomerWriteAllGroups:   customerGroups,
+		EnableSelfRenewal:        enableSelfRenewal,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HelmRelease")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
