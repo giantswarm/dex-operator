@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-01-30
+
+### Changed
+
+- Build with up-to-date pipelines.
+
 ## [0.14.0] - 2025-07-31
 
 ### Added
@@ -246,7 +252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/giantswarm/dex-operator/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/giantswarm/dex-operator/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/giantswarm/dex-operator/compare/v0.12.4...v0.13.0
 [0.12.4]: https://github.com/giantswarm/dex-operator/compare/v0.12.3...v0.12.4
