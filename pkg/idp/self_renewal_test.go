@@ -166,7 +166,7 @@ func TestCheckAndRotateServiceCredentials(t *testing.T) {
 					return
 				}
 
-				creds, ok := provider["credentials"].(map[interface{}]interface{})
+				creds, ok := provider["credentials"].(map[string]interface{})
 				if !ok {
 					t.Errorf("Expected credentials to be a map, got %T", provider["credentials"])
 					return

@@ -365,11 +365,11 @@ client-secret: test
 
 func getNewCredential() string {
 	return `cert: |-
-  -----BEGIN MOCK CERT-----
-  mock
-  cert
-  hello
-  -----END MOCK CERT-----
+    -----BEGIN MOCK CERT-----
+    mock
+    cert
+    hello
+    -----END MOCK CERT-----
 client-id: abc
 client-secret: test
 `
