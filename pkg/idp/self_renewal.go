@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/giantswarm/microerror"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 

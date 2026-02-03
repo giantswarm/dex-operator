@@ -9,7 +9,7 @@ import (
 	"github.com/dexidp/dex/connector/microsoft"
 	"github.com/giantswarm/microerror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func getAzureSecret(secret models.PasswordCredentialable, app models.Applicationable, oldSecret string) (provider.ProviderSecret, error) {

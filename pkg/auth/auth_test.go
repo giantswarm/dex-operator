@@ -35,7 +35,7 @@ func TestReconcile(t *testing.T) {
 			managementClusterName: "mc",
 			clusterName:           "wc",
 			writeAllGroups:        []string{"group_a", "group_b"},
-			expectedConfig:        "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\n  - group_c\n  - group_d\nkubernetes:\n  api:\n    port: 443\n",
+			expectedConfig:        "managementCluster: mc\nbindings:\n    - role: cluster-admin\n      groups:\n        - group_a\n        - group_b\n        - group_c\n        - group_d\nkubernetes:\n    api:\n        port: 443\n",
 		},
 		{
 			name:                  "case 1: MC case, skip creation",
@@ -62,7 +62,7 @@ func TestReconcile(t *testing.T) {
 					key.ValuesConfigMapKey: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_x\n  - group_y\n",
 				},
 			},
-			expectedConfig: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\n  - group_c\n  - group_d\nkubernetes:\n  api:\n    port: 443\n",
+			expectedConfig: "managementCluster: mc\nbindings:\n    - role: cluster-admin\n      groups:\n        - group_a\n        - group_b\n        - group_c\n        - group_d\nkubernetes:\n    api:\n        port: 443\n",
 		},
 	}
 
