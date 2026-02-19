@@ -17,7 +17,7 @@ import (
 	githubconnector "github.com/dexidp/dex/connector/github"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	githubclient "github.com/google/go-github/v82/github"
+	githubclient "github.com/google/go-github/v83/github"
 	"github.com/skratchdot/open-golang/open"
 )
 
