@@ -1,7 +1,7 @@
 name: dex-operator
-version: 0.14.1
+version: 0.14.2
 description: "An operator that automates the management of dex connector configurations"
-appVersion: 0.14.1
+appVersion: 0.14.2
 home: "https://github.com/giantswarm/dex-operator"
 icon: https://s.giantswarm.io/app-icons/dex/2/icon_light.svg
 apiVersion: v1
