@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
 	github.com/dexidp/dex v2.13.0+incompatible
-	github.com/fluxcd/helm-controller/api v1.5.0
+	github.com/fluxcd/helm-controller/api v1.5.1
 	github.com/giantswarm/apiextensions-application v0.6.0
 	github.com/giantswarm/backoff v1.0.1
 	github.com/giantswarm/k8smetadata v0.25.0
@@ -135,7 +135,7 @@ require (
 replace (
 	github.com/cloudflare/circl => github.com/cloudflare/circl v1.6.3
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.65.0
-	golang.org/x/net => golang.org/x/net v0.50.0
+	golang.org/x/net => golang.org/x/net v0.51.0
 	google.golang.org/grpc => google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.11
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.27.4
