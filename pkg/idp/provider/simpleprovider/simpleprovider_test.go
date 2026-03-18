@@ -16,7 +16,7 @@ func TestNewConfig(t *testing.T) {
 	testCases := []struct {
 		name        string
 		credentials provider.ProviderCredential
-		log         *logr.Logger
+		log         logr.Logger
 		expectError bool
 	}{
 		{
@@ -203,7 +203,11 @@ func TestCreateApp(t *testing.T) {
 					connectorConfigKey: tc.connectorConfig,
 				},
 			}
-			simple, err := New(credential, provider.GetTestLogger())
+			providerConfig := provider.ProviderConfig{
+				Credential: credential,
+				Log:        provider.GetTestLogger(),
+			}
+			simple, err := New(providerConfig)
 			if err != nil {
 				t.Fatal(err)
 			}

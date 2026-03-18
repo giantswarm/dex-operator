@@ -10,7 +10,7 @@ import (
 	"github.com/dexidp/dex/server"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
@@ -29,7 +29,7 @@ const (
 // It can also be used in case the idp in question is not supported by the operator.
 // It will create a connector with the given type and config.
 type SimpleProvider struct {
-	Log             *logr.Logger
+	Log             logr.Logger
 	Name            string
 	Description     string
 	Type            string
@@ -43,25 +43,27 @@ type Config struct {
 	connectorConfig string
 }
 
-func New(p provider.ProviderCredential, log *logr.Logger) (*SimpleProvider, error) {
+var _ provider.Provider = (*SimpleProvider)(nil)
+
+func New(config provider.ProviderConfig) (*SimpleProvider, error) {
 	// get configuration from credentials
-	c, err := newSimpleConfig(p, log)
+	c, err := newSimpleConfig(config.Credential, config.Log)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
 	return &SimpleProvider{
-		Name:            key.GetProviderName(p.Owner, fmt.Sprintf("%s-%s", ProviderName, c.connectorType)),
-		Description:     p.GetConnectorDescription(ProviderDisplayName),
+		Name:            key.GetProviderName(config.Credential.Owner, fmt.Sprintf("%s-%s", ProviderName, c.connectorType)),
+		Description:     config.Credential.GetConnectorDescription(ProviderDisplayName),
 		Type:            ProviderType,
-		Owner:           p.Owner,
+		Owner:           config.Credential.Owner,
 		ConnectorType:   c.connectorType,
 		ConnectorConfig: c.connectorConfig,
 	}, nil
 }
 
-func newSimpleConfig(p provider.ProviderCredential, log *logr.Logger) (Config, error) {
-	if log == nil {
+func newSimpleConfig(p provider.ProviderCredential, log logr.Logger) (Config, error) {
+	if (logr.Logger{}) == log {
 		return Config{}, microerror.Maskf(invalidConfigError, "Logger must not be empty.")
 	}
 	if p.Name == "" {
@@ -74,11 +76,11 @@ func newSimpleConfig(p provider.ProviderCredential, log *logr.Logger) (Config, e
 	var connectorType, connectorConfig string
 	{
 		if connectorType = p.Credentials[connectorTypeKey]; connectorType == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, fmt.Sprintf("%s must not be empty.", connectorTypeKey))
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty", connectorTypeKey)
 		}
 
 		if connectorConfig = p.Credentials[connectorConfigKey]; connectorConfig == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, fmt.Sprintf("%s must not be empty.", connectorConfigKey))
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty", connectorConfigKey)
 		}
 	}
 
@@ -184,4 +186,17 @@ func usesRedirectURI(connectorType string) bool {
 	default:
 		return true
 	}
+}
+
+// Self-renewal methods implementation - SimpleProvider doesn't support renewal
+func (s *SimpleProvider) SupportsServiceCredentialRenewal() bool {
+	return false
+}
+
+func (s *SimpleProvider) ShouldRotateServiceCredentials(ctx context.Context, config provider.AppConfig) (bool, error) {
+	return false, nil
+}
+
+func (s *SimpleProvider) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
+	return nil, microerror.Maskf(invalidConfigError, "Simple provider does not support service credential rotation")
 }

@@ -23,16 +23,19 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	capi "sigs.k8s.io/cluster-api/api/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/giantswarm/dex-operator/controllers"
 	"github.com/giantswarm/dex-operator/pkg/key"
@@ -48,6 +51,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(capi.AddToScheme(scheme))
+	utilruntime.Must(helmv2.AddToScheme(scheme))
 
 	//+kubebuilder:scaffold:scheme
 }
@@ -63,6 +67,7 @@ func main() {
 		probeAddr                string
 		giantswarmWriteAllGroups string
 		customerWriteAllGroups   string
+		enableSelfRenewal        bool
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&idpCredentials, "idp-credentials-file", "/home/.idp/credentials", "The location of the idp credentials file.")
@@ -76,6 +81,7 @@ func main() {
 	flag.StringVar(&managementCluster, "management-cluster", "", "Name of the management cluster.")
 	flag.StringVar(&giantswarmWriteAllGroups, "giantswarm-write-all-groups", "", "Comma separated list of giantswarm admin groups.")
 	flag.StringVar(&customerWriteAllGroups, "customer-write-all-groups", "", "Comma separated list of customer admin groups.")
+	flag.BoolVar(&enableSelfRenewal, "enable-self-renewal", false, "Enable automatic self-renewal of operator credentials")
 	opts := zap.Options{
 		Development: false,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
@@ -85,10 +91,23 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// Parse groups (handle empty strings)
+	var gsGroups, customerGroups []string
+	if giantswarmWriteAllGroups != "" {
+		gsGroups = strings.Split(giantswarmWriteAllGroups, ",")
+	}
+	if customerWriteAllGroups != "" {
+		customerGroups = strings.Split(customerWriteAllGroups, ",")
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port: 9443,
+		}),
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "bf139543.giantswarm",
@@ -109,19 +128,41 @@ func main() {
 		os.Exit(1)
 	}
 
+	// App Controller
 	if err = (&controllers.AppReconciler{
 		BaseDomain:               baseDomain,
 		IssuerAddress:            issuerAddress,
 		ManagementCluster:        managementCluster,
 		Client:                   mgr.GetClient(),
 		Log:                      ctrl.Log.WithName("controllers").WithName("App"),
+		Recorder:                 mgr.GetEventRecorderFor("app-controller"),
 		Scheme:                   mgr.GetScheme(),
 		LabelSelector:            key.DexLabelSelector(),
 		ProviderCredentials:      idpCredentials,
-		GiantswarmWriteAllGroups: strings.Split(giantswarmWriteAllGroups, ","),
-		CustomerWriteAllGroups:   strings.Split(customerWriteAllGroups, ","),
+		GiantswarmWriteAllGroups: gsGroups,
+		CustomerWriteAllGroups:   customerGroups,
+		EnableSelfRenewal:        enableSelfRenewal,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "App")
+		os.Exit(1)
+	}
+
+	// HelmRelease Controller
+	if err = (&controllers.HelmReleaseReconciler{
+		BaseDomain:               baseDomain,
+		IssuerAddress:            issuerAddress,
+		ManagementCluster:        managementCluster,
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("HelmRelease"),
+		Recorder:                 mgr.GetEventRecorderFor("helmrelease-controller"),
+		Scheme:                   mgr.GetScheme(),
+		LabelSelector:            key.DexLabelSelector(),
+		ProviderCredentials:      idpCredentials,
+		GiantswarmWriteAllGroups: gsGroups,
+		CustomerWriteAllGroups:   customerGroups,
+		EnableSelfRenewal:        enableSelfRenewal,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HelmRelease")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

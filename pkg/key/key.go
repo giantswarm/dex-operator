@@ -2,7 +2,9 @@ package key
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -26,11 +28,25 @@ const (
 	OwnerCustomer                = "customer"
 	OwnerGiantswarmDisplayName   = "Giant Swarm"
 	OwnerCustomerDisplayName     = "Customer"
+
+	SecretValidityMonths       = 3
+	CredentialRenewalThreshold = 30 * 24 * time.Hour // 30 days before expiry
+
+	// DexSecretConfigPriority is the priority for the dex secret config in App CR extraConfigs
+	DexSecretConfigPriority = 25
+
+	// HelmRelease-specific constants
+	// Note: HelmRelease does not have a priority system like App CR
+	// Values are merged in order, with later values overwriting earlier ones
+	MCDexHelmReleaseDefaultName = "dex-app"
 )
 
-const (
-	SecretValidityMonths = 3
-)
+// IsManagementClusterDexApp checks if the app is the management cluster dex app
+// Moved from AppReconciler as it has no dependencies on reconciler fields
+func IsManagementClusterDexApp(app *v1alpha1.App) bool {
+	return app.Name == MCDexAppDefaultName &&
+		app.Namespace == MCDexAppDefaultNamespace
+}
 
 func DexLabelSelector() metav1.LabelSelector {
 	return metav1.LabelSelector{
@@ -47,6 +63,18 @@ func MCDexDefaultNamespacedName() types.NamespacedName {
 	}
 }
 
+func MCDexHelmReleaseDefaultNamespacedName() types.NamespacedName {
+	return types.NamespacedName{
+		Name:      MCDexHelmReleaseDefaultName,
+		Namespace: MCDexAppDefaultNamespace,
+	}
+}
+
+// IsManagementClusterDexHelmRelease checks if the HelmRelease is the management cluster dex-app
+func IsManagementClusterDexHelmRelease(name, namespace string) bool {
+	return name == MCDexHelmReleaseDefaultName && namespace == MCDexAppDefaultNamespace
+}
+
 func GetProviderName(owner string, name string) string {
 	return fmt.Sprintf("%s-%s", owner, name)
 }
@@ -59,8 +87,8 @@ func GetAuthConfigName(name string) string {
 	return fmt.Sprintf("%s-%s", name, AuthConfigName)
 }
 
-func GetIdpAppName(installation string, namespace string, name string) string {
-	return fmt.Sprintf("%s-%s-%s", installation, namespace, name)
+func GetIdpAppName(managementClusterName string, namespace string, name string) string {
+	return fmt.Sprintf("%s-%s-%s", managementClusterName, namespace, name)
 }
 
 func GetDefaultConnectorDescription(connectorDisplayName string, owner string) string {
@@ -94,6 +122,6 @@ func GetVintageClusterDomain(baseDomain string) string {
 	return fmt.Sprintf("g8s.%s", baseDomain)
 }
 
-func GetDexOperatorName(installation string) string {
-	return fmt.Sprintf("dex-operator-%s", installation)
+func GetDexOperatorName(managementClusterName string) string {
+	return fmt.Sprintf("dex-operator-%s", managementClusterName)
 }

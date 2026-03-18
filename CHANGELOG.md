@@ -7,7 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.16.1] - 2026-03-18
+### Fixed
+
+- Add missing RBAC for `apps/finalizers` and `helmreleases/finalizers` subresources to allow setting `blockOwnerDeletion` on owned secrets.
+- Fix wrong API group `application.giantswarm.io.giantswarm` in kubebuilder RBAC manifests.
+
+## [0.16.0] - 2026-02-26
+
+### Changed
+
+- Bump CAPI dependency and use v1beta2 core APIs
+
+## [0.15.0] - 2026-02-23
+
+### Added
+
+- Add extra RBAC for `helmreleases`.
+
+## [0.14.2] - 2026-02-20
+
+### Added
+
+- Add `io.giantswarm.application.audience` and `io.giantswarm.application.managed` chart annotations for Backstage visibility.
+
+### Changed
+
+- Migrate chart metadata annotations to OCI-compatible format.
+
+## [0.14.1] - 2026-01-30
+
+### Changed
+
+- Build with up-to-date pipelines.
+
+## [0.14.0] - 2025-07-31
+
+### Added
+
+- Add "selfrenewal" functionality for `azure` credentials
+
+## [0.13.0] - 2025-06-23
+
+### Changed
+
+- Update to Go 1.24 and latest libaries
+- Change connector display names from "Azure AD" to "Entry ID"
+- Resolve updated code linter findings.
 
 ## [0.12.4] - 2025-03-05
 
@@ -198,7 +243,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Do not reconcile dex apps that have a user configmap specified and remove configuration in that case. This is to prevent a bug where connectors can be overwritten. 
+- Do not reconcile dex apps that have a user configmap specified and remove configuration in that case. This is to prevent a bug where connectors can be overwritten.
 - Omit empty lists of connectors from marshalled OIDC owner data
 
 ## [0.1.3] - 2022-12-07
@@ -236,6 +281,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.16.1...HEAD
 [0.16.1]: https://github.com/giantswarm/dex-operator/compare/v0.12.4...v0.16.1
+[0.16.0]: https://github.com/giantswarm/dex-operator/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/giantswarm/dex-operator/compare/v0.14.2...v0.15.0
+[0.14.2]: https://github.com/giantswarm/dex-operator/compare/v0.14.1...v0.14.2
+[0.14.1]: https://github.com/giantswarm/dex-operator/compare/v0.14.0...v0.14.1
+[0.14.0]: https://github.com/giantswarm/dex-operator/compare/v0.13.0...v0.14.0
+[0.13.0]: https://github.com/giantswarm/dex-operator/compare/v0.12.4...v0.13.0
 [0.12.4]: https://github.com/giantswarm/dex-operator/compare/v0.12.3...v0.12.4
 [0.12.3]: https://github.com/giantswarm/dex-operator/compare/v0.12.2...v0.12.3
 [0.12.2]: https://github.com/giantswarm/dex-operator/compare/v0.12.1...v0.12.2
