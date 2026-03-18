@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
@@ -15,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	capi "sigs.k8s.io/cluster-api/api/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -34,7 +35,7 @@ func TestReconcile(t *testing.T) {
 			managementClusterName: "mc",
 			clusterName:           "wc",
 			writeAllGroups:        []string{"group_a", "group_b"},
-			expectedConfig:        "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\n  - group_c\n  - group_d\nkubernetes:\n  api:\n    port: 443\n",
+			expectedConfig:        "managementCluster: mc\nbindings:\n    - role: cluster-admin\n      groups:\n        - group_a\n        - group_b\n        - group_c\n        - group_d\nkubernetes:\n    api:\n        port: 443\n",
 		},
 		{
 			name:                  "case 1: MC case, skip creation",
@@ -55,13 +56,13 @@ func TestReconcile(t *testing.T) {
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.GetAuthConfigName("wc"),
-					Namespace: "example",
+					Namespace: "org-example",
 				},
 				Data: map[string]string{
 					key.ValuesConfigMapKey: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_x\n  - group_y\n",
 				},
 			},
-			expectedConfig: "managementCluster: mc\nbindings:\n- role: cluster-admin\n  groups:\n  - group_a\n  - group_b\n  - group_c\n  - group_d\nkubernetes:\n  api:\n    port: 443\n",
+			expectedConfig: "managementCluster: mc\nbindings:\n    - role: cluster-admin\n      groups:\n        - group_a\n        - group_b\n        - group_c\n        - group_d\nkubernetes:\n    api:\n        port: 443\n",
 		},
 	}
 
@@ -80,19 +81,24 @@ func TestReconcile(t *testing.T) {
 
 			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster(), getTestRoleBindings())
 			if tc.existingConfigMap != nil {
-				fakeClientBuilder.WithObjects(tc.existingConfigMap)
+				fakeClientBuilder = fakeClientBuilder.WithObjects(tc.existingConfigMap)
 			}
 
-			service := Service{
-				Client: fakeClientBuilder.Build(),
-				log:    ctrl.Log.WithName("test"),
-				app: &v1alpha1.App{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test",
-						Namespace: "org-example",
-						Labels:    map[string]string{label.Cluster: tc.clusterName, label.Organization: "example"},
-					},
+			app := &v1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "org-example",
+					Labels:    map[string]string{label.Cluster: tc.clusterName, label.Organization: "example"},
 				},
+			}
+
+			fakeClient := fakeClientBuilder.Build()
+			target := dextarget.NewAppTarget(app)
+
+			service := Service{
+				Client:                          fakeClient,
+				log:                             ctrl.Log.WithName("test"),
+				target:                          target,
 				managementClusterWriteAllGroups: tc.writeAllGroups,
 				managementClusterName:           tc.managementClusterName,
 			}
@@ -102,7 +108,7 @@ func TestReconcile(t *testing.T) {
 				t.Fatal(err)
 			}
 			result := &corev1.ConfigMap{}
-			if err := service.Client.Get(ctx, types.NamespacedName{
+			if err := service.Get(ctx, types.NamespacedName{
 				Name:      key.GetAuthConfigName(tc.clusterName),
 				Namespace: "org-example"},
 				result); err != nil {

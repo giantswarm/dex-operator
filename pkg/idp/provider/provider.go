@@ -9,8 +9,15 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/microerror"
-	"gopkg.in/yaml.v2"
+	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v3"
 )
+
+type ProviderConfig struct {
+	Credential            ProviderCredential
+	Log                   logr.Logger
+	ManagementClusterName string
+}
 
 type Provider interface {
 	CreateOrUpdateApp(AppConfig, context.Context, dex.Connector) (ProviderApp, error)
@@ -22,6 +29,12 @@ type Provider interface {
 	GetProviderName() string
 	GetOwner() string
 	GetType() string
+
+	// Self-renewal methods - all providers must implement these
+	// Providers that don't support renewal should return false from SupportsServiceCredentialRenewal()
+	SupportsServiceCredentialRenewal() bool
+	ShouldRotateServiceCredentials(ctx context.Context, config AppConfig) (bool, error)
+	RotateServiceCredentials(ctx context.Context, config AppConfig) (map[string]string, error)
 }
 
 type AppConfig struct {
@@ -59,7 +72,7 @@ type ProviderSecret struct {
 func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 	credentials := &[]ProviderCredential{}
 
-	file, err := os.ReadFile(fileLocation)
+	file, err := os.ReadFile(fileLocation) //nolint:gosec,G304
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}

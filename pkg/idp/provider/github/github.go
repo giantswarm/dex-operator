@@ -17,7 +17,7 @@ import (
 	githubconnector "github.com/dexidp/dex/connector/github"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	githubclient "github.com/google/go-github/v50/github"
+	githubclient "github.com/google/go-github/v84/github"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -37,7 +37,7 @@ const (
 
 type Github struct {
 	Client       *githubclient.Client
-	Log          *logr.Logger
+	Log          logr.Logger
 	Name         string
 	Description  string
 	Type         string
@@ -57,10 +57,11 @@ type Config struct {
 	ClientSecret string
 }
 
-func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
+var _ provider.Provider = (*Github)(nil)
 
+func New(config provider.ProviderConfig) (*Github, error) {
 	// get configuration from credentials
-	c, err := newGithubConfig(p, log)
+	c, err := newGithubConfig(config.Credential, config.Log)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
@@ -73,12 +74,12 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
 	client := githubclient.NewClient(&http.Client{Transport: itr})
 
 	return &Github{
-		Name:         key.GetProviderName(p.Owner, p.Name),
-		Description:  p.GetConnectorDescription(ProviderDisplayName),
-		Log:          log,
+		Name:         key.GetProviderName(config.Credential.Owner, config.Credential.Name),
+		Description:  config.Credential.GetConnectorDescription(ProviderDisplayName),
+		Log:          config.Log,
 		Type:         ProviderConnectorType,
 		Client:       client,
-		Owner:        p.Owner,
+		Owner:        config.Credential.Owner,
 		Organization: c.Organization,
 		Team:         c.Team,
 		id:           c.ClientID,
@@ -86,8 +87,8 @@ func New(p provider.ProviderCredential, log *logr.Logger) (*Github, error) {
 	}, nil
 }
 
-func newGithubConfig(p provider.ProviderCredential, log *logr.Logger) (Config, error) {
-	if log == nil {
+func newGithubConfig(p provider.ProviderCredential, log logr.Logger) (Config, error) {
+	if (logr.Logger{}) == log {
 		return Config{}, microerror.Maskf(invalidConfigError, "Logger must not be empty.")
 	}
 	if p.Name == "" {
@@ -211,11 +212,11 @@ func (g *Github) createOrUpdateSecret(config provider.AppConfig, ctx context.Con
 	}
 	if !callbackURIPresent(app, config) {
 		//We return here since we can not automatically set the URI
-		return provider.ProviderSecret{}, microerror.Maskf(missingCallbackURIError, fmt.Sprintf("Callback URI %s is not registered in %s app %s for %s in organization %s.", config.RedirectURI, g.Type, app.GetSlug(), g.Owner, g.Organization))
+		return provider.ProviderSecret{}, microerror.Maskf(missingCallbackURIError, "Callback URI %s is not registered in %s app %s for %s in organization %s", config.RedirectURI, g.Type, app.GetSlug(), g.Owner, g.Organization)
 	}
 	if g.UpdateNeeded(app, config) {
 		//We return here since we can not set the update
-		return provider.ProviderSecret{}, microerror.Maskf(missingCallbackURIError, fmt.Sprintf("%s app %s for %s in github organization %s needs update.", g.Type, app.GetSlug(), g.Owner, g.Organization))
+		return provider.ProviderSecret{}, microerror.Maskf(missingCallbackURIError, "%s app %s for %s in github organization %s needs update", g.Type, app.GetSlug(), g.Owner, g.Organization)
 	}
 	return g.getSecret(app, oldConnector)
 }
@@ -256,7 +257,7 @@ func (g *Github) UpdateNeeded(app *githubclient.App, config provider.AppConfig) 
 
 func permissionsUpdateNeeded(app *githubclient.App) bool {
 	permissions := app.GetPermissions()
-	return !(permissions.GetEmails() == "read" && permissions.GetMembers() == "read")
+	return permissions.GetEmails() != "read" || permissions.GetMembers() != "read"
 }
 
 func callbackURIPresent(app *githubclient.App, config provider.AppConfig) bool {
@@ -355,4 +356,17 @@ func getDeletionURLForOldApp(host string, organization string, slug string) stri
 
 func getDeletionURLForApp(host string, organization string, slug string) string {
 	return fmt.Sprintf("https://%s/organizations/%s/settings/apps/%s/advanced", host, organization, slug)
+}
+
+// Self-renewal methods implementation - Github doesn't support renewal yet
+func (g *Github) SupportsServiceCredentialRenewal() bool {
+	return false
+}
+
+func (g *Github) ShouldRotateServiceCredentials(ctx context.Context, config provider.AppConfig) (bool, error) {
+	return false, nil
+}
+
+func (g *Github) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
+	return nil, microerror.Maskf(invalidConfigError, "Github provider does not support service credential rotation yet")
 }

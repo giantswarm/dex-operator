@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"net/url"
 
-	githubclient "github.com/google/go-github/v50/github"
+	githubclient "github.com/google/go-github/v84/github"
 	"github.com/pkg/browser"
 )
 
@@ -184,7 +184,12 @@ func findAvailablePort() (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	defer ln.Close()
+
+	defer func() {
+		if closeErr := ln.Close(); closeErr != nil {
+			fmt.Println("Error closing listener:", closeErr)
+		}
+	}()
 
 	port := ln.Addr().(*net.TCPAddr).Port
 

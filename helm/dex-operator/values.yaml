@@ -36,3 +36,23 @@ global:
     enforced: true
 
 hostAliases: []
+
+selfRenewal:
+  enabled: true
+
+monitoring:
+  podLogs:
+    # Enable log collection for monitoring.
+    enabled: true
+
+    # Tenant to use for monitoring
+    tenant: giantswarm
+
+    # Optional additional annotations.
+    annotations: {}
+
+    # Optional additional labels.
+    labels: {}
+
+    # List of relabeling rules for logs.
+    relabelings: []

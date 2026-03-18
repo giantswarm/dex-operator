@@ -3,54 +3,16 @@ package idp
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"regexp"
-	"strings"
-
-	"github.com/giantswarm/dex-operator/pkg/dex"
-	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/microerror"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/giantswarm/dex-operator/pkg/dex"
+	"github.com/giantswarm/dex-operator/pkg/key"
 )
-
-func dexSecretConfigIsPresent(app *v1alpha1.App, dexSecretConfig v1alpha1.AppExtraConfig) bool {
-	if app.Spec.ExtraConfigs == nil {
-		return false
-	}
-	for _, config := range app.Spec.ExtraConfigs {
-		if reflect.DeepEqual(config, dexSecretConfig) {
-			return true
-		}
-	}
-	return false
-}
-
-func removeExtraConfig(extraConfigs []v1alpha1.AppExtraConfig, dexSecretConfig v1alpha1.AppExtraConfig) []v1alpha1.AppExtraConfig {
-	if extraConfigs == nil {
-		return extraConfigs
-	}
-	result := []v1alpha1.AppExtraConfig{}
-	for _, config := range extraConfigs {
-		if !reflect.DeepEqual(config, dexSecretConfig) {
-			result = append(result, config)
-		}
-	}
-	return result
-}
-
-func userConfigMapPresent(app *v1alpha1.App) bool {
-	if app.Spec.UserConfig.ConfigMap.Name == "" && app.Spec.UserConfig.ConfigMap.Namespace == "" {
-		return false
-	}
-	return true
-}
-
-func clusterValuesIsPresent(app *v1alpha1.App) bool {
-	return strings.HasSuffix(app.Spec.Config.ConfigMap.Name, key.ClusterValuesConfigmapSuffix)
-}
 
 func getBaseDomainFromClusterValues(clusterValuesConfigmap *corev1.ConfigMap) string {
 	values := clusterValuesConfigmap.Data[key.ValuesConfigMapKey]
@@ -59,31 +21,6 @@ func getBaseDomainFromClusterValues(clusterValuesConfigmap *corev1.ConfigMap) st
 		return matches[3]
 	}
 	return ""
-}
-
-func connectorsDefinedInUserConfigMap(userConfigmap *corev1.ConfigMap) bool {
-	values := userConfigmap.Data[key.ValuesConfigMapKey]
-	rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.ConnectorsKey))
-	if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
-		return true
-	}
-	return false
-}
-
-func GetDexSecretConfig(n types.NamespacedName) v1alpha1.AppExtraConfig {
-	return v1alpha1.AppExtraConfig{
-		Kind:      "secret",
-		Name:      key.GetDexConfigName(n.Name),
-		Namespace: n.Namespace,
-		Priority:  25}
-}
-
-func GetVintageDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
-	return v1alpha1.AppExtraConfig{
-		Kind:      "secret",
-		Name:      key.DexConfigName,
-		Namespace: namespace,
-		Priority:  25}
 }
 
 func getConnectorsFromSecret(secret *corev1.Secret) (map[string]dex.Connector, error) {
@@ -124,4 +61,39 @@ func getConnectorsFromConfig(config dex.DexConfig) map[string]dex.Connector {
 		}
 	}
 	return connectors
+}
+
+// GetDexSecretConfig returns the AppExtraConfig for the dex secret
+// This is used by both the App CR and for test compatibility
+func GetDexSecretConfig(n types.NamespacedName) v1alpha1.AppExtraConfig {
+	return v1alpha1.AppExtraConfig{
+		Kind:      "secret",
+		Name:      key.GetDexConfigName(n.Name),
+		Namespace: n.Namespace,
+		Priority:  key.DexSecretConfigPriority,
+	}
+}
+
+// GetVintageDexSecretConfig returns the AppExtraConfig for vintage dex secret format
+func GetVintageDexSecretConfig(namespace string) v1alpha1.AppExtraConfig {
+	return v1alpha1.AppExtraConfig{
+		Kind:      "secret",
+		Name:      key.DexConfigName,
+		Namespace: namespace,
+		Priority:  key.DexSecretConfigPriority,
+	}
+}
+
+// removeExtraConfig removes the specified config from the extra configs list
+func removeExtraConfig(extraConfigs []v1alpha1.AppExtraConfig, dexSecretConfig v1alpha1.AppExtraConfig) []v1alpha1.AppExtraConfig {
+	if extraConfigs == nil {
+		return extraConfigs
+	}
+	result := []v1alpha1.AppExtraConfig{}
+	for _, config := range extraConfigs {
+		if config.Kind != dexSecretConfig.Kind || config.Name != dexSecretConfig.Name || config.Namespace != dexSecretConfig.Namespace {
+			result = append(result, config)
+		}
+	}
+	return result
 }
