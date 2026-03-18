@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add missing RBAC for `apps/finalizers` and `helmreleases/finalizers` subresources to allow setting `blockOwnerDeletion` on owned secrets.
+- Fix wrong API group `application.giantswarm.io.giantswarm` in kubebuilder RBAC manifests.
+
 ## [0.16.0] - 2026-02-26
 
 ### Changed
