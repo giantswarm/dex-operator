@@ -136,13 +136,16 @@ func (h *HelmReleaseTarget) AddSecretConfig(secretName, secretNamespace string) 
 			secretNamespace, secretName, h.Namespace)
 	}
 
-	// Add the secret to valuesFrom
-	// We use valuesKey "default" to match the existing secret format used by dex-operator
+	// Add the secret to valuesFrom.
+	// Optional: true so that a fresh install where the secret does not yet
+	// exist does not block the HelmRelease from deploying. dex-operator will
+	// create the secret and populate it shortly after.
+	// We use valuesKey "default" to match the existing secret format used by dex-operator.
 	vf := helmv2.ValuesReference{
 		Kind:      "Secret",
 		Name:      secretName,
 		ValuesKey: "default",
-		Optional:  false,
+		Optional:  true,
 	}
 	h.Spec.ValuesFrom = append(h.Spec.ValuesFrom, vf)
 	return nil
