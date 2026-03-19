@@ -60,4 +60,10 @@ type DexTarget interface {
 	// HelmReleaseTarget uses server-side apply so that Flux does not overwrite
 	// the valuesFrom entry dex-operator adds.
 	PatchTarget(ctx context.Context, c client.Client) error
+
+	// ManagesSecretConfig returns true if dex-operator should inject and manage
+	// the dex config secret reference directly on this target (App CR).
+	// For HelmRelease targets the entry is declared in the Git-managed manifest
+	// upfront, so dex-operator must not touch spec.valuesFrom.
+	ManagesSecretConfig() bool
 }

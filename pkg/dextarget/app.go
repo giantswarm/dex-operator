@@ -128,3 +128,9 @@ func (a *AppTarget) GetObject() client.Object {
 func (a *AppTarget) PatchTarget(ctx context.Context, c client.Client) error {
 	return c.Update(ctx, a.App)
 }
+
+// ManagesSecretConfig returns true — for App CRs dex-operator injects the
+// secret reference into spec.extraConfigs directly.
+func (a *AppTarget) ManagesSecretConfig() bool {
+	return true
+}

@@ -119,8 +119,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	nn := s.target.GetNamespacedName()
 	secretName := key.GetDexConfigName(nn.Name)
 
-	// Add secret config to target instance if not present
-	if !s.target.HasSecretConfig(secretName) {
+	// For App CR targets, inject the secret reference into the target if not present.
+	// For HelmRelease targets the entry is declared in the Git-managed manifest upfront,
+	// so dex-operator must not touch spec.valuesFrom.
+	if s.target.ManagesSecretConfig() && !s.target.HasSecretConfig(secretName) {
 		if err := s.target.AddSecretConfig(secretName, nn.Namespace); err != nil {
 			return microerror.Mask(err)
 		}
@@ -228,16 +230,18 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 				s.log.Info(fmt.Sprintf("Deleted default dex config secret for dex %s instance.", s.target.GetTargetType()))
 			}
 		}
-		// remove dex secret config
-		if err := s.target.RemoveSecretConfig(secretName, nn.Namespace); err != nil {
-			return microerror.Mask(err)
-		}
-		if err := s.target.PatchTarget(ctx, s.Client); err != nil {
-			if !apierrors.IsNotFound(err) {
+		// remove dex secret config from target
+		if s.target.ManagesSecretConfig() {
+			if err := s.target.RemoveSecretConfig(secretName, nn.Namespace); err != nil {
 				return microerror.Mask(err)
 			}
-		} else {
-			s.log.Info(fmt.Sprintf("Removed dex config secret reference from dex %s instance.", s.target.GetTargetType()))
+			if err := s.target.PatchTarget(ctx, s.Client); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return microerror.Mask(err)
+				}
+			} else {
+				s.log.Info(fmt.Sprintf("Removed dex config secret reference from dex %s instance.", s.target.GetTargetType()))
+			}
 		}
 	}
 	return nil
