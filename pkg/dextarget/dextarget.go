@@ -7,6 +7,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// FieldManager is the field manager name used for server-side apply patches.
+const FieldManager = "dex-operator"
+
 // DexTarget is an interface that abstracts the common functionality between
 // Giant Swarm App CRs and Flux HelmReleases for dex-operator configuration injection.
 type DexTarget interface {
@@ -51,4 +54,10 @@ type DexTarget interface {
 	// GetObject returns the underlying Kubernetes object for use with client.Update
 	// This is needed because the wrapper types don't have GVK registered in the scheme
 	GetObject() client.Object
+
+	// PatchTarget persists a change to the target's config reference (e.g. after
+	// AddSecretConfig or RemoveSecretConfig). AppTarget uses a plain Update;
+	// HelmReleaseTarget uses server-side apply so that Flux does not overwrite
+	// the valuesFrom entry dex-operator adds.
+	PatchTarget(ctx context.Context, c client.Client) error
 }

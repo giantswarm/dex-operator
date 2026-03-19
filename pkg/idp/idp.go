@@ -124,7 +124,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err := s.target.AddSecretConfig(secretName, nn.Namespace); err != nil {
 			return microerror.Mask(err)
 		}
-		if err := s.Update(ctx, s.target.GetObject()); err != nil {
+		if err := s.target.PatchTarget(ctx, s.Client); err != nil {
 			return microerror.Mask(err)
 		}
 		s.log.Info(fmt.Sprintf("Added secret config to dex %s instance.", s.target.GetTargetType()))
@@ -232,7 +232,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 		if err := s.target.RemoveSecretConfig(secretName, nn.Namespace); err != nil {
 			return microerror.Mask(err)
 		}
-		if err := s.Update(ctx, s.target.GetObject()); err != nil {
+		if err := s.target.PatchTarget(ctx, s.Client); err != nil {
 			if !apierrors.IsNotFound(err) {
 				return microerror.Mask(err)
 			}

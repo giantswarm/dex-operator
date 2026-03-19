@@ -124,3 +124,7 @@ func (a *AppTarget) GetTargetType() string {
 func (a *AppTarget) GetObject() client.Object {
 	return a.App
 }
+
+func (a *AppTarget) PatchTarget(ctx context.Context, c client.Client) error {
+	return c.Update(ctx, a.App)
+}

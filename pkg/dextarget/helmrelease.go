@@ -173,3 +173,17 @@ func (h *HelmReleaseTarget) GetTargetType() string {
 func (h *HelmReleaseTarget) GetObject() client.Object {
 	return h.HelmRelease
 }
+
+// PatchTarget uses a plain Update to persist spec.valuesFrom changes on the
+// HelmRelease.
+//
+// NOTE: This means dex-operator and Flux both manage spec.valuesFrom, which
+// can cause a conflict: Flux (via SSA with its own field manager) owns the
+// whole valuesFrom array as an atomic list and will overwrite dex-operator's
+// additions on every reconcile. The correct long-term fix is to declare the
+// dex-operator secret entry in spec.valuesFrom in the Git-managed HelmRelease
+// manifest from the start, so dex-operator only ever needs to write to the
+// Secret contents and never touches spec.valuesFrom.
+func (h *HelmReleaseTarget) PatchTarget(ctx context.Context, c client.Client) error {
+	return c.Update(ctx, h.HelmRelease)
+}
