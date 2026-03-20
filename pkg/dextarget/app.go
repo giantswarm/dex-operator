@@ -126,7 +126,10 @@ func (a *AppTarget) GetObject() client.Object {
 }
 
 func (a *AppTarget) AttachSecretConfig(ctx context.Context, c client.Client) (bool, error) {
-	return true, c.Update(ctx, a.App)
+	if err := c.Update(ctx, a.App); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // ManagesSecretConfig returns true — for App CRs dex-operator injects the
