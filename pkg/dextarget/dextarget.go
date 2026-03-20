@@ -59,7 +59,9 @@ type DexTarget interface {
 	// AddSecretConfig or RemoveSecretConfig). AppTarget uses a plain Update;
 	// HelmReleaseTarget uses server-side apply so that Flux does not overwrite
 	// the valuesFrom entry dex-operator adds.
-	PatchTarget(ctx context.Context, c client.Client) error
+	// PatchTarget persists a change to the target's config reference (e.g. after
+	// AddSecretConfig or RemoveSecretConfig). AppTarget uses a plain Update;
+	// HelmReleaseTarget is a no-op to avoid competing with Flux.
 
 	// ManagesSecretConfig returns true if dex-operator should inject and manage
 	// the dex config secret reference directly on this target (App CR).
