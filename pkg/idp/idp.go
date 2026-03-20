@@ -126,10 +126,17 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err := s.target.AddSecretConfig(secretName, nn.Namespace); err != nil {
 			return microerror.Mask(err)
 		}
-		if err := s.target.PatchTarget(ctx, s.Client); err != nil {
+		if _, err := s.target.AttachSecretConfig(ctx, s.Client); err != nil {
 			return microerror.Mask(err)
 		}
 		s.log.Info(fmt.Sprintf("Added secret config to dex %s instance.", s.target.GetTargetType()))
+	}
+
+	// Warn if a HelmRelease does not reference the dex config secret. dex-operator
+	// will still create and update the secret, but dex-app will not load it until
+	// the reference is added to the HelmRelease manifest.
+	if !s.target.ManagesSecretConfig() && !s.target.HasSecretConfig(secretName) {
+		s.log.Info(fmt.Sprintf("WARNING: dex %s does not reference secret %s in its config. dex-operator will manage the secret contents but dex-app will not load connectors until the reference is added to the HelmRelease manifest.", s.target.GetTargetType(), secretName))
 	}
 
 	// Fetch secret
@@ -235,7 +242,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 			if err := s.target.RemoveSecretConfig(secretName, nn.Namespace); err != nil {
 				return microerror.Mask(err)
 			}
-			if err := s.target.PatchTarget(ctx, s.Client); err != nil {
+			if _, err := s.target.AttachSecretConfig(ctx, s.Client); err != nil {
 				if !apierrors.IsNotFound(err) {
 					return microerror.Mask(err)
 				}

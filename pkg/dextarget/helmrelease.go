@@ -148,10 +148,11 @@ func (h *HelmReleaseTarget) GetObject() client.Object {
 	return h.HelmRelease
 }
 
-// PatchTarget is a no-op for HelmRelease targets — dex-operator does not
-// modify spec.valuesFrom. See ManagesSecretConfig.
-func (h *HelmReleaseTarget) PatchTarget(ctx context.Context, c client.Client) error {
-	return nil
+// AttachSecretConfig is a no-op for HelmRelease targets — the dex config
+// secret reference is managed in the Git-managed manifest. Returns false
+// to indicate no modification was made.
+func (h *HelmReleaseTarget) AttachSecretConfig(ctx context.Context, c client.Client) (bool, error) {
+	return false, nil
 }
 
 // ManagesSecretConfig returns false — for HelmRelease targets the dex config
