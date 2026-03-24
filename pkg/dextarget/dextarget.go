@@ -59,8 +59,10 @@ type DexTarget interface {
 	AttachSecretConfig(ctx context.Context, c client.Client) (bool, error)
 
 	// ManagesSecretConfig returns true if dex-operator should inject and manage
-	// the dex config secret reference directly on this target (App CR).
-	// For HelmRelease targets the entry is declared in the Git-managed manifest
-	// upfront, so dex-operator must not touch spec.valuesFrom.
+	// the dex config secret reference directly on this target.
+	// For App CR targets this is always true.
+	// For HelmRelease targets it is true only if the HelmRelease is self-managed
+	// (no Flux Kustomization labels) — Flux-managed HelmReleases must declare the
+	// entry in their Git manifest to avoid SSA ownership conflicts.
 	ManagesSecretConfig() bool
 }

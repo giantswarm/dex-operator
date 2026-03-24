@@ -128,11 +128,32 @@ func (h *HelmReleaseTarget) HasSecretConfig(secretName string) bool {
 // AddSecretConfig is a no-op for HelmRelease targets. The dex config secret
 // reference must be declared in the Git-managed HelmRelease manifest upfront.
 func (h *HelmReleaseTarget) AddSecretConfig(secretName, secretNamespace string) error {
+	if secretNamespace != h.Namespace {
+		return fmt.Errorf("HelmRelease valuesFrom does not support cross-namespace references: secret %s/%s cannot be referenced from HelmRelease in namespace %s",
+			secretNamespace, secretName, h.Namespace)
+	}
+	vf := helmv2.ValuesReference{
+		Kind:      "Secret",
+		Name:      secretName,
+		ValuesKey: "default",
+	}
+	h.Spec.ValuesFrom = append(h.Spec.ValuesFrom, vf)
 	return nil
 }
 
-// RemoveSecretConfig is a no-op for HelmRelease targets.
+// RemoveSecretConfig is a no-op for Flux-managed HelmRelease targets.
+// For self-managed HelmReleases it removes the entry from valuesFrom in memory.
 func (h *HelmReleaseTarget) RemoveSecretConfig(secretName, secretNamespace string) error {
+	if h.Spec.ValuesFrom == nil {
+		return nil
+	}
+	result := []helmv2.ValuesReference{}
+	for _, vf := range h.Spec.ValuesFrom {
+		if !(vf.Kind == "Secret" && vf.Name == secretName) {
+			result = append(result, vf)
+		}
+	}
+	h.Spec.ValuesFrom = result
 	return nil
 }
 
@@ -148,16 +169,32 @@ func (h *HelmReleaseTarget) GetObject() client.Object {
 	return h.HelmRelease
 }
 
-// AttachSecretConfig is a no-op for HelmRelease targets — the dex config
-// secret reference is managed in the Git-managed manifest. Returns false
-// to indicate no modification was made.
+// AttachSecretConfig persists valuesFrom changes for self-managed HelmReleases
+// via a plain Update. For Flux-managed HelmReleases this is a no-op — the entry
+// must be declared in the Git-managed manifest to avoid Flux ownership conflicts.
+// Returns true if the target was actually modified.
 func (h *HelmReleaseTarget) AttachSecretConfig(ctx context.Context, c client.Client) (bool, error) {
-	return false, nil
+	if h.isFluxManaged() {
+		return false, nil
+	}
+	if err := c.Update(ctx, h.HelmRelease); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
-// ManagesSecretConfig returns false — for HelmRelease targets the dex config
-// secret reference is declared in the Git-managed manifest upfront. dex-operator
-// only manages the Secret contents and must not touch spec.valuesFrom.
+// ManagesSecretConfig returns true for self-managed HelmReleases (dex-operator
+// can safely inject the valuesFrom entry) and false for Flux-managed ones
+// (entry must be declared in the Git manifest to avoid SSA ownership conflicts).
 func (h *HelmReleaseTarget) ManagesSecretConfig() bool {
-	return false
+	return !h.isFluxManaged()
+}
+
+// isFluxManaged returns true if this HelmRelease is reconciled by a Flux
+// Kustomization, identified by the presence of Flux management labels.
+func (h *HelmReleaseTarget) isFluxManaged() bool {
+	labels := h.GetLabels()
+	_, hasName := labels["kustomize.toolkit.fluxcd.io/name"]
+	_, hasNamespace := labels["kustomize.toolkit.fluxcd.io/namespace"]
+	return hasName && hasNamespace
 }
