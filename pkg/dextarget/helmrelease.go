@@ -125,8 +125,6 @@ func (h *HelmReleaseTarget) HasSecretConfig(secretName string) bool {
 	return false
 }
 
-// AddSecretConfig is a no-op for HelmRelease targets. The dex config secret
-// reference must be declared in the Git-managed HelmRelease manifest upfront.
 func (h *HelmReleaseTarget) AddSecretConfig(secretName, secretNamespace string) error {
 	if secretNamespace != h.Namespace {
 		return fmt.Errorf("HelmRelease valuesFrom does not support cross-namespace references: secret %s/%s cannot be referenced from HelmRelease in namespace %s",
