@@ -53,8 +53,8 @@ type DexTarget interface {
 	GetObject() client.Object
 
 	// AttachSecretConfig persists the secret config reference added by AddSecretConfig
-	// to the target. For App CR targets this performs a client Update; for HelmRelease
-	// targets this is a no-op because the reference is managed in the Git manifest.
+	// to the target. For App CRs and HelmReleases not managed by Flux, this performs a client Update; 
+	// for HelmRelease targets managed by Flux, this is a no-op.
 	// Returns true if the target was actually modified.
 	AttachSecretConfig(ctx context.Context, c client.Client) (bool, error)
 
