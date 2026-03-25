@@ -114,8 +114,6 @@ func (h *HelmReleaseTarget) GetClusterValuesConfigMapRef() (name, namespace stri
 }
 
 // HasSecretConfig returns true if the dex config secret is referenced in valuesFrom.
-// For HelmRelease targets this entry is declared in the Git-managed manifest —
-// dex-operator uses this only to detect misconfiguration.
 func (h *HelmReleaseTarget) HasSecretConfig(secretName string) bool {
 	for _, vf := range h.Spec.ValuesFrom {
 		if vf.Kind == "Secret" && vf.Name == secretName {
