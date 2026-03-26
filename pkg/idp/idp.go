@@ -119,15 +119,24 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	nn := s.target.GetNamespacedName()
 	secretName := key.GetDexConfigName(nn.Name)
 
-	// Add secret config to target instance if not present
-	if !s.target.HasSecretConfig(secretName) {
+	// For App CR targets, inject the secret reference into the target if not present.
+	// For HelmRelease targets the entry is declared in the Git-managed manifest upfront,
+	// so dex-operator must not touch spec.valuesFrom.
+	if s.target.ManagesSecretConfig() && !s.target.HasSecretConfig(secretName) {
 		if err := s.target.AddSecretConfig(secretName, nn.Namespace); err != nil {
 			return microerror.Mask(err)
 		}
-		if err := s.Update(ctx, s.target.GetObject()); err != nil {
+		if _, err := s.target.AttachSecretConfig(ctx, s.Client); err != nil {
 			return microerror.Mask(err)
 		}
 		s.log.Info(fmt.Sprintf("Added secret config to dex %s instance.", s.target.GetTargetType()))
+	}
+
+	// Warn if a HelmRelease does not reference the dex config secret. dex-operator
+	// will still create and update the secret, but dex-app will not load it until
+	// the reference is added to the HelmRelease manifest.
+	if !s.target.ManagesSecretConfig() && !s.target.HasSecretConfig(secretName) {
+		s.log.Info(fmt.Sprintf("WARNING: dex %s does not reference secret %s in its config. dex-operator will manage the secret contents but dex-app will not load connectors until the reference is added to the HelmRelease manifest.", s.target.GetTargetType(), secretName))
 	}
 
 	// Fetch secret
@@ -228,16 +237,18 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 				s.log.Info(fmt.Sprintf("Deleted default dex config secret for dex %s instance.", s.target.GetTargetType()))
 			}
 		}
-		// remove dex secret config
-		if err := s.target.RemoveSecretConfig(secretName, nn.Namespace); err != nil {
-			return microerror.Mask(err)
-		}
-		if err := s.Update(ctx, s.target.GetObject()); err != nil {
-			if !apierrors.IsNotFound(err) {
+		// remove dex secret config from target
+		if s.target.ManagesSecretConfig() {
+			if err := s.target.RemoveSecretConfig(secretName, nn.Namespace); err != nil {
 				return microerror.Mask(err)
 			}
-		} else {
-			s.log.Info(fmt.Sprintf("Removed dex config secret reference from dex %s instance.", s.target.GetTargetType()))
+			if _, err := s.target.AttachSecretConfig(ctx, s.Client); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return microerror.Mask(err)
+				}
+			} else {
+				s.log.Info(fmt.Sprintf("Removed dex config secret reference from dex %s instance.", s.target.GetTargetType()))
+			}
 		}
 	}
 	return nil

@@ -46,8 +46,6 @@ func (h *HelmReleaseTarget) GetOrganizationLabel() string {
 func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c client.Client) (bool, error) {
 	log := logr.FromContextOrDiscard(ctx)
 
-	// For HelmRelease, check if any valuesFrom references contain connector configuration
-	// that would conflict with dex-operator managed connectors
 	for _, vf := range h.Spec.ValuesFrom {
 		// Skip our own managed secret
 		if strings.HasSuffix(vf.Name, key.DexConfigName) {
@@ -58,7 +56,6 @@ func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c c
 		switch vf.Kind {
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{}
-			// HelmRelease valuesFrom must be in the same namespace
 			if err := c.Get(ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, cm); err != nil {
 				log.Error(err, "Failed to fetch ConfigMap referenced in valuesFrom, skipping connector check",
 					"configmap", vf.Name, "namespace", h.Namespace)
@@ -88,7 +85,6 @@ func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c c
 			values = string(secret.Data[valuesKey])
 		}
 
-		// Check if connectors are defined
 		if values != "" {
 			rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.ConnectorsKey))
 			if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
@@ -100,7 +96,6 @@ func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c c
 }
 
 func (h *HelmReleaseTarget) HasClusterValuesConfig() bool {
-	// For HelmRelease, check valuesFrom for cluster-values configmap pattern
 	for _, vf := range h.Spec.ValuesFrom {
 		if vf.Kind == "ConfigMap" && strings.HasSuffix(vf.Name, key.ClusterValuesConfigmapSuffix) {
 			return true
@@ -110,7 +105,6 @@ func (h *HelmReleaseTarget) HasClusterValuesConfig() bool {
 }
 
 func (h *HelmReleaseTarget) GetClusterValuesConfigMapRef() (name, namespace string) {
-	// For HelmRelease, valuesFrom must be in the same namespace
 	for _, vf := range h.Spec.ValuesFrom {
 		if vf.Kind == "ConfigMap" && strings.HasSuffix(vf.Name, key.ClusterValuesConfigmapSuffix) {
 			return vf.Name, h.Namespace
@@ -119,6 +113,7 @@ func (h *HelmReleaseTarget) GetClusterValuesConfigMapRef() (name, namespace stri
 	return "", ""
 }
 
+// HasSecretConfig returns true if the dex config secret is referenced in valuesFrom.
 func (h *HelmReleaseTarget) HasSecretConfig(secretName string) bool {
 	for _, vf := range h.Spec.ValuesFrom {
 		if vf.Kind == "Secret" && vf.Name == secretName {
@@ -129,25 +124,21 @@ func (h *HelmReleaseTarget) HasSecretConfig(secretName string) bool {
 }
 
 func (h *HelmReleaseTarget) AddSecretConfig(secretName, secretNamespace string) error {
-	// Note: HelmRelease valuesFrom does not support cross-namespace references
-	// The secret must be in the same namespace as the HelmRelease
 	if secretNamespace != h.Namespace {
 		return fmt.Errorf("HelmRelease valuesFrom does not support cross-namespace references: secret %s/%s cannot be referenced from HelmRelease in namespace %s",
 			secretNamespace, secretName, h.Namespace)
 	}
-
-	// Add the secret to valuesFrom
-	// We use valuesKey "default" to match the existing secret format used by dex-operator
 	vf := helmv2.ValuesReference{
 		Kind:      "Secret",
 		Name:      secretName,
 		ValuesKey: "default",
-		Optional:  false,
 	}
 	h.Spec.ValuesFrom = append(h.Spec.ValuesFrom, vf)
 	return nil
 }
 
+// RemoveSecretConfig is a no-op for Flux-managed HelmRelease targets.
+// For self-managed HelmReleases it removes the entry from valuesFrom in memory.
 func (h *HelmReleaseTarget) RemoveSecretConfig(secretName, secretNamespace string) error {
 	if h.Spec.ValuesFrom == nil {
 		return nil
@@ -172,4 +163,34 @@ func (h *HelmReleaseTarget) GetTargetType() string {
 
 func (h *HelmReleaseTarget) GetObject() client.Object {
 	return h.HelmRelease
+}
+
+// AttachSecretConfig persists valuesFrom changes for self-managed HelmReleases
+// via a plain Update. For Flux-managed HelmReleases this is a no-op — the entry
+// must be declared in the Git-managed manifest to avoid Flux ownership conflicts.
+// Returns true if the target was actually modified.
+func (h *HelmReleaseTarget) AttachSecretConfig(ctx context.Context, c client.Client) (bool, error) {
+	if h.isFluxManaged() {
+		return false, nil
+	}
+	if err := c.Update(ctx, h.HelmRelease); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ManagesSecretConfig returns true for self-managed HelmReleases (dex-operator
+// can safely inject the valuesFrom entry) and false for Flux-managed ones
+// (entry must be declared in the Git manifest to avoid SSA ownership conflicts).
+func (h *HelmReleaseTarget) ManagesSecretConfig() bool {
+	return !h.isFluxManaged()
+}
+
+// isFluxManaged returns true if this HelmRelease is reconciled by a Flux
+// Kustomization, identified by the presence of Flux management labels.
+func (h *HelmReleaseTarget) isFluxManaged() bool {
+	labels := h.GetLabels()
+	_, hasName := labels["kustomize.toolkit.fluxcd.io/name"]
+	_, hasNamespace := labels["kustomize.toolkit.fluxcd.io/namespace"]
+	return hasName && hasNamespace
 }

@@ -51,4 +51,18 @@ type DexTarget interface {
 	// GetObject returns the underlying Kubernetes object for use with client.Update
 	// This is needed because the wrapper types don't have GVK registered in the scheme
 	GetObject() client.Object
+
+	// AttachSecretConfig persists the secret config reference added by AddSecretConfig
+	// to the target. For App CRs and HelmReleases not managed by Flux, this performs a client Update;
+	// for HelmRelease targets managed by Flux, this is a no-op.
+	// Returns true if the target was actually modified.
+	AttachSecretConfig(ctx context.Context, c client.Client) (bool, error)
+
+	// ManagesSecretConfig returns true if dex-operator should inject and manage
+	// the dex config secret reference directly on this target.
+	// For App CR targets this is always true.
+	// For HelmRelease targets it is true only if the HelmRelease is self-managed
+	// (no Flux Kustomization labels) — Flux-managed HelmReleases must declare the
+	// entry in their Git manifest to avoid SSA ownership conflicts.
+	ManagesSecretConfig() bool
 }
