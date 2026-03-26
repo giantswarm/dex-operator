@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.16.2] - 2026-03-26
+### Added
+
+- Add support for Flux HelmRelease as a dex-app target, in addition to the existing App CR target.
+- Add warning log when a Flux-managed HelmRelease does not reference the dex config secret in `spec.valuesFrom`.
+
+### Changed
+
+- For Flux-managed HelmReleases (identified by `kustomize.toolkit.fluxcd.io` labels), dex-operator no longer modifies `spec.valuesFrom`.
 
 ## [0.16.1] - 2026-02-03
 
