@@ -135,7 +135,7 @@ replace (
 	github.com/cloudflare/circl => github.com/cloudflare/circl v1.6.3
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0
 	golang.org/x/net => golang.org/x/net v0.52.0
-	google.golang.org/grpc => google.golang.org/grpc v1.79.3
+	google.golang.org/grpc => google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.11
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.27.4
 )
