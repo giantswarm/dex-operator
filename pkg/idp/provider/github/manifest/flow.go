@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"net/url"
 
-	githubclient "github.com/google/go-github/v84/github"
+	githubclient "github.com/google/go-github/v85/github"
 	"github.com/pkg/browser"
 )
 
