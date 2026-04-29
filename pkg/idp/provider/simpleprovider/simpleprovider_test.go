@@ -224,3 +224,162 @@ func TestCreateApp(t *testing.T) {
 		})
 	}
 }
+
+// TestConnectorIDOverride covers the optional connectorId credentials key
+// added for the Giant Swarm SSO federation connector (PLAN §6 TB-5).
+func TestConnectorIDOverride(t *testing.T) {
+	testCases := []struct {
+		name            string
+		connectorID     string
+		expectedID      string
+		expectNewError  bool
+		expectAppError  bool
+	}{
+		{
+			name:        "case 0 - override unset falls back to auto-derived ID",
+			connectorID: "",
+			expectedID:  "test-simple-oidc",
+		},
+		{
+			name:        "case 1 - explicit canonical giantswarm ID",
+			connectorID: "giantswarm",
+			expectedID:  "giantswarm",
+		},
+		{
+			name:        "case 2 - alphanumeric with dashes and underscores",
+			connectorID: "gs_sso-2",
+			expectedID:  "gs_sso-2",
+		},
+		{
+			name:           "case 3 - leading digit rejected",
+			connectorID:    "1giantswarm",
+			expectNewError: true,
+		},
+		{
+			name:           "case 4 - invalid character rejected",
+			connectorID:    "giantswarm.sso",
+			expectNewError: true,
+		},
+		{
+			name:           "case 5 - whitespace rejected",
+			connectorID:    "giant swarm",
+			expectNewError: true,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			credential := provider.ProviderCredential{
+				Name:  "name",
+				Owner: "test",
+				Credentials: map[string]string{
+					connectorTypeKey:           "oidc",
+					connectorConfigKey:         "issuer: https://dex.example.com\nclientID: 123\nclientSecret: abc\nredirectURI: hi.io",
+					CredentialKeyConnectorID:   tc.connectorID,
+				},
+			}
+			providerConfig := provider.ProviderConfig{
+				Credential: credential,
+				Log:        provider.GetTestLogger(),
+			}
+			simple, err := New(providerConfig)
+			if tc.expectNewError {
+				if err == nil {
+					t.Fatalf("Expected error from New, got success.")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			app, err := simple.CreateOrUpdateApp(provider.GetTestConfig(), context.Background(), dex.Connector{})
+			if err != nil && !tc.expectAppError {
+				t.Fatal(err)
+			}
+			if app.Connector.ID != tc.expectedID {
+				t.Fatalf("Expected connector ID %q, got %q", tc.expectedID, app.Connector.ID)
+			}
+			// Connector Name (description) is unaffected by the override.
+			if app.Connector.Name != "Simple Provider for test" {
+				t.Fatalf("Expected connector Name %q, got %q", "Simple Provider for test", app.Connector.Name)
+			}
+		})
+	}
+}
+
+// TestCentralClusterSkip covers the central-cluster skip (PLAN §6 TB-5):
+// simpleprovider.New returns (nil, nil) when the operator's
+// --management-cluster matches the credential's centralCluster value.
+func TestCentralClusterSkip(t *testing.T) {
+	baseCredentials := map[string]string{
+		connectorTypeKey:   "oidc",
+		connectorConfigKey: "issuer: https://dex.example.com\nclientID: 123\nclientSecret: abc\nredirectURI: hi.io",
+	}
+
+	testCases := []struct {
+		name              string
+		centralCluster    string
+		operatorCluster   string
+		expectSkip        bool
+	}{
+		{
+			name:            "case 0 - match - operator on central cluster - skip",
+			centralCluster:  "gazelle",
+			operatorCluster: "gazelle",
+			expectSkip:      true,
+		},
+		{
+			name:            "case 1 - mismatch - operator on remote MC - run",
+			centralCluster:  "gazelle",
+			operatorCluster: "glean",
+			expectSkip:      false,
+		},
+		{
+			name:            "case 2 - centralCluster unset - run",
+			centralCluster:  "",
+			operatorCluster: "gazelle",
+			expectSkip:      false,
+		},
+		{
+			name:            "case 3 - operatorCluster unset - run (would skip nothing)",
+			centralCluster:  "gazelle",
+			operatorCluster: "",
+			expectSkip:      false,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			creds := map[string]string{}
+			for k, v := range baseCredentials {
+				creds[k] = v
+			}
+			if tc.centralCluster != "" {
+				creds[CredentialKeyCentralCluster] = tc.centralCluster
+			}
+
+			providerConfig := provider.ProviderConfig{
+				Credential: provider.ProviderCredential{
+					Name:        "name",
+					Owner:       "giantswarm",
+					Credentials: creds,
+				},
+				Log:                   provider.GetTestLogger(),
+				ManagementClusterName: tc.operatorCluster,
+			}
+			simple, err := New(providerConfig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.expectSkip {
+				if simple != nil {
+					t.Fatalf("Expected nil provider (skip), got %+v", simple)
+				}
+				return
+			}
+			if simple == nil {
+				t.Fatalf("Expected non-nil provider, got nil (unexpected skip)")
+			}
+		})
+	}
+}

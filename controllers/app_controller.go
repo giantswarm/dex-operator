@@ -222,6 +222,12 @@ func (r *AppReconciler) GetProviders() ([]provider.Provider, error) {
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
+		// A nil provider with no error means the constructor opted out of
+		// running on this management cluster (e.g. simpleprovider's
+		// centralCluster skip — see PLAN §6 TB-5).
+		if provider == nil {
+			continue
+		}
 		providers = append(providers, provider)
 	}
 	return providers, nil
@@ -270,7 +276,17 @@ func NewProvider(config provider.ProviderConfig) (provider.Provider, error) {
 	case github.ProviderName:
 		return github.New(config)
 	case simpleprovider.ProviderName:
-		return simpleprovider.New(config)
+		// simpleprovider.New may return (nil, nil) to opt out (centralCluster
+		// skip; see PLAN §6 TB-5). Return an untyped nil interface so callers
+		// can compare against nil reliably.
+		p, err := simpleprovider.New(config)
+		if err != nil {
+			return nil, err
+		}
+		if p == nil {
+			return nil, nil
+		}
+		return p, nil
 	}
 	return nil, microerror.Maskf(invalidConfigError, "%s is not a valid provider name.", config.Credential.Name)
 }

@@ -202,6 +202,12 @@ func (r *HelmReleaseReconciler) GetProviders() ([]provider.Provider, error) {
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
+		// A nil provider with no error means the constructor opted out of
+		// running on this management cluster (e.g. simpleprovider's
+		// centralCluster skip — see PLAN §6 TB-5).
+		if provider == nil {
+			continue
+		}
 		providers = append(providers, provider)
 	}
 	return providers, nil
