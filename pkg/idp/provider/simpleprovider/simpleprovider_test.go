@@ -229,11 +229,11 @@ func TestCreateApp(t *testing.T) {
 // added for the Giant Swarm SSO federation connector (PLAN §6 TB-5).
 func TestConnectorIDOverride(t *testing.T) {
 	testCases := []struct {
-		name            string
-		connectorID     string
-		expectedID      string
-		expectNewError  bool
-		expectAppError  bool
+		name           string
+		connectorID    string
+		expectedID     string
+		expectNewError bool
+		expectAppError bool
 	}{
 		{
 			name:        "case 0 - override unset falls back to auto-derived ID",
@@ -273,9 +273,9 @@ func TestConnectorIDOverride(t *testing.T) {
 				Name:  "name",
 				Owner: "test",
 				Credentials: map[string]string{
-					connectorTypeKey:           "oidc",
-					connectorConfigKey:         "issuer: https://dex.example.com\nclientID: 123\nclientSecret: abc\nredirectURI: hi.io",
-					CredentialKeyConnectorID:   tc.connectorID,
+					connectorTypeKey:         "oidc",
+					connectorConfigKey:       "issuer: https://dex.example.com\nclientID: 123\nclientSecret: abc\nredirectURI: hi.io",
+					CredentialKeyConnectorID: tc.connectorID,
 				},
 			}
 			providerConfig := provider.ProviderConfig{
@@ -317,10 +317,10 @@ func TestCentralClusterSkip(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name              string
-		centralCluster    string
-		operatorCluster   string
-		expectSkip        bool
+		name            string
+		centralCluster  string
+		operatorCluster string
+		expectSkip      bool
 	}{
 		{
 			name:            "case 0 - match - operator on central cluster - skip",
