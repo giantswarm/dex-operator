@@ -1,0 +1,57 @@
+{
+  "extends": [
+    "github>giantswarm/renovate-presets:default.json5",
+    "github>giantswarm/renovate-presets:lang-go.json5"
+  ],
+  "packageRules": [
+    {
+      "groupName": "giantswarm modules",
+      "matchPackageNames": ["/.*giantswarm.*/"]
+    },
+    {
+      "groupName": "k8s modules",
+      "allowedVersions": "< 0.21.0",
+      "matchPackageNames": ["/^k8s.io/"]
+    },
+    {
+      "groupName": "sig k8s modules",
+      "matchPackageNames": ["/^sigs.k8s.io/"]
+    },
+    {
+      "groupName": "misc modules",
+      "matchPackageNames": [
+        "!/.*giantswarm.*/",
+        "!/^k8s.io/",
+        "!/^sigs.k8s.io/"
+      ]
+    },
+    {
+      "groupName": "capi modules",
+      "enabled": false,
+      "matchPackageNames": ["/^sigs.k8s.io/cluster*/"]
+    },
+    {
+      "matchPackageNames": ["sigs.k8s.io/controller-runtime"],
+      "allowedVersions": "< 0.7.0"
+    },
+    {
+      "allowedVersions": ">= 4.0.0",
+      "matchPackageNames": ["/^github.com/giantswarm/apiextensions*/"]
+    }
+  ],
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^helm\/.+\/values\.yaml$/"],
+      "matchStrings": ["repo: (?<depName>.*)
+(\s)*version: (?<currentValue>.*?)
+"],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    }
+  ]
+}
