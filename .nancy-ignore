@@ -1,7 +1,7 @@
-CVE-2026-25681 until=2026-06-27 # golang.org/x/net@v0.53.0
-CVE-2026-27136 until=2026-06-27 # golang.org/x/net@v0.53.0
-CVE-2026-42502 until=2026-06-27 # golang.org/x/net@v0.53.0
-CVE-2026-42506 until=2026-06-27 # golang.org/x/net@v0.53.0
+CVE-2026-25681 until=2026-06-28 # golang.org/x/net@v0.53.0
+CVE-2026-27136 until=2026-06-28 # golang.org/x/net@v0.53.0
+CVE-2026-42502 until=2026-06-28 # golang.org/x/net@v0.53.0
+CVE-2026-42506 until=2026-06-28 # golang.org/x/net@v0.53.0
 CVE-2026-39828 until=2026-06-27 # golang.org/x/crypto@v0.50.0
 CVE-2026-39831 until=2026-06-27 # golang.org/x/crypto@v0.50.0
 CVE-2026-39832 until=2026-06-27 # golang.org/x/crypto@v0.50.0
@@ -15,3 +15,5 @@ CVE-2026-42508 until=2026-06-27 # golang.org/x/crypto@v0.50.0
 CVE-2026-46595 until=2026-06-27 # golang.org/x/crypto@v0.50.0
 CVE-2026-39827 until=2026-06-27 # golang.org/x/crypto@v0.50.0
 CVE-2026-29181 until=2026-06-27 # go.opentelemetry.io/otel@v1.39.0
+CVE-2026-39821 until=2026-06-28 # golang.org/x/net@v0.53.0
+CVE-2026-25680 until=2026-06-28 # golang.org/x/net@v0.53.0
