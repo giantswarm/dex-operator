@@ -15,21 +15,25 @@ import (
 func getAzureSecret(secret models.PasswordCredentialable, app models.Applicationable, oldSecret string) (provider.ProviderSecret, error) {
 	var clientSecret, clientId string
 	{
-		//Get connector data
-		if secret.GetSecretText() == nil || *secret.GetSecretText() == "" {
+		secretText := secret.GetSecretText()
+		if secretText != nil && *secretText != "" {
+			// This should rarely happen for existing secrets
+			clientSecret = *secretText
+		} else if oldSecret != "" {
+			// Use old secret value (but this might be expired)
 			clientSecret = oldSecret
 		} else {
-			clientSecret = *secret.GetSecretText()
+			return provider.ProviderSecret{}, microerror.Maskf(invalidConfigError, "Cannot retrieve secret value for existing secret and no old secret provided")
 		}
 		if app.GetAppId() == nil || *app.GetAppId() == "" {
-			return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Could not find client ID for secret.")
+			return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Could not find client ID for secret")
 		}
 		clientId = *app.GetAppId()
 	}
 	var endDateTime *time.Time
 	{
 		if endDateTime = secret.GetEndDateTime(); endDateTime == nil {
-			return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Could not find expiry time for secret.")
+			return provider.ProviderSecret{}, microerror.Maskf(notFoundError, "Could not find expiry time for secret")
 		}
 	}
 	return provider.ProviderSecret{
