@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `simpleprovider`: optional `connectorId` credentials key overrides the
+  auto-derived `<owner>-simple-<connectorType>` connector ID. Used by the
+  Giant Swarm SSO federation connector (PLAN §6 TB-5) to land as
+  `id: giantswarm`.
+- `simpleprovider`: optional `centralCluster` credentials key. When the
+  operator's `--management-cluster` matches the value, the provider is
+  skipped to avoid writing a self-referencing federation connector
+  (PLAN §6 TB-5).
+
 ## [0.16.2] - 2026-03-26
 ### Added
 

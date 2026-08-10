@@ -23,11 +23,39 @@ const (
 	ProviderType        = "simple"
 	connectorTypeKey    = "connectorType"
 	connectorConfigKey  = "connectorConfig"
+
+	// CredentialKeyConnectorID is an optional credentials key. When set and
+	// non-empty, it overrides the auto-derived connector ID
+	// (`<owner>-simple-<connectorType>`) with the literal value provided.
+	// Used by the Giant Swarm SSO federation connector (PLAN §6 TB-5) which
+	// must land as `id: giantswarm` to match production MCPServer CRs.
+	// Validated against the same identifier pattern Muster's
+	// MCPServerAuth.TokenExchange.ConnectorID enforces.
+	CredentialKeyConnectorID = "connectorId"
+
+	// CredentialKeyCentralCluster is an optional credentials key naming the
+	// management cluster whose Dex this connector federates to. When the
+	// operator's own --management-cluster matches this value, the provider is
+	// skipped to avoid writing a self-referencing connector (PLAN §6 TB-5).
+	CredentialKeyCentralCluster = "centralCluster"
 )
+
+// connectorIDPattern matches the identifier pattern enforced by Muster's
+// MCPServerAuth.TokenExchange.ConnectorID (PLAN §5 Gap D).
+var connectorIDPattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 
 // The simple provider is a provider that can be used if no idp access is configured for the operator.
 // It can also be used in case the idp in question is not supported by the operator.
 // It will create a connector with the given type and config.
+//
+// Recognised credentials keys:
+//   - connectorType   (required) - dex connector type (e.g. "oidc", "ldap")
+//   - connectorConfig (required) - YAML body of the dex connector config
+//   - connectorId     (optional) - literal connector ID override; defaults to
+//     "<owner>-simple-<connectorType>" when unset
+//   - centralCluster  (optional) - skip this provider when the operator runs
+//     on this management cluster (avoids self-referencing federation
+//     connectors; see PLAN §6 TB-5)
 type SimpleProvider struct {
 	Log             logr.Logger
 	Name            string
@@ -41,19 +69,42 @@ type SimpleProvider struct {
 type Config struct {
 	connectorType   string
 	connectorConfig string
+	connectorID     string
 }
 
 var _ provider.Provider = (*SimpleProvider)(nil)
 
 func New(config provider.ProviderConfig) (*SimpleProvider, error) {
+	// Central-cluster skip (PLAN §6 TB-5): if this credential targets the
+	// management cluster the operator itself runs on, do not create a
+	// connector — that would be a self-referencing federation connector.
+	// Returning (nil, nil) tells the caller to skip this credential.
+	if central := config.Credential.Credentials[CredentialKeyCentralCluster]; central != "" &&
+		config.ManagementClusterName != "" &&
+		central == config.ManagementClusterName {
+		if (logr.Logger{}) != config.Log {
+			config.Log.Info(fmt.Sprintf(
+				"Skipping simpleprovider credential %q: centralCluster %q matches operator's management cluster (avoids self-referencing connector)",
+				config.Credential.Name, central))
+		}
+		return nil, nil
+	}
+
 	// get configuration from credentials
 	c, err := newSimpleConfig(config.Credential, config.Log)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
+	// Connector ID: prefer the explicit override when provided, otherwise
+	// fall back to today's auto-derived `<owner>-simple-<connectorType>`.
+	name := c.connectorID
+	if name == "" {
+		name = key.GetProviderName(config.Credential.Owner, fmt.Sprintf("%s-%s", ProviderName, c.connectorType))
+	}
+
 	return &SimpleProvider{
-		Name:            key.GetProviderName(config.Credential.Owner, fmt.Sprintf("%s-%s", ProviderName, c.connectorType)),
+		Name:            name,
 		Description:     config.Credential.GetConnectorDescription(ProviderDisplayName),
 		Type:            ProviderType,
 		Owner:           config.Credential.Owner,
@@ -84,9 +135,20 @@ func newSimpleConfig(p provider.ProviderCredential, log logr.Logger) (Config, er
 		}
 	}
 
+	// Optional connector ID override. When unset, the caller derives the ID
+	// from owner + connector type (today's behaviour). When set, we validate
+	// the format eagerly so misconfiguration surfaces at startup rather than
+	// causing dex to reject the secret on reload.
+	connectorID := p.Credentials[CredentialKeyConnectorID]
+	if connectorID != "" && !connectorIDPattern.MatchString(connectorID) {
+		return Config{}, microerror.Maskf(invalidConfigError,
+			"%s %q is invalid: must match %s", CredentialKeyConnectorID, connectorID, connectorIDPattern.String())
+	}
+
 	return Config{
 		connectorType:   connectorType,
 		connectorConfig: connectorConfig,
+		connectorID:     connectorID,
 	}, nil
 }
 
