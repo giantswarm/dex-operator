@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix broken build on `main` by migrating both `go-github` client constructions to the v88 API, which returns `(*Client, error)` and takes option functions instead of an `*http.Client`.
+
 ## [0.16.2] - 2026-03-26
 ### Added
 

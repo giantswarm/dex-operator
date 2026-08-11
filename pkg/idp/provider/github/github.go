@@ -71,7 +71,10 @@ func New(config provider.ProviderConfig) (*Github, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	client := githubclient.NewClient(&http.Client{Transport: itr})
+	client, err := githubclient.NewClient(githubclient.WithHTTPClient(&http.Client{Transport: itr}))
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
 
 	return &Github{
 		Name:         key.GetProviderName(config.Credential.Owner, config.Credential.Name),

@@ -109,7 +109,11 @@ func (f *Flow) run() error {
 				http.Error(w, "code was not found", http.StatusInternalServerError)
 				return
 			}
-			client := githubclient.NewClient(nil)
+			client, err := githubclient.NewClient()
+			if err != nil {
+				http.Error(w, fmt.Sprintf("failed to create github client: %v", err.Error()), http.StatusInternalServerError)
+				return
+			}
 			app, resp, err := client.Apps.CompleteAppManifest(ctx, code)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("failed to complete github app manifest: %v", err.Error()), http.StatusInternalServerError)
