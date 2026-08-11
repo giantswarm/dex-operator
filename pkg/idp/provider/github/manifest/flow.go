@@ -19,6 +19,11 @@ import (
 	"github.com/pkg/browser"
 )
 
+// githubRequestTimeout bounds the CompleteAppManifest exchange. go-github
+// otherwise builds a bare http.Client with no timeout, so a stalled response
+// would hang the app creation flow with no way out but Ctrl-C.
+const githubRequestTimeout = 30 * time.Second
+
 type Config struct {
 	AppConfig         provider.AppConfig
 	Port              int
@@ -109,7 +114,7 @@ func (f *Flow) run() error {
 				http.Error(w, "code was not found", http.StatusInternalServerError)
 				return
 			}
-			client, err := githubclient.NewClient()
+			client, err := githubclient.NewClient(githubclient.WithTimeout(githubRequestTimeout))
 			if err != nil {
 				http.Error(w, fmt.Sprintf("failed to create github client: %v", err.Error()), http.StatusInternalServerError)
 				return

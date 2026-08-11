@@ -33,6 +33,13 @@ const (
 	ClientSecretKey       = "client-secret"
 	DefaultHost           = "github.com"
 	TeamNameFieldSlug     = "slug"
+
+	// githubRequestTimeout bounds a single GitHub API exchange. Without it the
+	// client inherits http.DefaultTransport, which limits dial and TLS
+	// handshake but not the overall request, so a stalled response blocks the
+	// caller indefinitely. Every call made here is a small JSON request, and
+	// some of them pass context.Background(), so this is the only deadline.
+	githubRequestTimeout = 30 * time.Second
 )
 
 type Github struct {
@@ -71,7 +78,10 @@ func New(config provider.ProviderConfig) (*Github, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	client, err := githubclient.NewClient(githubclient.WithHTTPClient(&http.Client{Transport: itr}))
+	client, err := githubclient.NewClient(githubclient.WithHTTPClient(&http.Client{
+		Transport: itr,
+		Timeout:   githubRequestTimeout,
+	}))
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}

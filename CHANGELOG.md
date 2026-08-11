@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix broken build on `main` by migrating both `go-github` client constructions to the v88 API, which returns `(*Client, error)` and takes option functions instead of an `*http.Client`.
+- Set a 30s request timeout on both GitHub HTTP clients. Neither had one: `http.DefaultTransport` bounds dial and TLS handshake but not the overall request, and go-github builds a bare `http.Client` when given no options, so a stalled response could block the reconciler indefinitely. Two of the `Apps.Get` calls pass `context.Background()`, so the client timeout is their only deadline.
 
 ## [0.16.2] - 2026-03-26
 ### Added
