@@ -33,6 +33,20 @@ const (
 	ClientSecretKey       = "client-secret"
 	DefaultHost           = "github.com"
 	TeamNameFieldSlug     = "slug"
+
+	// githubRequestTimeout bounds a single GitHub API exchange. Without it the
+	// client inherits http.DefaultTransport, which limits dial and TLS
+	// handshake but not the overall request, so a stalled response blocks the
+	// caller indefinitely. Every call made here is a small JSON request, and
+	// some of them pass context.Background(), so this is the only deadline.
+	githubRequestTimeout = 30 * time.Second
+
+	// githubUserAgent identifies this operator to the GitHub API, which asks
+	// integrations to send a distinctive User-Agent. go-github would otherwise
+	// send only its own generic "go-github/<version>". The library version is
+	// kept alongside for support purposes; there is no build-time version for
+	// the operator itself, so hardcoding one here would go stale.
+	githubUserAgent = "giantswarm-dex-operator go-github/" + githubclient.Version
 )
 
 type Github struct {
@@ -71,7 +85,16 @@ func New(config provider.ProviderConfig) (*Github, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	client := githubclient.NewClient(&http.Client{Transport: itr})
+	client, err := githubclient.NewClient(
+		githubclient.WithHTTPClient(&http.Client{
+			Transport: itr,
+			Timeout:   githubRequestTimeout,
+		}),
+		githubclient.WithUserAgent(githubUserAgent),
+	)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
 
 	return &Github{
 		Name:         key.GetProviderName(config.Credential.Owner, config.Credential.Name),
