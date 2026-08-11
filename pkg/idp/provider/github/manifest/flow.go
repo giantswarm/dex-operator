@@ -19,10 +19,17 @@ import (
 	"github.com/pkg/browser"
 )
 
-// githubRequestTimeout bounds the CompleteAppManifest exchange. go-github
-// otherwise builds a bare http.Client with no timeout, so a stalled response
-// would hang the app creation flow with no way out but Ctrl-C.
-const githubRequestTimeout = 30 * time.Second
+const (
+	// githubRequestTimeout bounds the CompleteAppManifest exchange. go-github
+	// otherwise builds a bare http.Client with no timeout, so a stalled
+	// response would hang the app creation flow with no way out but Ctrl-C.
+	githubRequestTimeout = 30 * time.Second
+
+	// githubUserAgent identifies this operator to the GitHub API, which asks
+	// integrations to send a distinctive User-Agent instead of go-github's
+	// generic default.
+	githubUserAgent = "giantswarm-dex-operator go-github/" + githubclient.Version
+)
 
 type Config struct {
 	AppConfig         provider.AppConfig
@@ -114,7 +121,10 @@ func (f *Flow) run() error {
 				http.Error(w, "code was not found", http.StatusInternalServerError)
 				return
 			}
-			client, err := githubclient.NewClient(githubclient.WithTimeout(githubRequestTimeout))
+			client, err := githubclient.NewClient(
+				githubclient.WithTimeout(githubRequestTimeout),
+				githubclient.WithUserAgent(githubUserAgent),
+			)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("failed to create github client: %v", err.Error()), http.StatusInternalServerError)
 				return
