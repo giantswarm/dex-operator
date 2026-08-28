@@ -2,10 +2,13 @@ package github
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
+	"github.com/giantswarm/dex-operator/pkg/yaml"
 
+	githubconnector "github.com/dexidp/dex/connector/github"
 	"github.com/go-logr/logr"
 )
 
@@ -102,6 +105,77 @@ func TestNewConfig(t *testing.T) {
 			}
 			if err == nil && tc.expectError {
 				t.Fatalf("Expected an error, got success.")
+			}
+		})
+	}
+}
+
+func TestPreferredEmailDomain(t *testing.T) {
+	credentials := provider.ProviderCredential{
+		Name:  "name",
+		Owner: "test",
+		Credentials: map[string]string{
+			OrganizationKey:         "org",
+			TeamKey:                 "team",
+			AppIDKey:                "123",
+			PrivateKeyKey:           "abc",
+			ClientSecretKey:         "def",
+			ClientIDKey:             "456",
+			PreferredEmailDomainKey: "example.com",
+		},
+	}
+	c, err := newGithubConfig(credentials, provider.GetTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PreferredEmailDomain != "example.com" {
+		t.Fatalf("Expected preferred email domain example.com, got %q.", c.PreferredEmailDomain)
+	}
+}
+
+func TestConnectorConfigRendersPreferredEmailDomain(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		preferredEmailDomain string
+		expected             string
+	}{
+		{
+			name:                 "set",
+			preferredEmailDomain: "example.com",
+			expected:             "preferredEmailDomain: example.com",
+		},
+		{
+			name:                 "unset",
+			preferredEmailDomain: "",
+			expected:             "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cc := &connectorConfig{
+				Config: githubconnector.Config{
+					ClientID:      "id",
+					ClientSecret:  "secret",
+					Orgs:          []githubconnector.Org{{Name: "org", Teams: []string{"team"}}},
+					RedirectURI:   "https://example.com/callback",
+					TeamNameField: TeamNameFieldSlug,
+				},
+				PreferredEmailDomain: tc.preferredEmailDomain,
+			}
+			data, err := yaml.MarshalWithJsonAnnotations(cc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rendered := string(data)
+			if tc.expected != "" && !strings.Contains(rendered, tc.expected) {
+				t.Fatalf("Expected rendered config to contain %q, got:\n%s", tc.expected, rendered)
+			}
+			if tc.expected == "" && strings.Contains(rendered, "preferredEmailDomain") {
+				t.Fatalf("Expected rendered config to omit preferredEmailDomain, got:\n%s", rendered)
+			}
+			if !strings.Contains(rendered, "clientID: id") {
+				t.Fatalf("Expected embedded connector fields to render inline, got:\n%s", rendered)
 			}
 		})
 	}
