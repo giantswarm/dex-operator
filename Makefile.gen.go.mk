@@ -30,6 +30,8 @@ build-darwin-arm64: $(APPLICATION)-darwin-arm64 ## Builds a local binary for dar
 	@echo "====> $@"
 build-linux: $(APPLICATION)-linux ## Builds a local binary for linux/amd64.
 	@echo "====> $@"
+build-linux-amd64: $(APPLICATION)-linux-amd64 ## Builds a local binary for linux/amd64.
+	@echo "====> $@"
 build-linux-arm64: $(APPLICATION)-linux-arm64 ## Builds a local binary for linux/arm64.
 	@echo "====> $@"
 build-windows-amd64: $(APPLICATION)-windows-amd64.exe ## Builds a local binary for windows/amd64.
@@ -48,6 +50,10 @@ $(APPLICATION)-darwin-arm64: $(APPLICATION)-v$(VERSION)-darwin-arm64
 	cp -a $< $@
 
 $(APPLICATION)-linux: $(APPLICATION)-v$(VERSION)-linux-amd64
+	@echo "====> $@"
+	cp -a $< $@
+
+$(APPLICATION)-linux-amd64: $(APPLICATION)-v$(VERSION)-linux-amd64
 	@echo "====> $@"
 	cp -a $< $@
 
