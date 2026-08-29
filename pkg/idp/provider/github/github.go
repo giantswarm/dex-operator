@@ -80,6 +80,14 @@ type Config struct {
 
 // connectorConfig extends the github connector config of the pinned dex
 // module with fields added upstream after v2.13.0.
+//
+// TODO: fold this back into githubconnector.Config once the dex dependency
+// can be updated. It currently cannot: dex tags are v2.x without a /v2
+// module path (dexidp/dex#1711), so Go rejects every tag after v2.13.0 (the
+// last one without a go.mod). Only an untagged v0.0.0 pseudo-version of
+// master resolves, which would pull dex's whole module graph into ours and
+// (since upstream's Config fields carry no omitempty) add empty default
+// keys to every rendered connector config — not worth it for one field.
 type connectorConfig struct {
 	githubconnector.Config
 	// PreferredEmailDomain makes dex (>= v2.36.0) release the user's verified
