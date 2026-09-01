@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `preferred-email-domain` credential key to the GitHub provider. When set, the rendered connector config carries `preferredEmailDomain`, making dex (>= v2.36.0) release the user's verified email on that domain instead of the GitHub primary email. Unset means unchanged behavior.
+- Add optional `teams` credential key to the GitHub provider: a comma-separated list of team slugs rendered as the connector's team filter. Dex then admits a user who is a member of ANY listed team, and the groups claim carries the user's memberships among the listed teams. When set, `teams` takes precedence over the single `team` key; older operator versions ignore the new key, so credentials carrying both deploy safely in any order. When both keys are set, the `team` value must be included in `teams` — otherwise the credential is rejected as invalid, since operator versions without `teams` support would render a filter missing that team. The single `team` key on its own keeps its exact behavior.
 
 ### Fixed
 

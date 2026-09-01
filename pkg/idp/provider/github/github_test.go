@@ -1,6 +1,7 @@
 package github
 
 import (
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -95,6 +96,56 @@ func TestNewConfig(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "case 6: teams list without single team",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "test",
+				Credentials: map[string]string{
+					OrganizationKey: "org",
+					TeamsKey:        "team-a,team-b",
+					AppIDKey:        "123",
+					PrivateKeyKey:   "abc",
+					ClientSecretKey: "def",
+					ClientIDKey:     "456",
+				},
+			},
+			log:         provider.GetTestLogger(),
+			expectError: false,
+		},
+		{
+			name: "case 7: neither team nor teams",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "test",
+				Credentials: map[string]string{
+					OrganizationKey: "org",
+					AppIDKey:        "123",
+					PrivateKeyKey:   "abc",
+					ClientSecretKey: "def",
+					ClientIDKey:     "456",
+				},
+			},
+			log:         provider.GetTestLogger(),
+			expectError: true,
+		},
+		{
+			name: "case 8: teams list of only separators",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "test",
+				Credentials: map[string]string{
+					OrganizationKey: "org",
+					TeamsKey:        " , ,",
+					AppIDKey:        "123",
+					PrivateKeyKey:   "abc",
+					ClientSecretKey: "def",
+					ClientIDKey:     "456",
+				},
+			},
+			log:         provider.GetTestLogger(),
+			expectError: true,
+		},
 	}
 
 	for i, tc := range testCases {
@@ -176,6 +227,78 @@ func TestConnectorConfigRendersPreferredEmailDomain(t *testing.T) {
 			}
 			if !strings.Contains(rendered, "clientID: id") {
 				t.Fatalf("Expected embedded connector fields to render inline, got:\n%s", rendered)
+			}
+		})
+	}
+}
+
+const (
+	testTeamA = "team-a"
+	testTeamB = "team-b"
+)
+
+func TestTeamsParsing(t *testing.T) {
+	testCases := []struct {
+		name          string
+		credentials   map[string]string
+		expectedTeams []string
+		expectError   bool
+	}{
+		{
+			name:          "single team key",
+			credentials:   map[string]string{TeamKey: testTeamA},
+			expectedTeams: []string{testTeamA},
+		},
+		{
+			name:          "teams list",
+			credentials:   map[string]string{TeamsKey: "team-a,team-b"},
+			expectedTeams: []string{testTeamA, testTeamB},
+		},
+		{
+			name:          "teams list with spaces and empty entries",
+			credentials:   map[string]string{TeamsKey: " team-a , ,team-b, "},
+			expectedTeams: []string{testTeamA, testTeamB},
+		},
+		{
+			name:          "both keys with team included in teams",
+			credentials:   map[string]string{TeamKey: testTeamA, TeamsKey: "team-a,team-b"},
+			expectedTeams: []string{testTeamA, testTeamB},
+		},
+		{
+			name:        "both keys with team missing from teams",
+			credentials: map[string]string{TeamKey: testTeamA, TeamsKey: "team-b,team-c"},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			credentials := map[string]string{
+				OrganizationKey: "org",
+				AppIDKey:        "123",
+				PrivateKeyKey:   "abc",
+				ClientSecretKey: "def",
+				ClientIDKey:     "456",
+			}
+			for k, v := range tc.credentials {
+				credentials[k] = v
+			}
+			c, err := newGithubConfig(provider.ProviderCredential{
+				Name:        "name",
+				Owner:       "test",
+				Credentials: credentials,
+			}, provider.GetTestLogger())
+			if tc.expectError {
+				if err == nil {
+					t.Fatalf("Expected an error, got success with teams %v.", c.Teams)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(c.Teams, tc.expectedTeams) {
+				t.Fatalf("Expected teams %v, got %v.", tc.expectedTeams, c.Teams)
 			}
 		})
 	}
