@@ -17,7 +17,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/microsoft/kiota-abstractions-go v1.10.1
 	github.com/microsoft/kiota-authentication-azure-go v1.3.1
-	github.com/microsoftgraph/msgraph-sdk-go v1.101.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.102.0
 	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.43.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
