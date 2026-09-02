@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/giantswarm/dex-operator/pkg/dex"
@@ -38,6 +40,14 @@ const (
 	// (>= v2.36.0) release the user's verified email on that domain instead
 	// of the GitHub primary email.
 	PreferredEmailDomainKey = "preferred-email-domain"
+	// TeamsKey is an optional credential key holding a comma-separated list
+	// of team slugs. When set it takes precedence over TeamKey: dex lets a
+	// user log in when they are a member of ANY listed team, and the groups
+	// claim carries the user's memberships among the listed teams. Operator
+	// versions without this key ignore it, so a credential may carry both
+	// keys and deploy in any order — but TeamKey's value must then appear in
+	// the list, so no operator version can render a filter that drops it.
+	TeamsKey = "teams"
 
 	// githubRequestTimeout bounds a single GitHub API exchange. Without it the
 	// client inherits http.DefaultTransport, which limits dial and TLS
@@ -62,7 +72,7 @@ type Github struct {
 	Type                 string
 	Owner                string
 	Organization         string
-	Team                 string
+	Teams                []string
 	PreferredEmailDomain string
 	id                   string
 	secret               string
@@ -70,7 +80,7 @@ type Github struct {
 
 type Config struct {
 	Organization         string
-	Team                 string
+	Teams                []string
 	AppID                int64
 	PrivateKey           []byte
 	ClientID             string
@@ -128,7 +138,7 @@ func New(config provider.ProviderConfig) (*Github, error) {
 		Client:               client,
 		Owner:                config.Credential.Owner,
 		Organization:         c.Organization,
-		Team:                 c.Team,
+		Teams:                c.Teams,
 		PreferredEmailDomain: c.PreferredEmailDomain,
 		id:                   c.ClientID,
 		secret:               c.ClientSecret,
@@ -146,19 +156,42 @@ func newGithubConfig(p provider.ProviderCredential, log logr.Logger) (Config, er
 		return Config{}, microerror.Maskf(invalidConfigError, "Credential owner must not be empty.")
 	}
 
-	var organization, team, clientSecret, clientID string
+	var organization, clientSecret, clientID string
 	{
 		if organization = p.Credentials[OrganizationKey]; organization == "" {
 			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", OrganizationKey)
-		}
-		if team = p.Credentials[TeamKey]; team == "" {
-			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", TeamKey)
 		}
 		if clientSecret = p.Credentials[ClientSecretKey]; clientSecret == "" {
 			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientSecretKey)
 		}
 		if clientID = p.Credentials[ClientIDKey]; clientID == "" {
 			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", ClientIDKey)
+		}
+	}
+
+	var teams []string
+	{
+		team := p.Credentials[TeamKey]
+		if teamsValue := p.Credentials[TeamsKey]; teamsValue != "" {
+			for _, t := range strings.Split(teamsValue, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					teams = append(teams, t)
+				}
+			}
+			if len(teams) == 0 {
+				return Config{}, microerror.Maskf(invalidConfigError, "%s must contain at least one team.", TeamsKey)
+			}
+			// A credential carrying both keys must list the single team:
+			// operator versions without TeamsKey render only TeamKey, so a
+			// team absent from the list would silently lose access on the
+			// version that switches over.
+			if team != "" && !slices.Contains(teams, team) {
+				return Config{}, microerror.Maskf(invalidConfigError, "%s value %q must be included in %s when both are set.", TeamKey, team, TeamsKey)
+			}
+		} else if team != "" {
+			teams = []string{team}
+		} else {
+			return Config{}, microerror.Maskf(invalidConfigError, "%s must not be empty.", TeamKey)
 		}
 	}
 
@@ -185,7 +218,7 @@ func newGithubConfig(p provider.ProviderCredential, log logr.Logger) (Config, er
 
 	return Config{
 		Organization:         organization,
-		Team:                 team,
+		Teams:                teams,
 		AppID:                int64(appID),
 		PrivateKey:           privateKey,
 		ClientSecret:         clientSecret,
@@ -223,7 +256,7 @@ func (g *Github) CreateOrUpdateApp(config provider.AppConfig, ctx context.Contex
 			Orgs: []githubconnector.Org{
 				{
 					Name:  g.Organization,
-					Teams: []string{g.Team},
+					Teams: g.Teams,
 				},
 			},
 			RedirectURI:   config.RedirectURI,
@@ -334,7 +367,7 @@ func (g *Github) GetAppData(app *githubclient.AppConfig) Config {
 		PrivateKey:   []byte(app.GetPEM()),
 		AppID:        app.GetID(),
 		Organization: g.Organization,
-		Team:         g.Team,
+		Teams:        g.Teams,
 	}
 }
 func (g *Github) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (map[string]string, error) {
@@ -364,7 +397,7 @@ func (g *Github) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (m
 		ClientIDKey:     c.ClientID,
 		ClientSecretKey: c.ClientSecret,
 		OrganizationKey: c.Organization,
-		TeamKey:         c.Team,
+		TeamKey:         strings.Join(c.Teams, ","),
 		AppIDKey:        fmt.Sprint(c.AppID),
 		PrivateKeyKey:   string(c.PrivateKey),
 	}, nil
