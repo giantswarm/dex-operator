@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-02
+
 ### Added
 
 - Add optional `preferred-email-domain` credential key to the GitHub provider. When set, the rendered connector config carries `preferredEmailDomain`, making dex (>= v2.36.0) release the user's verified email on that domain instead of the GitHub primary email. Unset means unchanged behavior.
@@ -302,7 +304,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.16.2...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/giantswarm/dex-operator/compare/v0.16.2...v0.17.0
 [0.16.2]: https://github.com/giantswarm/dex-operator/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/giantswarm/dex-operator/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/giantswarm/dex-operator/compare/v0.15.0...v0.16.0
