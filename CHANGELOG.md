@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `preferred-email-domain` credential key to the GitHub provider. When set, the rendered connector config carries `preferredEmailDomain`, making dex (>= v2.36.0) release the user's verified email on that domain instead of the GitHub primary email. Unset means unchanged behavior.
+
 ### Fixed
 
 - Fix broken build on `main` by migrating both `go-github` client constructions to the v88 API, which returns `(*Client, error)` and takes option functions instead of an `*http.Client`.

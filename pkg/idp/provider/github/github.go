@@ -33,6 +33,11 @@ const (
 	ClientSecretKey       = "client-secret"
 	DefaultHost           = "github.com"
 	TeamNameFieldSlug     = "slug"
+	// PreferredEmailDomainKey is an optional credential key. When set, the
+	// rendered connector config carries preferredEmailDomain, making dex
+	// (>= v2.36.0) release the user's verified email on that domain instead
+	// of the GitHub primary email.
+	PreferredEmailDomainKey = "preferred-email-domain"
 
 	// githubRequestTimeout bounds a single GitHub API exchange. Without it the
 	// client inherits http.DefaultTransport, which limits dial and TLS
@@ -50,25 +55,44 @@ const (
 )
 
 type Github struct {
-	Client       *githubclient.Client
-	Log          logr.Logger
-	Name         string
-	Description  string
-	Type         string
-	Owner        string
-	Organization string
-	Team         string
-	id           string
-	secret       string
+	Client               *githubclient.Client
+	Log                  logr.Logger
+	Name                 string
+	Description          string
+	Type                 string
+	Owner                string
+	Organization         string
+	Team                 string
+	PreferredEmailDomain string
+	id                   string
+	secret               string
 }
 
 type Config struct {
-	Organization string
-	Team         string
-	AppID        int64
-	PrivateKey   []byte
-	ClientID     string
-	ClientSecret string
+	Organization         string
+	Team                 string
+	AppID                int64
+	PrivateKey           []byte
+	ClientID             string
+	ClientSecret         string
+	PreferredEmailDomain string
+}
+
+// connectorConfig extends the github connector config of the pinned dex
+// module with fields added upstream after v2.13.0.
+//
+// TODO: fold this back into githubconnector.Config once the dex dependency
+// can be updated. It currently cannot: dex tags are v2.x without a /v2
+// module path (dexidp/dex#1711), so Go rejects every tag after v2.13.0 (the
+// last one without a go.mod). Only an untagged v0.0.0 pseudo-version of
+// master resolves, which would pull dex's whole module graph into ours and
+// (since upstream's Config fields carry no omitempty) add empty default
+// keys to every rendered connector config — not worth it for one field.
+type connectorConfig struct {
+	githubconnector.Config
+	// PreferredEmailDomain makes dex (>= v2.36.0) release the user's verified
+	// email matching this domain instead of the GitHub primary email.
+	PreferredEmailDomain string `json:"preferredEmailDomain,omitempty"`
 }
 
 var _ provider.Provider = (*Github)(nil)
@@ -97,16 +121,17 @@ func New(config provider.ProviderConfig) (*Github, error) {
 	}
 
 	return &Github{
-		Name:         key.GetProviderName(config.Credential.Owner, config.Credential.Name),
-		Description:  config.Credential.GetConnectorDescription(ProviderDisplayName),
-		Log:          config.Log,
-		Type:         ProviderConnectorType,
-		Client:       client,
-		Owner:        config.Credential.Owner,
-		Organization: c.Organization,
-		Team:         c.Team,
-		id:           c.ClientID,
-		secret:       c.ClientSecret,
+		Name:                 key.GetProviderName(config.Credential.Owner, config.Credential.Name),
+		Description:          config.Credential.GetConnectorDescription(ProviderDisplayName),
+		Log:                  config.Log,
+		Type:                 ProviderConnectorType,
+		Client:               client,
+		Owner:                config.Credential.Owner,
+		Organization:         c.Organization,
+		Team:                 c.Team,
+		PreferredEmailDomain: c.PreferredEmailDomain,
+		id:                   c.ClientID,
+		secret:               c.ClientSecret,
 	}, nil
 }
 
@@ -159,12 +184,13 @@ func newGithubConfig(p provider.ProviderCredential, log logr.Logger) (Config, er
 	}
 
 	return Config{
-		Organization: organization,
-		Team:         team,
-		AppID:        int64(appID),
-		PrivateKey:   privateKey,
-		ClientSecret: clientSecret,
-		ClientID:     clientID,
+		Organization:         organization,
+		Team:                 team,
+		AppID:                int64(appID),
+		PrivateKey:           privateKey,
+		ClientSecret:         clientSecret,
+		ClientID:             clientID,
+		PreferredEmailDomain: p.Credentials[PreferredEmailDomainKey],
 	}, nil
 }
 
@@ -190,19 +216,22 @@ func (g *Github) CreateOrUpdateApp(config provider.AppConfig, ctx context.Contex
 		return provider.ProviderApp{}, microerror.Mask(err)
 	}
 
-	connectorConfig := &githubconnector.Config{
-		ClientID:     secret.ClientId,
-		ClientSecret: secret.ClientSecret,
-		Orgs: []githubconnector.Org{
-			{
-				Name:  g.Organization,
-				Teams: []string{g.Team},
+	cc := &connectorConfig{
+		Config: githubconnector.Config{
+			ClientID:     secret.ClientId,
+			ClientSecret: secret.ClientSecret,
+			Orgs: []githubconnector.Org{
+				{
+					Name:  g.Organization,
+					Teams: []string{g.Team},
+				},
 			},
+			RedirectURI:   config.RedirectURI,
+			TeamNameField: TeamNameFieldSlug,
 		},
-		RedirectURI:   config.RedirectURI,
-		TeamNameField: TeamNameFieldSlug,
+		PreferredEmailDomain: g.PreferredEmailDomain,
 	}
-	data, err := yaml.MarshalWithJsonAnnotations(connectorConfig)
+	data, err := yaml.MarshalWithJsonAnnotations(cc)
 	if err != nil {
 		return provider.ProviderApp{}, microerror.Mask(err)
 	}
