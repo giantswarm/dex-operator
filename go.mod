@@ -140,3 +140,5 @@ replace (
 )
 
 replace github.com/microsoft/kiota-http-go v1.5.4 => github.com/microsoft/kiota-http-go v1.5.6
+
+replace github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.7 => github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0
