@@ -8,7 +8,7 @@ require (
 	github.com/dexidp/dex v2.13.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.6.4
 	github.com/giantswarm/apiextensions-application v0.6.0
-	github.com/giantswarm/backoff v1.0.1
+	github.com/giantswarm/backoff/v2 v2.0.0
 	github.com/giantswarm/k8smetadata v0.26.0
 	github.com/giantswarm/microerror v0.4.1
 	github.com/go-logr/logr v1.4.4
@@ -39,7 +39,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/beevik/etree v1.6.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cenkalti/backoff/v6 v6.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-oidc v2.3.0+incompatible // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -50,7 +50,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.30.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/giantswarm/micrologger v1.1.1 // indirect
+	github.com/giantswarm/micrologger v1.1.2 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
