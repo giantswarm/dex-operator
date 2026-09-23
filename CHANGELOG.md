@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The `helm.sh/chart` label is valid for any chart version. The label is `<name>-<version>` cut to 63 characters, and the cut of a long version (a branch build's `X.Y.Z-dev.<branch>.<date>.<time>.h<sha7>`, or the `<tag>+<digest>` helm-controller installs) could end in `.`, `_` or `--.`, which the API server refuses for every labelled object; the whole run of `-`, `.` and `_` at the ends of the cut is now trimmed. `hack/verify-chart.sh` renders the label for such versions, and the new `chart` workflow runs it with `helm lint` on every change.
+
 ## [0.17.0] - 2026-09-02
 
 ### Added
