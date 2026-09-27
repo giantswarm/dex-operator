@@ -50,8 +50,8 @@ func TestNewConfig(t *testing.T) {
 				Credentials: map[string]string{
 					connectorTypeKey:   "type",
 					connectorConfigKey: "config",
-					connectorIDKey:     "not/an-id",
 				},
+				DexConnectorID: "not/an-id",
 			},
 			log:         provider.GetTestLogger(),
 			expectError: true,
@@ -249,9 +249,7 @@ func TestConnectorID(t *testing.T) {
 				connectorConfigKey: "issuer: https://dex.example.com",
 			},
 		}
-		if connectorID != "" {
-			c.Credentials[connectorIDKey] = connectorID
-		}
+		c.DexConnectorID = connectorID
 		return c
 	}
 
@@ -276,9 +274,10 @@ func TestConnectorID(t *testing.T) {
 		})
 	}
 
-	t.Run("a connectorId key is ignored", func(t *testing.T) {
+	t.Run("an ID inside the credentials is ignored", func(t *testing.T) {
 		c := credential("")
 		c.Credentials["connectorId"] = "giantswarm-graveler-oidc"
+		c.Credentials["dexConnectorId"] = "giantswarm-graveler-oidc"
 		p, err := New(provider.ProviderConfig{Credential: c, Log: provider.GetTestLogger()})
 		if err != nil {
 			t.Fatal(err)

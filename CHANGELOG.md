@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `dexConnectorId` credential key to the simple provider: the Dex connector ID for that provider. Without it the ID stays `<owner>-simple-<connectorType>`, which two simple providers of one owner and connector type (e.g. two OIDC federation connectors) share: Dex then serves only one of them at `/auth/<id>`, and a change to the other is never written. The ID must match `^[a-zA-Z][a-zA-Z0-9_-]*$`. The key is new, so no existing connector changes its ID (and the prefix of its groups) until its credentials set it; a `connectorId` key some credentials already carry stays ignored.
+- Add optional `dexConnectorId` to the simple provider, set per provider next to `name` (`oidc.<owner>.providers[].dexConnectorId`, outside `credentials`): the Dex connector ID for that provider. Without it the ID stays `<owner>-simple-<connectorType>`, which two simple providers of one owner and connector type (e.g. two OIDC federation connectors) share: Dex then serves only one of them at `/auth/<id>`, and a change to the other is never written. The ID must match `^[a-zA-Z][a-zA-Z0-9_-]*$`. It is a new field, so no existing connector changes its ID (and the prefix of its groups) until its provider sets it; a `connectorId` or `dexConnectorId` inside `credentials` stays ignored.
 
 ### Fixed
 

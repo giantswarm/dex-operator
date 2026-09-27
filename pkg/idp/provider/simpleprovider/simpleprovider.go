@@ -23,14 +23,9 @@ const (
 	ProviderType        = "simple"
 	connectorTypeKey    = "connectorType"
 	connectorConfigKey  = "connectorConfig"
-	// connectorIDKey optionally sets the connector's ID. Without it the ID is
-	// <owner>-simple-<connectorType>, which is the same for every simple
-	// provider of one owner and connector type. The key is new: credentials
-	// may already carry an unrelated "connectorId", which stays ignored.
-	connectorIDKey = "dexConnectorId"
 )
 
-// connectorIDPattern is what a configured connector ID must look like: it ends
+// connectorIDPattern is what a provider's dexConnectorId must look like: it ends
 // up in Dex's /auth/<id> path and as the prefix of the connector's groups.
 var connectorIDPattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 
@@ -99,9 +94,11 @@ func newSimpleConfig(p provider.ProviderCredential, log logr.Logger) (Config, er
 		}
 	}
 
-	connectorID := p.Credentials[connectorIDKey]
+	// Without dexConnectorId the ID is <owner>-simple-<connectorType>, the same
+	// for every simple provider of one owner and connector type.
+	connectorID := p.DexConnectorID
 	if connectorID != "" && !connectorIDPattern.MatchString(connectorID) {
-		return Config{}, microerror.Maskf(invalidConfigError, "%s %q must match %s", connectorIDKey, connectorID, connectorIDPattern)
+		return Config{}, microerror.Maskf(invalidConfigError, "dexConnectorId %q must match %s", connectorID, connectorIDPattern)
 	}
 
 	return Config{

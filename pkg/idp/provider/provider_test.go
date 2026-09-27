@@ -30,6 +30,12 @@ func TestReadCredentials(t *testing.T) {
 					Description: "Mock Connector",
 					Credentials: map[string]string{"hello": "hi"},
 				},
+				{
+					Name:           "simple",
+					Owner:          key.OwnerGiantswarm,
+					DexConnectorID: "giantswarm-graveler-oidc",
+					Credentials:    map[string]string{"hello": "hi"},
+				},
 			},
 		},
 	}
