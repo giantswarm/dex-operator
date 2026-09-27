@@ -42,6 +42,20 @@ func TestNewConfig(t *testing.T) {
 			log:         provider.GetTestLogger(),
 			expectError: false,
 		},
+		{
+			name: "case 3 - invalid connector ID",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "test",
+				Credentials: map[string]string{
+					connectorTypeKey:   "type",
+					connectorConfigKey: "config",
+					connectorIDKey:     "not/an-id",
+				},
+			},
+			log:         provider.GetTestLogger(),
+			expectError: true,
+		},
 	}
 
 	for i, tc := range testCases {
@@ -223,4 +237,56 @@ func TestCreateApp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConnectorID(t *testing.T) {
+	credential := func(connectorID string) provider.ProviderCredential {
+		c := provider.ProviderCredential{
+			Name:  "simple",
+			Owner: "giantswarm",
+			Credentials: map[string]string{
+				connectorTypeKey:   "oidc",
+				connectorConfigKey: "issuer: https://dex.example.com",
+			},
+		}
+		if connectorID != "" {
+			c.Credentials[connectorIDKey] = connectorID
+		}
+		return c
+	}
+
+	testCases := []struct {
+		name        string
+		connectorID string
+		expectedID  string
+	}{
+		{name: "case 0 - derived from owner and connector type", expectedID: "giantswarm-simple-oidc"},
+		{name: "case 1 - configured connector ID", connectorID: "giantswarm-graveler-oidc", expectedID: "giantswarm-graveler-oidc"},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			p, err := New(provider.ProviderConfig{Credential: credential(tc.connectorID), Log: provider.GetTestLogger()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if p.GetName() != tc.expectedID {
+				t.Fatalf("expected connector ID %q, got %q", tc.expectedID, p.GetName())
+			}
+		})
+	}
+
+	t.Run("two providers of one type get distinct IDs", func(t *testing.T) {
+		a, err := New(provider.ProviderConfig{Credential: credential("giantswarm-graveler-oidc"), Log: provider.GetTestLogger()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := New(provider.ProviderConfig{Credential: credential(""), Log: provider.GetTestLogger()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if a.GetName() == b.GetName() {
+			t.Fatalf("expected distinct connector IDs, both are %q", a.GetName())
+		}
+	})
 }

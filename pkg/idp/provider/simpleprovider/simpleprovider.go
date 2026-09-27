@@ -23,7 +23,15 @@ const (
 	ProviderType        = "simple"
 	connectorTypeKey    = "connectorType"
 	connectorConfigKey  = "connectorConfig"
+	// connectorIDKey optionally sets the connector's ID. Without it the ID is
+	// <owner>-simple-<connectorType>, which is the same for every simple
+	// provider of one owner and connector type.
+	connectorIDKey = "connectorId"
 )
+
+// connectorIDPattern is what a configured connector ID must look like: it ends
+// up in Dex's /auth/<id> path and as the prefix of the connector's groups.
+var connectorIDPattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 
 // The simple provider is a provider that can be used if no idp access is configured for the operator.
 // It can also be used in case the idp in question is not supported by the operator.
@@ -41,6 +49,7 @@ type SimpleProvider struct {
 type Config struct {
 	connectorType   string
 	connectorConfig string
+	connectorID     string
 }
 
 var _ provider.Provider = (*SimpleProvider)(nil)
@@ -52,8 +61,13 @@ func New(config provider.ProviderConfig) (*SimpleProvider, error) {
 		return nil, microerror.Mask(err)
 	}
 
+	name := c.connectorID
+	if name == "" {
+		name = key.GetProviderName(config.Credential.Owner, fmt.Sprintf("%s-%s", ProviderName, c.connectorType))
+	}
+
 	return &SimpleProvider{
-		Name:            key.GetProviderName(config.Credential.Owner, fmt.Sprintf("%s-%s", ProviderName, c.connectorType)),
+		Name:            name,
 		Description:     config.Credential.GetConnectorDescription(ProviderDisplayName),
 		Type:            ProviderType,
 		Owner:           config.Credential.Owner,
@@ -84,9 +98,15 @@ func newSimpleConfig(p provider.ProviderCredential, log logr.Logger) (Config, er
 		}
 	}
 
+	connectorID := p.Credentials[connectorIDKey]
+	if connectorID != "" && !connectorIDPattern.MatchString(connectorID) {
+		return Config{}, microerror.Maskf(invalidConfigError, "%s %q must match %s", connectorIDKey, connectorID, connectorIDPattern)
+	}
+
 	return Config{
 		connectorType:   connectorType,
 		connectorConfig: connectorConfig,
+		connectorID:     connectorID,
 	}, nil
 }
 
