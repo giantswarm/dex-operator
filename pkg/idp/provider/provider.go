@@ -49,6 +49,10 @@ type ProviderCredential struct {
 	Owner       string            `yaml:"owner"`
 	Credentials map[string]string `yaml:"credentials"`
 	Description string            `yaml:"description"`
+	// DexConnectorID sets the connector's ID where a provider supports it. It
+	// sits next to the name, outside the credentials, so it can be set without
+	// touching them.
+	DexConnectorID string `yaml:"dexConnectorId,omitempty"`
 }
 
 func (c ProviderCredential) GetConnectorDescription(providerDisplayName string) string {

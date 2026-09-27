@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `dexConnectorId` to the simple provider, set per provider next to `name` (`oidc.<owner>.providers[].dexConnectorId`, outside `credentials`): the Dex connector ID for that provider. Without it the ID stays `<owner>-simple-<connectorType>`, which two simple providers of one owner and connector type (e.g. two OIDC federation connectors) share: Dex then serves only one of them at `/auth/<id>`, and a change to the other is never written. The ID must match `^[a-zA-Z][a-zA-Z0-9_-]*$`. It is a new field, so no existing connector changes its ID (and the prefix of its groups) until its provider sets it; a `connectorId` or `dexConnectorId` inside `credentials` stays ignored.
+
 ### Fixed
 
 - The `helm.sh/chart` label is valid for any chart version. The label is `<name>-<version>` cut to 63 characters, and the cut of a long version (a branch build's `X.Y.Z-dev.<branch>.<date>.<time>.h<sha7>`, or the `<tag>+<digest>` helm-controller installs) could end in `.`, `_` or `--.`, which the API server refuses for every labelled object; the whole run of `-`, `.` and `_` at the ends of the cut is now trimmed. `hack/verify-chart.sh` renders the label for such versions, and the new `chart` workflow runs it with `helm lint` on every change.
