@@ -276,6 +276,18 @@ func TestConnectorID(t *testing.T) {
 		})
 	}
 
+	t.Run("a connectorId key is ignored", func(t *testing.T) {
+		c := credential("")
+		c.Credentials["connectorId"] = "giantswarm-graveler-oidc"
+		p, err := New(provider.ProviderConfig{Credential: c, Log: provider.GetTestLogger()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.GetName() != "giantswarm-simple-oidc" {
+			t.Fatalf("expected the derived connector ID, got %q", p.GetName())
+		}
+	})
+
 	t.Run("two providers of one type get distinct IDs", func(t *testing.T) {
 		a, err := New(provider.ProviderConfig{Credential: credential("giantswarm-graveler-oidc"), Log: provider.GetTestLogger()})
 		if err != nil {

@@ -25,8 +25,9 @@ const (
 	connectorConfigKey  = "connectorConfig"
 	// connectorIDKey optionally sets the connector's ID. Without it the ID is
 	// <owner>-simple-<connectorType>, which is the same for every simple
-	// provider of one owner and connector type.
-	connectorIDKey = "connectorId"
+	// provider of one owner and connector type. The key is new: credentials
+	// may already carry an unrelated "connectorId", which stays ignored.
+	connectorIDKey = "dexConnectorId"
 )
 
 // connectorIDPattern is what a configured connector ID must look like: it ends
