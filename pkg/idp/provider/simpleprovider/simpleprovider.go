@@ -100,6 +100,12 @@ func newSimpleConfig(p provider.ProviderCredential, log logr.Logger) (Config, er
 	if connectorID != "" && !connectorIDPattern.MatchString(connectorID) {
 		return Config{}, microerror.Maskf(invalidConfigError, "dexConnectorId %q must match %s", connectorID, connectorIDPattern)
 	}
+	// The ID prefixes the connector's groups, so an ID outside the owner's
+	// prefix would hand its users the groups of another owner.
+	ownerPrefix := p.Owner + "-"
+	if connectorID != "" && (!strings.HasPrefix(connectorID, ownerPrefix) || connectorID == ownerPrefix) {
+		return Config{}, microerror.Maskf(invalidConfigError, "dexConnectorId %q must start with %q", connectorID, ownerPrefix)
+	}
 
 	return Config{
 		connectorType:   connectorType,

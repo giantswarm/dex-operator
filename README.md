@@ -113,7 +113,7 @@ oidc:
 - `$OWNER`: Owner of the connector configuration. `giantswarm` or `customer`.
 - `$CONNECTORTYPE`: The type of dex connector. All valid types can be found in the [dex documentation](https://dexidp.io/docs/connectors/).
 - `$CONNECTORCONFIG`: The connector configuration. Format for each types can likewise be found in the [dex documentation](https://dexidp.io/docs/connectors/). Note that `redirectURI` is not needed since it will be injected for each dex instance.
-- `$CONNECTORID` (optional): The Dex connector ID, matching `^[a-zA-Z][a-zA-Z0-9_-]*$`. Defaults to `$OWNER-simple-$CONNECTORTYPE`; set it when one owner has more than one simple provider of the same connector type, since they would otherwise share an ID. It sits next to `name`, not inside `credentials`, so it can be set without touching the credentials; an ID inside `credentials` is ignored.
+- `$CONNECTORID` (optional): The Dex connector ID. It must start with `$OWNER-` and may only contain letters, digits, `-` and `_`. Defaults to `$OWNER-simple-$CONNECTORTYPE`; set it when one owner has more than one simple provider of the same connector type, since they would otherwise share an ID. It sits next to `name`, not inside `credentials`, so it can be set without touching the credentials; an ID inside `credentials` is ignored.
 
 ### Host Aliases
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A configured `dexConnectorId` must start with the prefix of its owner (`customer-` or `giantswarm-`). The ID is the prefix of the connector's groups, so a provider could otherwise take the ID of another owner's connector. A provider whose `dexConnectorId` lacks the prefix is refused on upgrade, so check any ID set since 0.18.0.
+
 ## [0.18.0] - 2026-09-27
 
 ### Added

@@ -56,6 +56,76 @@ func TestNewConfig(t *testing.T) {
 			log:         provider.GetTestLogger(),
 			expectError: true,
 		},
+		{
+			name: "case 4 - connector ID of another owner",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "customer",
+				Credentials: map[string]string{
+					connectorTypeKey:   "type",
+					connectorConfigKey: "config",
+				},
+				DexConnectorID: "giantswarm-ad",
+			},
+			log:         provider.GetTestLogger(),
+			expectError: true,
+		},
+		{
+			name: "case 5 - connector ID of its own owner",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "customer",
+				Credentials: map[string]string{
+					connectorTypeKey:   "type",
+					connectorConfigKey: "config",
+				},
+				DexConnectorID: "customer-okta",
+			},
+			log:         provider.GetTestLogger(),
+			expectError: false,
+		},
+		{
+			name: "case 6 - connector ID that is only the owner prefix",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "customer",
+				Credentials: map[string]string{
+					connectorTypeKey:   "type",
+					connectorConfigKey: "config",
+				},
+				DexConnectorID: "customer-",
+			},
+			log:         provider.GetTestLogger(),
+			expectError: true,
+		},
+		{
+			name: "case 7 - connector ID of its own owner giantswarm",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "giantswarm",
+				Credentials: map[string]string{
+					connectorTypeKey:   "type",
+					connectorConfigKey: "config",
+				},
+				DexConnectorID: "giantswarm-graveler-oidc",
+			},
+			log:         provider.GetTestLogger(),
+			expectError: false,
+		},
+		{
+			name: "case 8 - connector ID with the owner name but no dash",
+			credentials: provider.ProviderCredential{
+				Name:  "name",
+				Owner: "customer",
+				Credentials: map[string]string{
+					connectorTypeKey:   "type",
+					connectorConfigKey: "config",
+				},
+				DexConnectorID: "customerokta",
+			},
+			log:         provider.GetTestLogger(),
+			expectError: true,
+		},
 	}
 
 	for i, tc := range testCases {
