@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Deleting a dex `HelmRelease` while an `App` CR with the same name exists, or the other way round, no longer deletes the identity provider apps and the dex config secret the remaining one uses. The deleted one only removes its finalizer and hands the secret's controller reference to the remaining one, so its connectors keep their client IDs. Before, the remaining one re-created the apps with new client IDs, and a running dex kept the deleted ones until restarted. An `App` CR deleted while its `HelmRelease` exists no longer keeps its finalizer forever.
 - A configured `dexConnectorId` must start with the prefix of its owner (`customer-` or `giantswarm-`). The ID is the prefix of the connector's groups, so a provider could otherwise take the ID of another owner's connector. A provider whose `dexConnectorId` lacks the prefix is refused on upgrade, so check any ID set since 0.18.0.
 
 ## [0.18.0] - 2026-09-27
