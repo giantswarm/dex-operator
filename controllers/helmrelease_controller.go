@@ -4,10 +4,12 @@ import (
 	"context"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
+	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -61,6 +63,18 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Wrap in DexTarget
 	target := dextarget.NewHelmReleaseTarget(hr)
+
+	// The HelmRelease is deleted while the App CR lives on: the App CR keeps the
+	// identity provider apps and the dex config secret.
+	if target.IsBeingDeleted() {
+		app, err := r.matchingApp(ctx, req.NamespacedName)
+		if err != nil {
+			return ctrl.Result{}, microerror.Mask(err)
+		}
+		if app != nil && app.DeletionTimestamp.IsZero() {
+			return ctrl.Result{}, handOverToSibling(ctx, r.Client, r.Scheme, log, hr, app, "App")
+		}
+	}
 
 	var authService *auth.Service
 	{
@@ -209,4 +223,20 @@ func (r *HelmReleaseReconciler) GetProviders() ([]provider.Provider, error) {
 
 func (r *HelmReleaseReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
+}
+
+// matchingApp returns the dex App CR with the same name in the same namespace, or nil if
+// there is none.
+func (r *HelmReleaseReconciler) matchingApp(ctx context.Context, nn types.NamespacedName) (*v1alpha1.App, error) {
+	app := &v1alpha1.App{}
+	if err := r.Get(ctx, nn, app); err != nil {
+		if apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+			return nil, nil
+		}
+		return nil, microerror.Mask(err)
+	}
+	if app.GetLabels()[key.AppLabel] == key.DexAppLabelValue || key.IsManagementClusterDexApp(app) {
+		return app, nil
+	}
+	return nil, nil
 }

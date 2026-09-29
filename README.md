@@ -11,6 +11,13 @@ This also includes `dex-app` instances deployed to workload clusters.
 To do this it can be configured with a list of identity provider credentials to set up applications in.
 The `app controller` configures callback URIs and other settings and writes the resulting `connectors` back into the `dex-app` instances configuration.
 
+### App CRs and HelmReleases
+
+The `helmrelease-controller` does the same for Flux `HelmRelease`s of `dex-app`. An `App` CR and a `HelmRelease` with the same name in the same namespace, as during a migration from one to the other, share the identity provider apps and the dex config secret `<name>-default-dex-config`:
+
+- On reconcile, the `HelmRelease` wins: the `App` CR is skipped while the `HelmRelease` exists.
+- On delete, the deleted one only removes its finalizer, as long as the other one exists and is not being deleted. The identity provider apps and the dex config secret stay, and the secret's controller reference moves to the one that remains, so the connector client IDs stay the same. Only the last of the two cleans up.
+
 ## providers
 
 Providers need to implement the `provider.Provider` interface.

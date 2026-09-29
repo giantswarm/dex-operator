@@ -70,11 +70,16 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	// Check for HelmRelease with same name - HelmRelease takes priority
 	// If a HelmRelease exists, skip App reconciliation to avoid conflicts.
 	// We fail if we can't determine the state to avoid dual reconciliation.
-	hasHelmRelease, err := r.hasMatchingHelmRelease(ctx, req.NamespacedName)
+	hr, err := r.matchingHelmRelease(ctx, req.NamespacedName)
 	if err != nil {
 		return ctrl.Result{}, microerror.Mask(err)
 	}
-	if hasHelmRelease {
+	// The App is deleted while the HelmRelease lives on: the HelmRelease keeps the
+	// identity provider apps and the dex config secret.
+	if !app.DeletionTimestamp.IsZero() && hr != nil && hr.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, handOverToSibling(ctx, r.Client, r.Scheme, log, app, hr, "HelmRelease")
+	}
+	if hr != nil {
 		log.Info("HelmRelease with same name exists, skipping App reconciliation. The HelmRelease takes priority.",
 			"namespace", req.Namespace, "name", req.Name)
 		// Requeue to check again later in case the HelmRelease is deleted
@@ -231,34 +236,34 @@ func (r *AppReconciler) GetWriteAllGroups() ([]string, error) {
 	return append(r.GiantswarmWriteAllGroups, r.CustomerWriteAllGroups...), nil
 }
 
-// hasMatchingHelmRelease checks if a HelmRelease with the same name exists in the same namespace.
-// This is used to warn users during migration that both resources exist.
-func (r *AppReconciler) hasMatchingHelmRelease(ctx context.Context, nn types.NamespacedName) (bool, error) {
+// matchingHelmRelease returns the dex HelmRelease with the same name in the same namespace,
+// or nil if there is none.
+func (r *AppReconciler) matchingHelmRelease(ctx context.Context, nn types.NamespacedName) (*helmv2.HelmRelease, error) {
 	hr := &helmv2.HelmRelease{}
 	err := r.Get(ctx, nn, hr)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return false, nil
+			return nil, nil
 		}
 		// If the HelmRelease CRD is not installed, we can't have any HelmReleases
 		if meta.IsNoMatchError(err) {
-			return false, nil
+			return nil, nil
 		}
-		return false, err
+		return nil, err
 	}
 
 	// Check if the HelmRelease has the dex-app label
 	labels := hr.GetLabels()
 	if labels != nil && labels[key.AppLabel] == key.DexAppLabelValue {
-		return true, nil
+		return hr, nil
 	}
 
 	// Also check if it's the management cluster dex HelmRelease by name
 	if key.IsManagementClusterDexHelmRelease(hr.Name, hr.Namespace) {
-		return true, nil
+		return hr, nil
 	}
 
-	return false, nil
+	return nil, nil
 }
 
 func NewProvider(config provider.ProviderConfig) (provider.Provider, error) {
