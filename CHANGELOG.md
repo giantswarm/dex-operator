@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-09-29
+
 ### Fixed
 
 - Publish the fixes of 0.18.1, whose image and chart were never built: the dependency scan matched a grpc v1.84.0 vulnerability that v1.84.0 already fixes, and the match is now ignored until 2026-12-31.
@@ -325,7 +327,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.2...HEAD
+[0.18.2]: https://github.com/giantswarm/dex-operator/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/giantswarm/dex-operator/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/giantswarm/dex-operator/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/giantswarm/dex-operator/compare/v0.16.2...v0.17.0
