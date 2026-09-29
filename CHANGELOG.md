@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Publish the fixes of 0.18.1, whose image and chart were never built: the dependency scan matched a grpc v1.84.0 vulnerability that v1.84.0 already fixes, and the match is now ignored until 2026-12-31.
+
 ## [0.18.1] - 2026-09-29
 
 ### Fixed
