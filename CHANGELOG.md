@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-09-29
+
 ### Fixed
 
 - Deleting a dex `HelmRelease` while an `App` CR with the same name exists, or the other way round, no longer deletes the identity provider apps and the dex config secret the remaining one uses. The deleted one only removes its finalizer and hands the secret's controller reference to the remaining one, so its connectors keep their client IDs. Before, the remaining one re-created the apps with new client IDs, and a running dex kept the deleted ones until restarted. An `App` CR deleted while its `HelmRelease` exists no longer keeps its finalizer forever.
@@ -319,7 +321,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/giantswarm/dex-operator/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/giantswarm/dex-operator/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/giantswarm/dex-operator/compare/v0.16.2...v0.17.0
 [0.16.2]: https://github.com/giantswarm/dex-operator/compare/v0.16.1...v0.16.2
