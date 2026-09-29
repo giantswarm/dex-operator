@@ -10,7 +10,6 @@ import (
 // DefaultRequeue returns the default requeue result for dex-operator controllers.
 func DefaultRequeue() reconcile.Result {
 	return ctrl.Result{
-		Requeue:      true,
 		RequeueAfter: time.Minute * 5,
 	}
 }
