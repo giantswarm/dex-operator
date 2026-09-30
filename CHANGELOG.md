@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Publish the fix of 0.18.3 and 0.18.4, whose charts were never published: their tag pipelines timed out pushing the image to the Aliyun mirror. The image is now mirrored to Aliyun by a separate `sync-china-registry` job, so the chart no longer waits for it.
+
 ## [0.18.4] - 2026-09-30
 
 ### Fixed
