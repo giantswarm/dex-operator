@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.6] - 2026-09-30
+
 ### Fixed
 
 - Refuse a provider configuration in which two providers share a Dex connector ID, set with `dexConnectorId` or derived from owner and type; Dex would otherwise serve only one of them.
@@ -349,7 +351,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.5...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.6...HEAD
+[0.18.6]: https://github.com/giantswarm/dex-operator/compare/v0.18.5...v0.18.6
 [0.18.5]: https://github.com/giantswarm/dex-operator/compare/v0.18.4...v0.18.5
 [0.18.4]: https://github.com/giantswarm/dex-operator/compare/v0.18.3...v0.18.4
 [0.18.3]: https://github.com/giantswarm/dex-operator/compare/v0.18.2...v0.18.3
