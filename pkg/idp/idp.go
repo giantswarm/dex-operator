@@ -77,6 +77,9 @@ func New(c Config) (*Service, error) {
 	if c.Providers == nil {
 		return nil, microerror.Maskf(invalidConfigError, "providers can not be nil")
 	}
+	if err := checkUniqueConnectorIDs(c.Providers); err != nil {
+		return nil, microerror.Mask(err)
+	}
 	if c.ManagementClusterBaseDomain == "" {
 		return nil, microerror.Maskf(invalidConfigError, "no management cluster base domain given")
 	}
@@ -102,6 +105,20 @@ func New(c Config) (*Service, error) {
 	}
 
 	return s, nil
+}
+
+// checkUniqueConnectorIDs refuses providers that share a connector ID, set or
+// derived: connectors are looked up by ID, so Dex would serve only one of them.
+func checkUniqueConnectorIDs(providers []provider.Provider) error {
+	owners := map[string]string{}
+	for _, p := range providers {
+		id := p.GetName()
+		if owner, ok := owners[id]; ok {
+			return microerror.Maskf(invalidConfigError, "connector ID %q is used by two providers (owners %q and %q)", id, owner, p.GetOwner())
+		}
+		owners[id] = p.GetOwner()
+	}
+	return nil
 }
 
 func (s *Service) Reconcile(ctx context.Context) error {

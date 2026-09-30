@@ -14,6 +14,7 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/dextarget"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 	"github.com/giantswarm/dex-operator/pkg/idp/provider/mockprovider"
+	"github.com/giantswarm/dex-operator/pkg/idp/provider/simpleprovider"
 	"github.com/giantswarm/dex-operator/pkg/key"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
@@ -615,5 +616,71 @@ func getClusterValuesConfigMap(clusterValues string) *corev1.ConfigMap {
 		Data: map[string]string{
 			key.ValuesConfigMapKey: clusterValues,
 		},
+	}
+}
+
+func TestCheckUniqueConnectorIDs(t *testing.T) {
+	simple := func(owner, id string) provider.Provider {
+		p, err := simpleprovider.New(provider.ProviderConfig{
+			Credential: provider.ProviderCredential{
+				Name:           simpleprovider.ProviderName,
+				Owner:          owner,
+				DexConnectorID: id,
+				Credentials: map[string]string{
+					"connectorType":   "oidc",
+					"connectorConfig": "issuer: https://idp.example.com",
+				},
+			},
+			Log: provider.GetTestLogger(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	testCases := []struct {
+		name        string
+		providers   func() []provider.Provider
+		expectError bool
+	}{
+		{
+			name: "distinct IDs",
+			providers: func() []provider.Provider {
+				return []provider.Provider{simple("giantswarm", ""), simple("giantswarm", "giantswarm-intranet"), simple("customer", "")}
+			},
+		},
+		{
+			name: "same ID set twice",
+			providers: func() []provider.Provider {
+				return []provider.Provider{simple("giantswarm", "giantswarm-intranet"), simple("giantswarm", "giantswarm-intranet")}
+			},
+			expectError: true,
+		},
+		{
+			name: "set ID equals another provider's derived ID",
+			providers: func() []provider.Provider {
+				return []provider.Provider{simple("giantswarm", "giantswarm-simple-oidc"), simple("giantswarm", "")}
+			},
+			expectError: true,
+		},
+		{
+			name: "two providers derive the same ID",
+			providers: func() []provider.Provider {
+				return []provider.Provider{simple("giantswarm", ""), simple("giantswarm", "")}
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkUniqueConnectorIDs(tc.providers())
+			if tc.expectError && !IsInvalidConfig(err) {
+				t.Fatalf("expected an invalid config error, got %v", err)
+			}
+			if !tc.expectError && err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
