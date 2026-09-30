@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.5] - 2026-09-30
+
 ### Fixed
 
 - Publish the fix of 0.18.3 and 0.18.4, whose charts were never published: their tag pipelines timed out pushing the image to the Aliyun mirror. The image is now mirrored to Aliyun by a separate `sync-china-registry` job, so the chart no longer waits for it.
@@ -343,7 +345,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.4...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.5...HEAD
+[0.18.5]: https://github.com/giantswarm/dex-operator/compare/v0.18.4...v0.18.5
 [0.18.4]: https://github.com/giantswarm/dex-operator/compare/v0.18.3...v0.18.4
 [0.18.3]: https://github.com/giantswarm/dex-operator/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/giantswarm/dex-operator/compare/v0.18.1...v0.18.2
