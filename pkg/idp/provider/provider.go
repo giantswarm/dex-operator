@@ -48,7 +48,7 @@ type ProviderCredential struct {
 	Name        string            `yaml:"name"`
 	Owner       string            `yaml:"owner"`
 	Credentials map[string]string `yaml:"credentials"`
-	Description string            `yaml:"description"`
+	Description string            `yaml:"description,omitempty"`
 	// DexConnectorID sets the connector's ID where a provider supports it. It
 	// sits next to the name, outside the credentials, so it can be set without
 	// touching them.

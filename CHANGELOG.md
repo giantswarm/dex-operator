@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A rotation of the operator's own Azure credentials no longer drops a simple provider's `dexConnectorId` from the `dex-operator-credentials` secret. The renewal now reads and writes the secret with the operator's credential type, so every field it knows survives the rewrite, and an empty description is no longer written back.
+
 ## [0.18.2] - 2026-09-29
 
 ### Fixed

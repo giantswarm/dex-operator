@@ -411,6 +411,65 @@ func TestUpdateCredentialsSecret(t *testing.T) {
 	}
 }
 
+// A renewal rewrites every provider in the secret; fields it does not touch,
+// such as a simple provider's dexConnectorId, must survive the rewrite.
+func TestUpdateCredentialsSecretKeepsUntouchedFields(t *testing.T) {
+	ctx := context.Background()
+	credentials := `- name: ad
+  owner: giantswarm
+  credentials:
+    client-id: old-id
+    client-secret: old-secret
+- name: simple
+  owner: customer
+  description: Customer Okta
+  dexConnectorId: customer-okta
+  credentials:
+    connectorType: oidc
+    connectorConfig: "issuer: https://okta.example.com"
+`
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: CredentialsSecretName, Namespace: "example"},
+		Data:       map[string][]byte{"credentials": []byte(credentials)},
+	}
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(secret).Build()
+	service := Service{Client: fakeClient, log: ctrl.Log.WithName("test"), target: dextarget.NewAppTarget(getTestApp())}
+
+	err := service.updateCredentialsSecret(ctx, []ProviderCredentialUpdate{
+		{ProviderName: "ad", Credentials: map[string]string{"client-secret": "new-secret"}},
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	updated := &corev1.Secret{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: CredentialsSecretName, Namespace: "example"}, updated); err != nil {
+		t.Fatalf("Failed to get updated secret: %v", err)
+	}
+	var got []provider.ProviderCredential
+	if err := yaml.Unmarshal(updated.Data["credentials"], &got); err != nil {
+		t.Fatalf("Failed to parse updated credentials: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("Expected 2 providers, got %d", len(got))
+	}
+	if got[0].Credentials["client-secret"] != "new-secret" || got[0].Credentials["client-id"] != "old-id" {
+		t.Errorf("Rotated provider not updated as expected: %v", got[0].Credentials)
+	}
+	if got[0].Description != "" || got[0].DexConnectorID != "" {
+		t.Errorf("Rotated provider gained fields: %+v", got[0])
+	}
+	simple := got[1]
+	if simple.DexConnectorID != "customer-okta" {
+		t.Errorf("dexConnectorId lost after renewal: %q", simple.DexConnectorID)
+	}
+	if simple.Description != "Customer Okta" || simple.Owner != "customer" || simple.Credentials["connectorType"] != "oidc" {
+		t.Errorf("Untouched provider changed: %+v", simple)
+	}
+}
+
 func TestAddSelfRenewalAnnotation(t *testing.T) {
 	service := &Service{
 		log: ctrl.Log.WithName("test"),
