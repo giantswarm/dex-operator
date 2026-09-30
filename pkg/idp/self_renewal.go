@@ -25,19 +25,6 @@ const (
 	SelfRenewalAnnotation = "dex-operator.giantswarm.io/last-self-renewal"
 )
 
-// CredentialsConfig represents the structure of the credentials YAML
-type CredentialsConfig struct {
-	Providers []ProviderConfig `yaml:",inline"`
-}
-
-// ProviderConfig represents a single provider's configuration in the credentials
-type ProviderConfig struct {
-	Name        string            `yaml:"name"`
-	Owner       string            `yaml:"owner"`
-	Credentials map[string]string `yaml:"credentials"`
-	Description string            `yaml:"description,omitempty"`
-}
-
 type ProviderCredentialUpdate struct {
 	ProviderName string
 	Credentials  map[string]string
@@ -126,8 +113,9 @@ func (s *Service) updateCredentialsSecret(ctx context.Context, updates []Provide
 		return microerror.Maskf(renewalError, "No credentials data found in secret")
 	}
 
-	// Parse the existing YAML credentials using proper structs
-	var existingProviders []ProviderConfig
+	// Parse with the operator's own credential type, so a field it reads is
+	// never dropped when the secret is written back
+	var existingProviders []provider.ProviderCredential
 	if err := yaml.Unmarshal(credentialsData, &existingProviders); err != nil {
 		return microerror.Maskf(renewalError, "Failed to parse existing credentials: %v", err)
 	}
