@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Refuse a provider configuration in which two providers share a Dex connector ID, set with `dexConnectorId` or derived from owner and type; Dex would otherwise serve only one of them.
+
 ## [0.18.5] - 2026-09-30
 
 ### Fixed
