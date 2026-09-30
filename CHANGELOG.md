@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.4] - 2026-09-30
+
 ### Fixed
 
 - Publish the fix of 0.18.3, whose image and chart were never fully published: the tag pipeline's multi-arch image push timed out, so the chart never reached the catalog.
@@ -337,7 +339,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.3...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.4...HEAD
+[0.18.4]: https://github.com/giantswarm/dex-operator/compare/v0.18.3...v0.18.4
 [0.18.3]: https://github.com/giantswarm/dex-operator/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/giantswarm/dex-operator/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/giantswarm/dex-operator/compare/v0.18.0...v0.18.1
