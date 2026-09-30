@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.3] - 2026-09-30
+
 ### Fixed
 
 - A rotation of the operator's own Azure credentials no longer drops a simple provider's `dexConnectorId` from the `dex-operator-credentials` secret. The renewal now reads and writes the secret with the operator's credential type, so every field it knows survives the rewrite, and an empty description is no longer written back.
@@ -331,7 +333,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.2...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.3...HEAD
+[0.18.3]: https://github.com/giantswarm/dex-operator/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/giantswarm/dex-operator/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/giantswarm/dex-operator/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/giantswarm/dex-operator/compare/v0.17.0...v0.18.0
