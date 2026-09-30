@@ -30,10 +30,25 @@ workflows:
     - architect/push-to-registries:
         context: architect
         name: push-to-registries
+        # Aliyun is mirrored by sync-china-registry from inside China, so a
+        # slow cross-Pacific push no longer blocks the chart.
+        split-china-push: true
         requires:
         - go-build
         filters:
             # Trigger the job also on git tag.
+          tags:
+            only: /^v.*/
+          branches:
+            ignore:
+            - main
+            - master
+    - architect/sync-china-registry:
+        context: architect
+        name: sync-china-registry
+        requires:
+        - push-to-registries
+        filters:
           tags:
             only: /^v.*/
           branches:
