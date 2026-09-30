@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Publish the fix of 0.18.3, whose image and chart were never fully published: the tag pipeline's multi-arch image push timed out, so the chart never reached the catalog.
+
 ## [0.18.3] - 2026-09-30
 
 ### Fixed
