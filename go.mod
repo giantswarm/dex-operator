@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/dexidp/dex v2.13.0+incompatible
-	github.com/fluxcd/helm-controller/api v1.6.4
+	github.com/fluxcd/helm-controller/api v1.6.5
 	github.com/giantswarm/apiextensions-application v0.6.0
 	github.com/giantswarm/backoff v1.0.1
 	github.com/giantswarm/k8smetadata v0.26.0
