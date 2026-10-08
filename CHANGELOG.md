@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-08
+
 ### Changed
 
 - Build the Azure Graph client from `msgraph-sdk-go-core` and the `applications` package only.
@@ -355,7 +357,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.18.6...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/giantswarm/dex-operator/compare/v0.18.6...v0.19.0
 [0.18.6]: https://github.com/giantswarm/dex-operator/compare/v0.18.5...v0.18.6
 [0.18.5]: https://github.com/giantswarm/dex-operator/compare/v0.18.4...v0.18.5
 [0.18.4]: https://github.com/giantswarm/dex-operator/compare/v0.18.3...v0.18.4
