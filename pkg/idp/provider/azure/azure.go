@@ -17,7 +17,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	azauth "github.com/microsoft/kiota-authentication-azure-go"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/skratchdot/open-golang/open"
@@ -64,7 +63,7 @@ func (a *Azure) RotateServiceCredentials(ctx context.Context, config provider.Ap
 type Azure struct {
 	Name                  string
 	Description           string
-	Client                *msgraphsdk.GraphServiceClient
+	Client                *GraphClient
 	Log                   logr.Logger
 	Owner                 string
 	TenantID              string
@@ -86,7 +85,7 @@ func New(config provider.ProviderConfig) (*Azure, error) {
 		return nil, microerror.Mask(err)
 	}
 
-	var client *msgraphsdk.GraphServiceClient
+	var client *GraphClient
 	{
 		cred, err := azidentity.NewClientSecretCredential(c.TenantID, c.ClientID, c.ClientSecret, nil)
 		if err != nil {
@@ -96,11 +95,7 @@ func New(config provider.ProviderConfig) (*Azure, error) {
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
-		adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-		client = msgraphsdk.NewGraphServiceClient(adapter)
+		client, err = NewGraphClient(auth)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
