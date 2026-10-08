@@ -1,4 +1,4 @@
 CVE-2026-37236 until=2026-10-28 # github.com/grpc-ecosystem/grpc-gateway@v1.16.0
 CVE-2026-5160 until=2026-10-28 # github.com/yuin/goldmark@v1.4.13
-CVE-2026-81870 until=2026-12-31 # go.opentelemetry.io/otel/sdk@v1.44.0
+CVE-2026-81870 until=2026-11-06 # go.opentelemetry.io/otel/exporters/otlp/otlptrace@v1.40.0
 CVE-2026-84445 until=2026-12-31 # google.golang.org/grpc@v1.84.0: false match, the fix (GHSA-2v4p-qf9q-27wj, d5a41119) is in v1.84.0; https://github.com/giantswarm/dex-operator/issues/235
