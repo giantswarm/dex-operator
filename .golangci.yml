@@ -1,0 +1,21 @@
+# Read by the architect orb's gosec step (golangci-lint v2 format).
+# See https://github.com/giantswarm/architect-orb/blob/main/docs/job/go-test.md#security-scanning-with-gosec
+version: "2"
+linters:
+  exclusions:
+    rules:
+      # dex-operator manages identity-provider client credentials by design:
+      # it creates them at the IdP, stores them in Kubernetes Secrets and
+      # renders them into dex connector configs. Struct fields named
+      # ClientSecret, PrivateKey or Password under pkg/idp carry that data
+      # on purpose, so G117 ("field matches secret pattern") is noise here.
+      - path: pkg/idp/
+        linters:
+          - gosec
+        text: "G117"
+      # CredentialsSecretName is the name of a Kubernetes Secret resource,
+      # not a credential value.
+      - path: pkg/idp/self_renewal\.go
+        linters:
+          - gosec
+        text: "G101"
