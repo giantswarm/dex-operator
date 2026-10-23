@@ -76,7 +76,7 @@ type ProviderSecret struct {
 func ReadCredentials(fileLocation string) ([]ProviderCredential, error) {
 	credentials := &[]ProviderCredential{}
 
-	file, err := os.ReadFile(fileLocation) //nolint:gosec,G304
+	file, err := os.ReadFile(fileLocation) //nolint:gosec // G304: path comes from the operator's own --idp-credentials-file flag
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
