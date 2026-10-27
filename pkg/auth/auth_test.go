@@ -18,6 +18,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -79,7 +80,7 @@ func TestReconcile(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster(), getTestRoleBindings())
+			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(getTestCluster()).WithObjects(getTestRoleBindings()...)
 			if tc.existingConfigMap != nil {
 				fakeClientBuilder = fakeClientBuilder.WithObjects(tc.existingConfigMap)
 			}
@@ -138,29 +139,63 @@ func getTestCluster() *capi.Cluster {
 	}
 }
 
-func getTestRoleBindings() *rbacv1.RoleBinding {
-	return &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "wc",
-			Namespace: "org-example",
+func getTestRoleBindings() []client.Object {
+	return []client.Object{
+		&rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "wc",
+				Namespace: "org-example",
+			},
+			Subjects: []rbacv1.Subject{
+				{
+					Kind: "Group",
+					Name: "group_c",
+				},
+				{
+					Kind: "User",
+					Name: "user_a",
+				},
+				{
+					Kind: "Group",
+					Name: "group_d",
+				},
+			},
+			RoleRef: rbacv1.RoleRef{
+				Kind: "ClusterRole",
+				Name: "cluster-admin",
+			},
 		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind: "Group",
-				Name: "group_c",
+		&rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "readers",
+				Namespace: "org-example",
 			},
-			{
-				Kind: "User",
-				Name: "user_a",
+			Subjects: []rbacv1.Subject{
+				{
+					Kind: "Group",
+					Name: "group_readers",
+				},
 			},
-			{
-				Kind: "Group",
-				Name: "group_d",
+			RoleRef: rbacv1.RoleRef{
+				Kind: "ClusterRole",
+				Name: "read-all",
 			},
 		},
-		RoleRef: rbacv1.RoleRef{
-			Kind: "ClusterRole",
-			Name: "cluster-admin",
+		&rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "namespaced-admins",
+				Namespace: "org-example",
+			},
+			Subjects: []rbacv1.Subject{
+				{
+					Kind: "Group",
+					Name: "group_namespaced_admins",
+				},
+			},
+			RoleRef: rbacv1.RoleRef{
+				Kind: "Role",
+				Name: "cluster-admin",
+			},
 		},
 	}
 }
