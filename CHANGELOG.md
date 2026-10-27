@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix ARM64 images.
+- Only grant workload cluster admin to groups bound to the `cluster-admin` ClusterRole in the cluster namespace.
 
 ## [0.19.0] - 2026-10-08
 

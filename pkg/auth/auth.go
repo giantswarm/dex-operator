@@ -215,7 +215,7 @@ func (s *Service) getWriteAllGroups(targetNamespace string, ctx context.Context)
 		return nil, err
 	}
 	for _, roleBinding := range roleBindings.Items {
-		if roleBinding.RoleRef.Name != "cluster-admin" && roleBinding.RoleRef.Kind != "ClusterRole" {
+		if roleBinding.RoleRef.Kind != "ClusterRole" || roleBinding.RoleRef.Name != "cluster-admin" {
 			continue
 		}
 		for _, subject := range roleBinding.Subjects {
