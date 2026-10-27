@@ -2,6 +2,9 @@
 # See https://github.com/giantswarm/architect-orb/blob/main/docs/job/go-test.md#security-scanning-with-gosec
 version: "2"
 linters:
+  enable:
+    - gosec
+    - goconst
   exclusions:
     rules:
       # dex-operator manages identity-provider client credentials by design:
