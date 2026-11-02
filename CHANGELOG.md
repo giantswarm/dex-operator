@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix ARM64 images.
 - Only grant workload cluster admin to groups bound to the `cluster-admin` ClusterRole in the cluster namespace.
+- Stop managing a dex instance only when user config sets connectors for an owner that dex-operator also manages. Before, any `connectors` key made dex-operator delete its own connectors.
 
 ## [0.19.0] - 2026-10-08
 

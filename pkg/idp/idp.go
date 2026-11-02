@@ -121,15 +121,29 @@ func checkUniqueConnectorIDs(providers []provider.Provider) error {
 	return nil
 }
 
+// clashingOwners returns the user connector owners that also own one of the providers.
+func clashingOwners(userOwners []string, providers []provider.Provider) []string {
+	var clashing []string
+	for _, owner := range userOwners {
+		for _, p := range providers {
+			if p.GetOwner() == owner {
+				clashing = append(clashing, owner)
+				break
+			}
+		}
+	}
+	return clashing
+}
+
 func (s *Service) Reconcile(ctx context.Context) error {
-	// We do not handle targets that have connectors in user configs set up due to a bug where configuration in secrets can be overwritten
-	//TODO: solve this gracefully
-	hasUserConnectors, err := s.target.HasUserConfigWithConnectors(ctx, s.Client)
+	// Helm replaces lists, so user connectors under an owner we also write
+	// would overwrite ours or be overwritten. Back off in that case.
+	userOwners, err := s.target.UserConnectorOwners(ctx, s.Client)
 	if err != nil {
 		return microerror.Mask(err)
 	}
-	if hasUserConnectors {
-		s.log.Info(fmt.Sprintf("Dex %s has user config with connector configuration. Cancelling reconciliation. We recommend to move configuration to a managed secret.", s.target.GetTargetType()))
+	if clashing := clashingOwners(userOwners, s.providers); len(clashing) > 0 {
+		s.log.Info(fmt.Sprintf("Dex %s has user config with connectors for owner(s) %v that dex-operator also manages. Cancelling reconciliation. We recommend to move configuration to a managed secret.", s.target.GetTargetType(), clashing))
 		return s.ReconcileDelete(ctx)
 	}
 

@@ -2,9 +2,13 @@ package dextarget
 
 import (
 	"context"
+	"encoding/json"
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
+
+	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
 // DexTarget is an interface that abstracts the common functionality between
@@ -21,9 +25,9 @@ type DexTarget interface {
 	// GetOrganizationLabel returns the organization label value if present
 	GetOrganizationLabel() string
 
-	// HasUserConfigWithConnectors returns true if the target has user-defined connector config
-	// that should prevent dex-operator from managing connectors
-	HasUserConfigWithConnectors(ctx context.Context, client client.Client) (bool, error)
+	// UserConnectorOwners returns the owners that have connectors set under
+	// oidc.<owner>.connectors in the user config of the target
+	UserConnectorOwners(ctx context.Context, client client.Client) ([]string, error)
 
 	// HasClusterValuesConfig returns true if the target has a cluster values configmap reference
 	HasClusterValuesConfig() bool
@@ -65,4 +69,30 @@ type DexTarget interface {
 	// (no Flux Kustomization labels) — Flux-managed HelmReleases must declare the
 	// entry in their Git manifest to avoid SSA ownership conflicts.
 	ManagesSecretConfig() bool
+}
+
+// connectorOwners returns the owners that set oidc.<owner>.connectors in the
+// given Helm values. A key set to [] or null counts too, because Helm still
+// replaces the list dex-operator writes.
+func connectorOwners(values string) ([]string, error) {
+	type ownerValues struct {
+		Connectors json.RawMessage `json:"connectors"`
+	}
+	var v struct {
+		Oidc struct {
+			Giantswarm ownerValues `json:"giantswarm"`
+			Customer   ownerValues `json:"customer"`
+		} `json:"oidc"`
+	}
+	if err := yaml.Unmarshal([]byte(values), &v); err != nil {
+		return nil, err
+	}
+	var owners []string
+	if v.Oidc.Giantswarm.Connectors != nil {
+		owners = append(owners, key.OwnerGiantswarm)
+	}
+	if v.Oidc.Customer.Connectors != nil {
+		owners = append(owners, key.OwnerCustomer)
+	}
+	return owners, nil
 }
