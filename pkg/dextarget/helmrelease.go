@@ -3,13 +3,15 @@ package dextarget
 import (
 	"context"
 	"fmt"
-	"regexp"
+	"slices"
 	"strings"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/giantswarm/k8smetadata/pkg/label"
+	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -43,27 +45,46 @@ func (h *HelmReleaseTarget) GetOrganizationLabel() string {
 	return h.GetLabels()[label.Organization]
 }
 
-func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c client.Client) (bool, error) {
+func (h *HelmReleaseTarget) UserConnectorOwners(ctx context.Context, c client.Client) ([]string, error) {
 	log := logr.FromContextOrDiscard(ctx)
+
+	var owners []string
+	add := func(found ...string) {
+		for _, owner := range found {
+			if !slices.Contains(owners, owner) {
+				owners = append(owners, owner)
+			}
+		}
+	}
 
 	for _, vf := range h.Spec.ValuesFrom {
 		// Skip our own managed secret
-		if strings.HasSuffix(vf.Name, key.DexConfigName) {
+		if vf.Name == key.GetDexConfigName(h.Name) {
+			continue
+		}
+		// A targetPath entry sets one value at that path, so only the path matters
+		if vf.TargetPath != "" {
+			if owner := targetPathOwner(vf.TargetPath); owner != "" {
+				add(owner)
+			}
 			continue
 		}
 
+		valuesKey := vf.ValuesKey
+		if valuesKey == "" {
+			valuesKey = "values.yaml"
+		}
 		var values string
 		switch vf.Kind {
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{}
 			if err := c.Get(ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, cm); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return nil, microerror.Mask(err)
+				}
 				log.Error(err, "Failed to fetch ConfigMap referenced in valuesFrom, skipping connector check",
 					"configmap", vf.Name, "namespace", h.Namespace)
 				continue
-			}
-			valuesKey := vf.ValuesKey
-			if valuesKey == "" {
-				valuesKey = "values.yaml"
 			}
 			data, ok := cm.Data[valuesKey]
 			if !ok {
@@ -74,25 +95,40 @@ func (h *HelmReleaseTarget) HasUserConfigWithConnectors(ctx context.Context, c c
 		case "Secret":
 			secret := &corev1.Secret{}
 			if err := c.Get(ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, secret); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return nil, microerror.Mask(err)
+				}
 				log.Error(err, "Failed to fetch Secret referenced in valuesFrom, skipping connector check",
 					"secret", vf.Name, "namespace", h.Namespace)
 				continue
-			}
-			valuesKey := vf.ValuesKey
-			if valuesKey == "" {
-				valuesKey = "values.yaml"
 			}
 			values = string(secret.Data[valuesKey])
 		}
 
 		if values != "" {
-			rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.ConnectorsKey))
-			if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
-				return true, nil
+			found, err := connectorOwners(values)
+			if err != nil {
+				// Do not log the error, it can quote Secret content.
+				log.Info("Failed to parse values from valuesFrom, skipping connector check",
+					"kind", vf.Kind, "name", vf.Name, "namespace", h.Namespace, "valuesKey", valuesKey)
+				continue
 			}
+			add(found...)
 		}
 	}
-	return false, nil
+	return owners, nil
+}
+
+// targetPathOwner returns the owner whose oidc.<owner>.connectors list the
+// given valuesFrom targetPath sets, or "" if there is none.
+func targetPathOwner(targetPath string) string {
+	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
+		path := "oidc." + owner + ".connectors"
+		if targetPath == path || strings.HasPrefix(targetPath, path+"[") || strings.HasPrefix(targetPath, path+".") {
+			return owner
+		}
+	}
+	return ""
 }
 
 func (h *HelmReleaseTarget) HasClusterValuesConfig() bool {

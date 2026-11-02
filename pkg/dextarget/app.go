@@ -2,12 +2,11 @@ package dextarget
 
 import (
 	"context"
-	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,10 +41,10 @@ func (a *AppTarget) GetOrganizationLabel() string {
 	return a.GetLabels()[label.Organization]
 }
 
-func (a *AppTarget) HasUserConfigWithConnectors(ctx context.Context, c client.Client) (bool, error) {
+func (a *AppTarget) UserConnectorOwners(ctx context.Context, c client.Client) ([]string, error) {
 	// Check if user configmap is present
 	if a.Spec.UserConfig.ConfigMap.Name == "" && a.Spec.UserConfig.ConfigMap.Namespace == "" {
-		return false, nil
+		return nil, nil
 	}
 
 	userConfigMap := &corev1.ConfigMap{}
@@ -53,19 +52,21 @@ func (a *AppTarget) HasUserConfigWithConnectors(ctx context.Context, c client.Cl
 		Name:      a.Spec.UserConfig.ConfigMap.Name,
 		Namespace: a.Spec.UserConfig.ConfigMap.Namespace},
 		userConfigMap); err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Check if connectors are defined in user configmap
 	values, ok := userConfigMap.Data[key.ValuesConfigMapKey]
 	if !ok {
-		return false, nil
+		return nil, nil
 	}
-	rex := regexp.MustCompile(fmt.Sprintf(`(%v)(\s*:\s*)(\S+)`, key.ConnectorsKey))
-	if matches := rex.FindStringSubmatch(values); len(matches) > 3 {
-		return true, nil
+	owners, err := connectorOwners(values)
+	if err != nil {
+		logr.FromContextOrDiscard(ctx).Info("Failed to parse user config values, skipping connector check",
+			"configmap", userConfigMap.Name, "namespace", userConfigMap.Namespace, "valuesKey", key.ValuesConfigMapKey)
+		return nil, nil
 	}
-	return false, nil
+	return owners, nil
 }
 
 func (a *AppTarget) HasClusterValuesConfig() bool {
