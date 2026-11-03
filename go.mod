@@ -104,7 +104,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
@@ -135,7 +135,7 @@ require (
 replace (
 	github.com/cloudflare/circl => github.com/cloudflare/circl v1.6.5
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.72.0
-	golang.org/x/net => golang.org/x/net v0.61.0
+	golang.org/x/net => golang.org/x/net v0.62.0
 	google.golang.org/grpc => google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.12
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.27.4
