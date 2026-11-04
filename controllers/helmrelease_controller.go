@@ -42,7 +42,7 @@ type HelmReleaseReconciler struct {
 	EnableSelfRenewal        bool
 }
 
-//+kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;patch
 //+kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases/finalizers,verbs=update
 
@@ -132,8 +132,9 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		// Remove finalizer
 		if controllerutil.ContainsFinalizer(hr, key.DexOperatorFinalizer) {
+			patch := finalizerPatch(hr)
 			controllerutil.RemoveFinalizer(hr, key.DexOperatorFinalizer)
-			if err := r.Update(ctx, hr); err != nil {
+			if err := r.Patch(ctx, hr, patch); err != nil {
 				return ctrl.Result{}, microerror.Mask(err)
 			}
 			log.Info("Removed finalizer from dex HelmRelease instance.")
@@ -143,8 +144,9 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Add finalizer
 	if !controllerutil.ContainsFinalizer(hr, key.DexOperatorFinalizer) {
+		patch := finalizerPatch(hr)
 		controllerutil.AddFinalizer(hr, key.DexOperatorFinalizer)
-		if err := r.Update(ctx, hr); err != nil {
+		if err := r.Patch(ctx, hr, patch); err != nil {
 			return ctrl.Result{}, microerror.Mask(err)
 		}
 		log.Info("Added finalizer to dex HelmRelease instance.")

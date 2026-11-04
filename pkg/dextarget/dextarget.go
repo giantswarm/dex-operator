@@ -40,7 +40,7 @@ type DexTarget interface {
 
 	// AddSecretConfig adds the dex secret config reference to the target
 	// For App CR: adds to .spec.extraConfigs with priority
-	// For HelmRelease: adds to .spec.valuesFrom
+	// For HelmRelease: does nothing
 	AddSecretConfig(secretName, secretNamespace string) error
 
 	// RemoveSecretConfig removes the dex secret config reference from the target
@@ -57,17 +57,14 @@ type DexTarget interface {
 	GetObject() client.Object
 
 	// AttachSecretConfig persists the secret config reference added by AddSecretConfig
-	// to the target. For App CRs and HelmReleases not managed by Flux, this performs a client Update;
-	// for HelmRelease targets managed by Flux, this is a no-op.
+	// to the target. For App CRs this performs a client Update; for HelmReleases it does nothing.
 	// Returns true if the target was actually modified.
 	AttachSecretConfig(ctx context.Context, c client.Client) (bool, error)
 
 	// ManagesSecretConfig returns true if dex-operator should inject and manage
 	// the dex config secret reference directly on this target.
-	// For App CR targets this is always true.
-	// For HelmRelease targets it is true only if the HelmRelease is self-managed
-	// (no Flux Kustomization labels) — Flux-managed HelmReleases must declare the
-	// entry in their Git manifest to avoid SSA ownership conflicts.
+	// True for App CRs. False for HelmReleases: Flux owns spec.valuesFrom, so
+	// the manifest has to reference the secret.
 	ManagesSecretConfig() bool
 }
 

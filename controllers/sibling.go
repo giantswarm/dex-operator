@@ -47,11 +47,19 @@ func handOverToSibling(ctx context.Context, c client.Client, scheme *runtime.Sch
 		log.Info(fmt.Sprintf("Handed dex config secret %s over to the %s with the same name.", nn.Name, siblingKind))
 	}
 
+	patch := finalizerPatch(deleted)
 	if controllerutil.RemoveFinalizer(deleted, key.DexOperatorFinalizer) {
-		if err := c.Update(ctx, deleted); err != nil {
+		if err := c.Patch(ctx, deleted, patch); err != nil {
 			return microerror.Mask(err)
 		}
 	}
 	log.Info(fmt.Sprintf("Removed finalizer without cleanup: the %s with the same name keeps the identity provider apps and the dex config secret.", siblingKind))
 	return nil
+}
+
+// finalizerPatch returns a merge patch from obj's current state. Call it before
+// changing the finalizers. The optimistic lock keeps a stale object from
+// dropping finalizers that other controllers added since.
+func finalizerPatch(obj client.Object) client.Patch {
+	return client.MergeFromWithOptions(obj.DeepCopyObject().(client.Object), client.MergeFromWithOptimisticLock{})
 }

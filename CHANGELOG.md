@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add and remove the HelmRelease finalizer with a patch. dex-operator no longer has `create`, `update` or `delete` permissions on HelmReleases.
+
 ### Fixed
 
 - Fix ARM64 images.
 - Only grant workload cluster admin to groups bound to the `cluster-admin` ClusterRole in the cluster namespace.
 - Stop managing a dex instance only when user config sets connectors for an owner that dex-operator also manages. Before, any `connectors` key made dex-operator delete its own connectors.
+- Never change `spec.valuesFrom` on a HelmRelease, with or without Flux labels. Its manifest has to reference `<name>-default-dex-config`.
+- On a HelmRelease, keep the dex config secret when user connectors clash, so the release doesn't fail on a missing `valuesFrom` source. App CRs still back off.
+- Delete the dex config secret and identity provider apps when a HelmRelease that doesn't reference the secret is deleted.
 
 ## [0.19.0] - 2026-10-08
 
