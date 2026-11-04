@@ -143,8 +143,13 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 	if clashing := clashingOwners(userOwners, s.providers); len(clashing) > 0 {
-		s.log.Info(fmt.Sprintf("Dex %s has user config with connectors for owner(s) %v that dex-operator also manages. Cancelling reconciliation. We recommend to move configuration to a managed secret.", s.target.GetTargetType(), clashing))
-		return s.ReconcileDelete(ctx)
+		if s.target.ManagesSecretConfig() {
+			s.log.Info(fmt.Sprintf("Dex %s has user config with connectors for owner(s) %v that dex-operator also manages. Cancelling reconciliation. We recommend to move configuration to a managed secret.", s.target.GetTargetType(), clashing))
+			return s.ReconcileDelete(ctx)
+		}
+		// A HelmRelease manifest references the secret, so deleting it would
+		// fail the release. Keep it up to date; the later valuesFrom entry wins.
+		s.log.Info(fmt.Sprintf("WARNING: dex %s has user config with connectors for owner(s) %v that dex-operator also manages. The later valuesFrom entry wins.", s.target.GetTargetType(), clashing))
 	}
 
 	nn := s.target.GetNamespacedName()
@@ -237,8 +242,9 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	nn := s.target.GetNamespacedName()
 	secretName := key.GetDexConfigName(nn.Name)
 
-	// Check if secret config is present
-	if s.target.HasSecretConfig(secretName) {
+	// Check if secret config is present. A HelmRelease gets the secret whether
+	// or not its manifest references it.
+	if s.target.HasSecretConfig(secretName) || !s.target.ManagesSecretConfig() {
 		secret := &corev1.Secret{}
 		if err := s.Get(ctx, types.NamespacedName{Name: secretName, Namespace: nn.Namespace}, secret); err != nil {
 			if !apierrors.IsNotFound(err) {

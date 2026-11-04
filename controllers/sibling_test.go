@@ -162,7 +162,7 @@ func TestDeletionWithSibling(t *testing.T) {
 			if tc.sibling != nil {
 				objects = append(objects, tc.sibling)
 			}
-			c := fake.NewClientBuilder().WithScheme(s).WithObjects(objects...).Build()
+			c := fake.NewClientBuilder().WithScheme(s).WithObjects(objects...).WithInterceptorFuncs(helmReleaseWriteGuard(t)).Build()
 
 			reconcileSibling(t, c, s, tc.deleted)
 

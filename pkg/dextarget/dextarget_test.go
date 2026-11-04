@@ -309,3 +309,36 @@ func getConfigMap(name string, data map[string]string) *corev1.ConfigMap {
 		Data:       data,
 	}
 }
+
+// dex-operator never writes spec.valuesFrom on a HelmRelease, with or without
+// the Flux labels: the manifest has to reference the secret.
+func TestHelmReleaseTargetNeverWritesSecretConfig(t *testing.T) {
+	for name, labels := range map[string]map[string]string{
+		"Flux labels":    {"kustomize.toolkit.fluxcd.io/name": "collections", "kustomize.toolkit.fluxcd.io/namespace": "flux-giantswarm"},
+		"no Flux labels": nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			hr := &helmv2.HelmRelease{ObjectMeta: metav1.ObjectMeta{Name: "dex-app", Namespace: "giantswarm", Labels: labels}}
+			c := fake.NewClientBuilder().WithInterceptorFuncs(interceptor.Funcs{
+				Update: func(context.Context, client.WithWatch, client.Object, ...client.UpdateOption) error {
+					t.Error("unexpected Update")
+					return errors.New("update not allowed")
+				},
+			}).Build()
+			target := NewHelmReleaseTarget(hr)
+
+			if target.ManagesSecretConfig() {
+				t.Error("expected ManagesSecretConfig to be false")
+			}
+			if err := target.AddSecretConfig("dex-app-default-dex-config", "giantswarm"); err != nil {
+				t.Fatal(err)
+			}
+			if changed, err := target.AttachSecretConfig(context.Background(), c); changed || err != nil {
+				t.Errorf("expected no write, got changed=%v err=%v", changed, err)
+			}
+			if len(hr.Spec.ValuesFrom) != 0 {
+				t.Errorf("expected spec.valuesFrom untouched, got %v", hr.Spec.ValuesFrom)
+			}
+		})
+	}
+}
