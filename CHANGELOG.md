@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Update `golang.org/x/net` to v0.62.0 to fix CVE-2026-78663 and other vulnerabilities in v0.59.0.
+
 ### Changed
 
 - Build the Azure Graph client from `msgraph-sdk-go-core` and the `applications` package only.
