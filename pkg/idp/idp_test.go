@@ -684,3 +684,44 @@ func TestCheckUniqueConnectorIDs(t *testing.T) {
 		})
 	}
 }
+
+func TestClashingOwners(t *testing.T) {
+	testCases := []struct {
+		name             string
+		userOwners       []string
+		providers        []provider.Provider
+		expectedClashing []string
+	}{
+		{
+			name:       "no user connectors",
+			userOwners: nil,
+			providers:  []provider.Provider{getExampleProvider(key.OwnerGiantswarm)},
+		},
+		{
+			name:       "user connectors under another owner",
+			userOwners: []string{key.OwnerCustomer},
+			providers:  []provider.Provider{getExampleProvider(key.OwnerGiantswarm)},
+		},
+		{
+			name:             "user connectors under a managed owner",
+			userOwners:       []string{key.OwnerGiantswarm},
+			providers:        []provider.Provider{getExampleProvider(key.OwnerGiantswarm)},
+			expectedClashing: []string{key.OwnerGiantswarm},
+		},
+		{
+			name:             "only one of two user owners is managed",
+			userOwners:       []string{key.OwnerGiantswarm, key.OwnerCustomer},
+			providers:        []provider.Provider{getExampleProvider(key.OwnerCustomer)},
+			expectedClashing: []string{key.OwnerCustomer},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			clashing := clashingOwners(tc.userOwners, tc.providers)
+			if !reflect.DeepEqual(clashing, tc.expectedClashing) {
+				t.Fatalf("Expected %v, got %v", tc.expectedClashing, clashing)
+			}
+		})
+	}
+}

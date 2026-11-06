@@ -2,9 +2,13 @@ package dextarget
 
 import (
 	"context"
+	"encoding/json"
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
+
+	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
 // DexTarget is an interface that abstracts the common functionality between
@@ -21,9 +25,9 @@ type DexTarget interface {
 	// GetOrganizationLabel returns the organization label value if present
 	GetOrganizationLabel() string
 
-	// HasUserConfigWithConnectors returns true if the target has user-defined connector config
-	// that should prevent dex-operator from managing connectors
-	HasUserConfigWithConnectors(ctx context.Context, client client.Client) (bool, error)
+	// UserConnectorOwners returns the owners that have connectors set under
+	// oidc.<owner>.connectors in the user config of the target
+	UserConnectorOwners(ctx context.Context, client client.Client) ([]string, error)
 
 	// HasClusterValuesConfig returns true if the target has a cluster values configmap reference
 	HasClusterValuesConfig() bool
@@ -36,7 +40,7 @@ type DexTarget interface {
 
 	// AddSecretConfig adds the dex secret config reference to the target
 	// For App CR: adds to .spec.extraConfigs with priority
-	// For HelmRelease: adds to .spec.valuesFrom
+	// For HelmRelease: does nothing
 	AddSecretConfig(secretName, secretNamespace string) error
 
 	// RemoveSecretConfig removes the dex secret config reference from the target
@@ -53,16 +57,39 @@ type DexTarget interface {
 	GetObject() client.Object
 
 	// AttachSecretConfig persists the secret config reference added by AddSecretConfig
-	// to the target. For App CRs and HelmReleases not managed by Flux, this performs a client Update;
-	// for HelmRelease targets managed by Flux, this is a no-op.
+	// to the target. For App CRs this performs a client Update; for HelmReleases it does nothing.
 	// Returns true if the target was actually modified.
 	AttachSecretConfig(ctx context.Context, c client.Client) (bool, error)
 
 	// ManagesSecretConfig returns true if dex-operator should inject and manage
 	// the dex config secret reference directly on this target.
-	// For App CR targets this is always true.
-	// For HelmRelease targets it is true only if the HelmRelease is self-managed
-	// (no Flux Kustomization labels) — Flux-managed HelmReleases must declare the
-	// entry in their Git manifest to avoid SSA ownership conflicts.
+	// True for App CRs. False for HelmReleases: Flux owns spec.valuesFrom, so
+	// the manifest has to reference the secret.
 	ManagesSecretConfig() bool
+}
+
+// connectorOwners returns the owners that set oidc.<owner>.connectors in the
+// given Helm values. A key set to [] or null counts too, because Helm still
+// replaces the list dex-operator writes.
+func connectorOwners(values string) ([]string, error) {
+	type ownerValues struct {
+		Connectors json.RawMessage `json:"connectors"`
+	}
+	var v struct {
+		Oidc struct {
+			Giantswarm ownerValues `json:"giantswarm"`
+			Customer   ownerValues `json:"customer"`
+		} `json:"oidc"`
+	}
+	if err := yaml.Unmarshal([]byte(values), &v); err != nil {
+		return nil, err
+	}
+	var owners []string
+	if v.Oidc.Giantswarm.Connectors != nil {
+		owners = append(owners, key.OwnerGiantswarm)
+	}
+	if v.Oidc.Customer.Connectors != nil {
+		owners = append(owners, key.OwnerCustomer)
+	}
+	return owners, nil
 }

@@ -22,7 +22,6 @@ const (
 	MCDexAppDefaultName          = "dex-app"
 	MCDexAppDefaultNamespace     = "giantswarm"
 	BaseDomainKey                = "baseDomain"
-	ConnectorsKey                = "connectors"
 	DexResourceURI               = "https://dex.giantswarm.io"
 	OwnerGiantswarm              = "giantswarm"
 	OwnerCustomer                = "customer"
