@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-10
+
 ### Changed
 
 - Add and remove the HelmRelease finalizer with a patch. dex-operator no longer has `update` permission on HelmReleases.
@@ -370,7 +372,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/giantswarm/dex-operator/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/giantswarm/dex-operator/compare/v0.18.6...v0.19.0
 [0.18.6]: https://github.com/giantswarm/dex-operator/compare/v0.18.5...v0.18.6
 [0.18.5]: https://github.com/giantswarm/dex-operator/compare/v0.18.4...v0.18.5
