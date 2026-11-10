@@ -141,6 +141,23 @@ oidc:
 			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
+			name: "other owner with an unexpected type",
+			values: `
+oidc:
+  customer: false
+  giantswarm:
+    connectors:
+    - id: giantswarm-github
+`,
+			expectedOwners: []string{key.OwnerGiantswarm},
+		},
+		{
+			name: "oidc with an unexpected type",
+			values: `
+oidc: ""
+`,
+		},
+		{
 			name:        "invalid yaml",
 			values:      "oidc: [giantswarm",
 			expectError: true,

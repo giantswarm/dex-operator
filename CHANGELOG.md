@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add and remove the HelmRelease finalizer with a patch. dex-operator no longer has `create`, `update` or `delete` permissions on HelmReleases.
+- Add and remove the HelmRelease finalizer with a patch. dex-operator no longer has `update` permission on HelmReleases.
 
 ### Fixed
 

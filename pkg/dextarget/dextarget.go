@@ -2,7 +2,6 @@ package dextarget
 
 import (
 	"context"
-	"encoding/json"
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,24 +70,20 @@ type DexTarget interface {
 // connectorOwners returns the owners that set oidc.<owner>.connectors
 // in the given Helm values.
 func connectorOwners(values string) ([]string, error) {
-	type ownerValues struct {
-		Connectors json.RawMessage `json:"connectors"`
-	}
-	var v struct {
-		Oidc struct {
-			Giantswarm ownerValues `json:"giantswarm"`
-			Customer   ownerValues `json:"customer"`
-		} `json:"oidc"`
-	}
+	// Decode into maps, not a struct: a value of an unexpected type elsewhere
+	// under oidc must not fail the parse and hide a connectors key.
+	var v map[string]interface{}
 	if err := yaml.Unmarshal([]byte(values), &v); err != nil {
 		return nil, err
 	}
+	oidc, _ := v["oidc"].(map[string]interface{})
 	var owners []string
-	if v.Oidc.Giantswarm.Connectors != nil {
-		owners = append(owners, key.OwnerGiantswarm)
-	}
-	if v.Oidc.Customer.Connectors != nil {
-		owners = append(owners, key.OwnerCustomer)
+	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
+		ownerValues, _ := oidc[owner].(map[string]interface{})
+		// A key set to [] or null still replaces the list, so it counts.
+		if _, ok := ownerValues["connectors"]; ok {
+			owners = append(owners, owner)
+		}
 	}
 	return owners, nil
 }
