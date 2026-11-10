@@ -121,16 +121,35 @@ func checkUniqueConnectorIDs(providers []provider.Provider) error {
 	return nil
 }
 
+// clashingOwners returns the user connector owners that also own one of the providers.
+func clashingOwners(userOwners []string, providers []provider.Provider) []string {
+	var clashing []string
+	for _, owner := range userOwners {
+		for _, p := range providers {
+			if p.GetOwner() == owner {
+				clashing = append(clashing, owner)
+				break
+			}
+		}
+	}
+	return clashing
+}
+
 func (s *Service) Reconcile(ctx context.Context) error {
-	// We do not handle targets that have connectors in user configs set up due to a bug where configuration in secrets can be overwritten
-	//TODO: solve this gracefully
-	hasUserConnectors, err := s.target.HasUserConfigWithConnectors(ctx, s.Client)
+	// Helm replaces lists, so user connectors under an owner we also write
+	// would overwrite ours or be overwritten. Back off in that case.
+	userOwners, err := s.target.UserConnectorOwners(ctx, s.Client)
 	if err != nil {
 		return microerror.Mask(err)
 	}
-	if hasUserConnectors {
-		s.log.Info(fmt.Sprintf("Dex %s has user config with connector configuration. Cancelling reconciliation. We recommend to move configuration to a managed secret.", s.target.GetTargetType()))
-		return s.ReconcileDelete(ctx)
+	if clashing := clashingOwners(userOwners, s.providers); len(clashing) > 0 {
+		if s.target.ManagesSecretConfig() {
+			s.log.Info(fmt.Sprintf("Dex %s has user config with connectors for owner(s) %v that dex-operator also manages. Cancelling reconciliation. We recommend to move configuration to a managed secret.", s.target.GetTargetType(), clashing))
+			return s.ReconcileDelete(ctx)
+		}
+		// A HelmRelease manifest references the secret, so deleting it would
+		// fail the release. Keep it up to date; the later valuesFrom entry wins.
+		s.log.Info(fmt.Sprintf("WARNING: dex %s has user config with connectors for owner(s) %v that dex-operator also manages. The later valuesFrom entry takes precedence.", s.target.GetTargetType(), clashing))
 	}
 
 	nn := s.target.GetNamespacedName()
@@ -223,8 +242,8 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	nn := s.target.GetNamespacedName()
 	secretName := key.GetDexConfigName(nn.Name)
 
-	// Check if secret config is present
-	if s.target.HasSecretConfig(secretName) {
+	// Check if secret config is present.
+	if s.target.HasSecretConfig(secretName) || !s.target.ManagesSecretConfig() {
 		secret := &corev1.Secret{}
 		if err := s.Get(ctx, types.NamespacedName{Name: secretName, Namespace: nn.Namespace}, secret); err != nil {
 			if !apierrors.IsNotFound(err) {
