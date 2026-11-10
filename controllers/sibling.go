@@ -57,9 +57,7 @@ func handOverToSibling(ctx context.Context, c client.Client, scheme *runtime.Sch
 	return nil
 }
 
-// finalizerPatch returns a merge patch from obj's current state. Call it before
-// changing the finalizers. The optimistic lock keeps a stale object from
-// dropping finalizers that other controllers added since.
+// finalizerPatch returns a merge patch from obj's current state
 func finalizerPatch(obj client.Object) client.Patch {
 	return client.MergeFromWithOptions(obj.DeepCopyObject().(client.Object), client.MergeFromWithOptimisticLock{})
 }

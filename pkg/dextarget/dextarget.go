@@ -68,9 +68,8 @@ type DexTarget interface {
 	ManagesSecretConfig() bool
 }
 
-// connectorOwners returns the owners that set oidc.<owner>.connectors in the
-// given Helm values. A key set to [] or null counts too, because Helm still
-// replaces the list dex-operator writes.
+// connectorOwners returns the owners that set oidc.<owner>.connectors
+// in the given Helm values.
 func connectorOwners(values string) ([]string, error) {
 	type ownerValues struct {
 		Connectors json.RawMessage `json:"connectors"`
