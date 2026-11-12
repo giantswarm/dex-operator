@@ -64,7 +64,7 @@ architecture: ""
 # arm64 here rather than through `architecture` also adds the arm64 taint
 # toleration, so either route is safe. A value that contradicts `architecture`
 # fails the render.
-nodeSelector: {}
+# -- Node selector for pod scheduling. Merged with `architecture`.
 
 # -- Tolerations for pod scheduling
 tolerations: []
