@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `architecture`, `nodeSelector` and `tolerations` values so dex-operator can run on arm64 node pools.
+
 ## [0.20.0] - 2026-11-10
 
 ### Changed

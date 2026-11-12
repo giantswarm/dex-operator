@@ -21,6 +21,9 @@ spec:
     {{- include "labels.selector" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "resource.default.name"  . }}
+      {{- with include "dex-operator.podScheduling" . }}
+      {{- . | nindent 6 }}
+      {{- end }}
       securityContext:
         runAsUser: {{ .Values.pod.user.id }}
         runAsGroup: {{ .Values.pod.group.id }}
