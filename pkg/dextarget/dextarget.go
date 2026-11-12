@@ -67,8 +67,8 @@ type DexTarget interface {
 	ManagesSecretConfig() bool
 }
 
-// connectorOwners returns the owners that set oidc.<owner>.connectors
-// in the given Helm values.
+// connectorOwners returns owners whose non-map connector values cannot merge
+// with managed connector maps. Helm merges maps but replaces other values.
 func connectorOwners(values string) ([]string, error) {
 	// Decode into maps, not a struct: a value of an unexpected type elsewhere
 	// under oidc must not fail the parse and hide a connectors key.
@@ -81,11 +81,8 @@ func connectorOwners(values string) ([]string, error) {
 	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
 		ownerValues, _ := oidc[owner].(map[string]interface{})
 		connectors, exists := ownerValues["connectors"]
-		if _, isMap := connectors.(map[string]interface{}); isMap {
-			continue
-		}
-		// Non-map values replace the managed connectors, including empty lists.
-		if exists {
+		_, isMap := connectors.(map[string]interface{})
+		if exists && !isMap {
 			owners = append(owners, owner)
 		}
 	}
