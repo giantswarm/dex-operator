@@ -56,3 +56,12 @@ monitoring:
 
     # List of relabeling rules for logs.
     relabelings: []
+
+# -- CPU architecture of nodes to schedule on; empty means any.
+architecture: ""
+
+# -- Node selector for pod scheduling. Merged with `architecture`.
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling
+tolerations: []
