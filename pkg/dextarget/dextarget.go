@@ -24,8 +24,8 @@ type DexTarget interface {
 	// GetOrganizationLabel returns the organization label value if present
 	GetOrganizationLabel() string
 
-	// UserConnectorOwners returns the owners that have connectors set under
-	// oidc.<owner>.connectors in the user config of the target
+	// UserConnectorOwners returns the giantswarm/customer sections whose user
+	// connector values cannot merge with the operator's connectors.
 	UserConnectorOwners(ctx context.Context, client client.Client) ([]string, error)
 
 	// HasClusterValuesConfig returns true if the target has a cluster values configmap reference
@@ -67,8 +67,8 @@ type DexTarget interface {
 	ManagesSecretConfig() bool
 }
 
-// connectorOwners returns owners whose non-map connector values cannot merge
-// with managed connector maps. Helm merges maps but replaces other values.
+// connectorOwners returns the oidc sections with connector values that Helm
+// replaces instead of merging.
 func connectorOwners(values string) ([]string, error) {
 	// Decode into maps, not a struct: a value of an unexpected type elsewhere
 	// under oidc must not fail the parse and hide a connectors key.
