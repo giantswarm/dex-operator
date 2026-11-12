@@ -22,6 +22,9 @@ func TestDexTarget(t *testing.T) {
 }
 
 const (
+	testUserValues       = "user-values"
+	kindSecret           = "Secret"
+	testNamespace        = "example"
 	giantswarmConnectors = `
 oidc:
   giantswarm:
@@ -83,6 +86,15 @@ oidc:
     connectors: null
 `,
 			expectedOwners: []string{key.OwnerCustomer},
+		},
+		{
+			name: "giantswarm maps merge with managed connectors",
+			values: `oidc:
+  giantswarm:
+    connectors:
+      federation:
+        connectorType: oidc
+`,
 		},
 		{
 			name: "connectors set to a map",
@@ -191,29 +203,29 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 	}{
 		{
 			name:           "customer connectors in a secret",
-			valuesFrom:     []helmv2.ValuesReference{{Kind: "Secret", Name: "user-values"}},
-			objects:        []client.Object{getSecret("user-values", "values.yaml", customerConnectors)},
+			valuesFrom:     []helmv2.ValuesReference{{Kind: kindSecret, Name: testUserValues}},
+			objects:        []client.Object{getSecret(testUserValues, "values.yaml", customerConnectors)},
 			expectedOwners: []string{key.OwnerCustomer},
 		},
 		{
 			name:       "own dex config secret is skipped",
-			valuesFrom: []helmv2.ValuesReference{{Kind: "Secret", Name: key.GetDexConfigName("test"), ValuesKey: "default"}},
+			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: key.GetDexConfigName("test"), ValuesKey: "default"}},
 			objects:    []client.Object{getSecret(key.GetDexConfigName("test"), "default", giantswarmConnectors)},
 		},
 		{
 			name:           "dex config secret of another target is not skipped",
-			valuesFrom:     []helmv2.ValuesReference{{Kind: "Secret", Name: key.GetDexConfigName("other"), ValuesKey: "default"}},
+			valuesFrom:     []helmv2.ValuesReference{{Kind: kindSecret, Name: key.GetDexConfigName("other"), ValuesKey: "default"}},
 			objects:        []client.Object{getSecret(key.GetDexConfigName("other"), "default", giantswarmConnectors)},
 			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
 			name:       "missing secret is skipped",
-			valuesFrom: []helmv2.ValuesReference{{Kind: "Secret", Name: "user-values"}},
+			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: testUserValues}},
 		},
 		{
 			name:       "other get error is returned",
-			valuesFrom: []helmv2.ValuesReference{{Kind: "Secret", Name: "user-values"}},
-			objects:    []client.Object{getSecret("user-values", "values.yaml", customerConnectors)},
+			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: testUserValues}},
+			objects:    []client.Object{getSecret(testUserValues, "values.yaml", customerConnectors)},
 			interceptor: interceptor.Funcs{
 				Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
 					return errors.New("connection refused")
@@ -223,31 +235,40 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 		},
 		{
 			name:           "custom values key",
-			valuesFrom:     []helmv2.ValuesReference{{Kind: "ConfigMap", Name: "user-values", ValuesKey: "custom"}},
-			objects:        []client.Object{getConfigMap("user-values", map[string]string{"values.yaml": customerConnectors, "custom": giantswarmConnectors})},
+			valuesFrom:     []helmv2.ValuesReference{{Kind: "ConfigMap", Name: testUserValues, ValuesKey: "custom"}},
+			objects:        []client.Object{getConfigMap(testUserValues, map[string]string{"values.yaml": customerConnectors, "custom": giantswarmConnectors})},
 			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
 			name: "invalid yaml is skipped",
 			valuesFrom: []helmv2.ValuesReference{
-				{Kind: "Secret", Name: "broken", ValuesKey: "values"},
-				{Kind: "Secret", Name: "user-values"},
+				{Kind: kindSecret, Name: "broken", ValuesKey: "values"},
+				{Kind: kindSecret, Name: testUserValues},
 			},
 			objects: []client.Object{
 				getSecret("broken", "values", "oidc: [giantswarm"),
-				getSecret("user-values", "values.yaml", customerConnectors),
+				getSecret(testUserValues, "values.yaml", customerConnectors),
 			},
 			expectedOwners: []string{key.OwnerCustomer},
 		},
 		{
+			name:       "target path at a map entry can coexist",
+			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: "connector-config", TargetPath: "oidc.giantswarm.connectors.federation.connectorConfig"}},
+		},
+		{
+			name:       "giantswarm connector map in user config can coexist",
+			valuesFrom: []helmv2.ValuesReference{{Kind: kindConfigMap, Name: testUserValues}},
+			objects:    []client.Object{getConfigMap(testUserValues, map[string]string{"values.yaml": "oidc:\n  giantswarm:\n    connectors:\n      federation:\n        connectorType: oidc\n"})},
+		},
+		{
 			name:           "target path under owner connectors",
-			valuesFrom:     []helmv2.ValuesReference{{Kind: "Secret", Name: "connector-id", TargetPath: "oidc.giantswarm.connectors[0].id"}},
+			valuesFrom:     []helmv2.ValuesReference{{Kind: kindSecret, Name: "connector-id", TargetPath: "oidc.giantswarm.connectors[0].id"}},
 			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
 			name:       "other target path is skipped",
-			valuesFrom: []helmv2.ValuesReference{{Kind: "Secret", Name: "user-values", TargetPath: "some.other.path"}},
-			objects:    []client.Object{getSecret("user-values", "values.yaml", customerConnectors)},
+			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: testUserValues, TargetPath: "some.other.path"}},
+			objects:    []client.Object{getSecret(testUserValues, "values.yaml", customerConnectors)},
 		},
 	}
 
@@ -255,7 +276,7 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c := fake.NewClientBuilder().WithObjects(tc.objects...).WithInterceptorFuncs(tc.interceptor).Build()
 			target := NewHelmReleaseTarget(&helmv2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "example"},
+				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
 				Spec:       helmv2.HelmReleaseSpec{ValuesFrom: tc.valuesFrom},
 			})
 
@@ -296,11 +317,11 @@ func TestAppUserConnectorOwners(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := fake.NewClientBuilder().WithObjects(getConfigMap("user-values", map[string]string{key.ValuesConfigMapKey: tc.values})).Build()
+			c := fake.NewClientBuilder().WithObjects(getConfigMap(testUserValues, map[string]string{key.ValuesConfigMapKey: tc.values})).Build()
 			app := &v1alpha1.App{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "example"},
+				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
 			}
-			app.Spec.UserConfig.ConfigMap = v1alpha1.AppSpecUserConfigConfigMap{Name: "user-values", Namespace: "example"}
+			app.Spec.UserConfig.ConfigMap = v1alpha1.AppSpecUserConfigConfigMap{Name: testUserValues, Namespace: testNamespace}
 
 			owners, err := NewAppTarget(app).UserConnectorOwners(context.Background(), c)
 			if err != nil {
@@ -315,14 +336,14 @@ func TestAppUserConnectorOwners(t *testing.T) {
 
 func getSecret(name, valuesKey, values string) *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "example"},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace},
 		Data:       map[string][]byte{valuesKey: []byte(values)},
 	}
 }
 
 func getConfigMap(name string, data map[string]string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "example"},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace},
 		Data:       data,
 	}
 }

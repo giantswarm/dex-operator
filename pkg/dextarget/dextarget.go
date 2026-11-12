@@ -80,8 +80,14 @@ func connectorOwners(values string) ([]string, error) {
 	var owners []string
 	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
 		ownerValues, _ := oidc[owner].(map[string]interface{})
-		// A key set to [] or null still replaces the list, so it counts.
-		if _, ok := ownerValues["connectors"]; ok {
+		connectors, exists := ownerValues["connectors"]
+		if owner == key.OwnerGiantswarm {
+			if _, isMap := connectors.(map[string]interface{}); isMap {
+				continue
+			}
+		}
+		// Non-map values replace the managed connectors, including empty lists.
+		if exists {
 			owners = append(owners, owner)
 		}
 	}

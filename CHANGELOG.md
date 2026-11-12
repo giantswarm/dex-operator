@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Write `oidc.giantswarm.connectors` as a map keyed by connector id, accepting existing lists when reading managed configuration. User maps under that key can coexist with managed connectors. Requires a dex-app version that accepts connector maps before deployment.
+
 ### Added
 
 - Add `architecture`, `nodeSelector` and `tolerations` values so dex-operator can run on arm64 node pools.
