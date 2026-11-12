@@ -22,6 +22,7 @@ func TestDexTarget(t *testing.T) {
 }
 
 const (
+	testValuesKey        = "values.yaml"
 	testUserValues       = "user-values"
 	kindSecret           = "Secret"
 	testNamespace        = "example"
@@ -106,7 +107,7 @@ oidc:
     connectors:
     - id: giantswarm-github
 `,
-			expectedOwners: []string{key.OwnerGiantswarm, key.OwnerCustomer},
+			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
 			name: "duplicate top-level key",
@@ -204,7 +205,7 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 		{
 			name:           "customer connectors in a secret",
 			valuesFrom:     []helmv2.ValuesReference{{Kind: kindSecret, Name: testUserValues}},
-			objects:        []client.Object{getSecret(testUserValues, "values.yaml", customerConnectors)},
+			objects:        []client.Object{getSecret(testUserValues, testValuesKey, customerConnectors)},
 			expectedOwners: []string{key.OwnerCustomer},
 		},
 		{
@@ -225,7 +226,7 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 		{
 			name:       "other get error is returned",
 			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: testUserValues}},
-			objects:    []client.Object{getSecret(testUserValues, "values.yaml", customerConnectors)},
+			objects:    []client.Object{getSecret(testUserValues, testValuesKey, customerConnectors)},
 			interceptor: interceptor.Funcs{
 				Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
 					return errors.New("connection refused")
@@ -236,7 +237,7 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 		{
 			name:           "custom values key",
 			valuesFrom:     []helmv2.ValuesReference{{Kind: "ConfigMap", Name: testUserValues, ValuesKey: "custom"}},
-			objects:        []client.Object{getConfigMap(testUserValues, map[string]string{"values.yaml": customerConnectors, "custom": giantswarmConnectors})},
+			objects:        []client.Object{getConfigMap(testUserValues, map[string]string{testValuesKey: customerConnectors, "custom": giantswarmConnectors})},
 			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
@@ -247,7 +248,7 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 			},
 			objects: []client.Object{
 				getSecret("broken", "values", "oidc: [giantswarm"),
-				getSecret(testUserValues, "values.yaml", customerConnectors),
+				getSecret(testUserValues, testValuesKey, customerConnectors),
 			},
 			expectedOwners: []string{key.OwnerCustomer},
 		},
@@ -258,7 +259,16 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 		{
 			name:       "giantswarm connector map in user config can coexist",
 			valuesFrom: []helmv2.ValuesReference{{Kind: kindConfigMap, Name: testUserValues}},
-			objects:    []client.Object{getConfigMap(testUserValues, map[string]string{"values.yaml": "oidc:\n  giantswarm:\n    connectors:\n      federation:\n        connectorType: oidc\n"})},
+			objects:    []client.Object{getConfigMap(testUserValues, map[string]string{testValuesKey: "oidc:\n  giantswarm:\n    connectors:\n      federation:\n        connectorType: oidc\n"})},
+		},
+		{
+			name:       "customer target path at a map entry can coexist",
+			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: "connector-config", TargetPath: "oidc.customer.connectors.federation.connectorConfig"}},
+		},
+		{
+			name:       "customer connector map in user config can coexist",
+			valuesFrom: []helmv2.ValuesReference{{Kind: kindConfigMap, Name: testUserValues}},
+			objects:    []client.Object{getConfigMap(testUserValues, map[string]string{testValuesKey: "oidc:\n  customer:\n    connectors:\n      federation:\n        connectorType: oidc\n"})},
 		},
 		{
 			name:           "target path under owner connectors",
@@ -268,7 +278,7 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 		{
 			name:       "other target path is skipped",
 			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: testUserValues, TargetPath: "some.other.path"}},
-			objects:    []client.Object{getSecret(testUserValues, "values.yaml", customerConnectors)},
+			objects:    []client.Object{getSecret(testUserValues, testValuesKey, customerConnectors)},
 		},
 	}
 

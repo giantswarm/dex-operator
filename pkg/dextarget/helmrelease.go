@@ -125,7 +125,7 @@ func (h *HelmReleaseTarget) UserConnectorOwners(ctx context.Context, c client.Cl
 func targetPathOwner(targetPath string) string {
 	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
 		path := "oidc." + owner + ".connectors"
-		if targetPath == path || strings.HasPrefix(targetPath, path+"[") || (owner == key.OwnerCustomer && strings.HasPrefix(targetPath, path+".")) {
+		if targetPath == path || strings.HasPrefix(targetPath, path+"[") {
 			return owner
 		}
 	}

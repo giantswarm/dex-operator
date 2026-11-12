@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Write `oidc.giantswarm.connectors` as a map keyed by connector id, accepting existing lists when reading managed configuration. User maps under that key can coexist with managed connectors. Requires a dex-app version that accepts connector maps before deployment.
+- Write `oidc.giantswarm.connectors` and `oidc.customer.connectors` as maps keyed by connector id, accepting existing lists when reading managed configuration. User maps under either key can coexist with managed connectors. Requires a dex-app version that accepts connector maps for both owners before deployment.
 
 ### Added
 
