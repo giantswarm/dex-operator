@@ -60,11 +60,8 @@ monitoring:
 # -- CPU architecture of nodes to schedule on; empty means any.
 architecture: ""
 
-# -- Node selector for pod scheduling. Merged with `architecture`. Pinning to
-# arm64 here rather than through `architecture` also adds the arm64 taint
-# toleration, so either route is safe. A value that contradicts `architecture`
-# fails the render.
 # -- Node selector for pod scheduling. Merged with `architecture`.
+nodeSelector: {}
 
 # -- Tolerations for pod scheduling
 tolerations: []
