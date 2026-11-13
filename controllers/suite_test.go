@@ -15,8 +15,9 @@ package controllers
 
 import (
 	"context"
-	"go/build"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
@@ -53,6 +54,19 @@ func TestAPIs(t *testing.T) {
 	RunSpecs(t, "Controller Suite")
 }
 
+// appCRDModule provides the App CRD the tests install.
+const appCRDModule = "github.com/giantswarm/apiextensions-application"
+
+// appCRDModuleDir returns the module cache directory of the appCRDModule
+// version that go.mod selects, so the CRD path follows dependency updates.
+func appCRDModuleDir() string {
+	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", appCRDModule).Output()
+	Expect(err).NotTo(HaveOccurred(), "go list -m %s", appCRDModule)
+	dir := strings.TrimSpace(string(out))
+	Expect(dir).NotTo(BeEmpty(), "module %s is not in the module cache", appCRDModule)
+	return dir
+}
+
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
@@ -62,7 +76,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join(build.Default.GOPATH, "pkg", "mod", "github.com", "giantswarm", "apiextensions-application@v0.6.0", "config", "crd"),
+			filepath.Join(appCRDModuleDir(), "config", "crd"),
 		},
 		ErrorIfCRDPathMissing: true,
 	}
