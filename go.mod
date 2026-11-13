@@ -15,15 +15,15 @@ require (
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/go-github/v93 v93.0.0
 	github.com/google/uuid v1.6.0
-	github.com/microsoft/kiota-abstractions-go v1.11.4
+	github.com/microsoft/kiota-abstractions-go v1.12.1
 	github.com/microsoft/kiota-authentication-azure-go v1.3.1
-	github.com/microsoft/kiota-serialization-form-go v1.1.5
+	github.com/microsoft/kiota-serialization-form-go v1.1.7
 	github.com/microsoft/kiota-serialization-json-go v1.1.5
-	github.com/microsoft/kiota-serialization-multipart-go v1.1.4
-	github.com/microsoft/kiota-serialization-text-go v1.1.5
-	github.com/microsoftgraph/msgraph-sdk-go v1.105.0
+	github.com/microsoft/kiota-serialization-multipart-go v1.1.6
+	github.com/microsoft/kiota-serialization-text-go v1.1.7
+	github.com/microsoftgraph/msgraph-sdk-go v1.106.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.4.1
-	github.com/onsi/ginkgo/v2 v2.33.1
+	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.25.0
@@ -114,7 +114,7 @@ require (
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260817212433-ac3dfec99bb1 // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
@@ -136,7 +136,7 @@ replace (
 	github.com/cloudflare/circl => github.com/cloudflare/circl v1.6.5
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.72.0
 	golang.org/x/net => golang.org/x/net v0.62.0
-	google.golang.org/grpc => google.golang.org/grpc v1.84.0
+	google.golang.org/grpc => google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.12
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.27.4
 )
