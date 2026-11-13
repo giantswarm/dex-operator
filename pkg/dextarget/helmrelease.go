@@ -17,6 +17,8 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
+const kindConfigMap = "ConfigMap"
+
 // HelmReleaseTarget wraps a Flux HelmRelease to implement the DexTarget interface
 type HelmReleaseTarget struct {
 	*helmv2.HelmRelease
@@ -75,7 +77,7 @@ func (h *HelmReleaseTarget) UserConnectorOwners(ctx context.Context, c client.Cl
 		}
 		var values string
 		switch vf.Kind {
-		case "ConfigMap":
+		case kindConfigMap:
 			cm := &corev1.ConfigMap{}
 			if err := c.Get(ctx, types.NamespacedName{Name: vf.Name, Namespace: h.Namespace}, cm); err != nil {
 				if !apierrors.IsNotFound(err) {
@@ -123,7 +125,7 @@ func (h *HelmReleaseTarget) UserConnectorOwners(ctx context.Context, c client.Cl
 func targetPathOwner(targetPath string) string {
 	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
 		path := "oidc." + owner + ".connectors"
-		if targetPath == path || strings.HasPrefix(targetPath, path+"[") || strings.HasPrefix(targetPath, path+".") {
+		if targetPath == path || strings.HasPrefix(targetPath, path+"[") {
 			return owner
 		}
 	}
@@ -132,7 +134,7 @@ func targetPathOwner(targetPath string) string {
 
 func (h *HelmReleaseTarget) HasClusterValuesConfig() bool {
 	for _, vf := range h.Spec.ValuesFrom {
-		if vf.Kind == "ConfigMap" && strings.HasSuffix(vf.Name, key.ClusterValuesConfigmapSuffix) {
+		if vf.Kind == kindConfigMap && strings.HasSuffix(vf.Name, key.ClusterValuesConfigmapSuffix) {
 			return true
 		}
 	}
@@ -141,7 +143,7 @@ func (h *HelmReleaseTarget) HasClusterValuesConfig() bool {
 
 func (h *HelmReleaseTarget) GetClusterValuesConfigMapRef() (name, namespace string) {
 	for _, vf := range h.Spec.ValuesFrom {
-		if vf.Kind == "ConfigMap" && strings.HasSuffix(vf.Name, key.ClusterValuesConfigmapSuffix) {
+		if vf.Kind == kindConfigMap && strings.HasSuffix(vf.Name, key.ClusterValuesConfigmapSuffix) {
 			return vf.Name, h.Namespace
 		}
 	}

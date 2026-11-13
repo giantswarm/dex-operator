@@ -17,7 +17,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
@@ -137,7 +136,7 @@ var _ = Describe("App controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			createdSecretDexConfigData := createdSecret.Data[dexConfigSecretKey]
-			Expect(createdSecretDexConfigData).Should(Equal([]byte(strings.TrimSpace(string(expectedContent)))))
+			Expect(createdSecretDexConfigData).Should(MatchJSON(expectedContent))
 
 			var dexConfig dex.DexConfig
 			Expect(json.Unmarshal(createdSecretDexConfigData, &dexConfig)).To(Succeed())

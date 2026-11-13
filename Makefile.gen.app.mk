@@ -2,7 +2,7 @@
 #
 #    devctl
 #
-#    https://github.com/giantswarm/devctl/blob/322af9d3c53b7b163c5f162f1f521273b5d723fb/pkg/gen/input/makefile/internal/file/Makefile.gen.app.mk.template
+#    https://github.com/giantswarm/devctl/blob/4ec61dd3b1eccdfe23431048b576cb3597228455/pkg/gen/input/makefile/internal/file/Makefile.gen.app.mk.template
 #
 
 ##@ App
@@ -125,7 +125,7 @@ install-helm-unittest:
 	if [ "$$have" != "$$want" ] || ! helm unittest --version >/dev/null 2>&1; then \
 		[ -z "$$have" ] || helm plugin uninstall unittest >/dev/null 2>&1 || true; \
 		verify=""; \
-		helm plugin install --help 2>&1 | grep -q -e '--verify' && verify="--verify=false"; \
+		helm plugin install --help 2>&1 | grep -e '--verify' >/dev/null && verify="--verify=false"; \
 		attempt=1; \
 		until helm plugin install $$verify https://github.com/helm-unittest/helm-unittest --version $(HELM_UNITTEST_VERSION); do \
 			helm plugin uninstall unittest >/dev/null 2>&1 || true; \
