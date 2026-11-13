@@ -1,0 +1,32 @@
+// Repo-owned Renovate overrides. Edit this file; devctl preserves it.
+{
+  packageRules: [
+    {
+      // Flux API modules track Kubernetes minors (helm-controller/api v1.7
+      // needs k8s.io/* v0.37), so they join the lang-go preset's
+      // "k8s modules" group and move together with k8s.io/* and
+      // controller-runtime instead of dragging them forward one at a time.
+      groupName: 'k8s modules',
+      matchDepNames: ['/^github.com/fluxcd//'],
+    },
+    {
+      groupName: 'giantswarm modules',
+      matchManagers: ['gomod'],
+      matchDepNames: ['/^github.com/giantswarm//'],
+    },
+    {
+      // Everything else in one PR. Excludes the groups above, the lang-go
+      // preset's "k8s modules" and "capi modules" groups, and any other
+      // giantswarm dependency (e.g. the github-workflows action keeps the
+      // default preset's auto-merged group).
+      groupName: 'misc modules',
+      matchDepNames: [
+        '!/giantswarm/',
+        '!/^github.com/fluxcd//',
+        '!/^k8s.io//',
+        '!/^sigs.k8s.io/controller-runtime$/',
+        '!/^sigs.k8s.io/cluster-api/',
+      ],
+    },
+  ],
+}
