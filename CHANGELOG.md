@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `architecture`, `nodeSelector` and `tolerations` values so dex-operator can run on arm64 node pools.
 
+### Changed
+
+- Update Kubernetes modules to v0.37, controller-runtime to v0.25 and the Flux helm-controller API to v1.7.
+
 ## [0.20.0] - 2026-11-10
 
 ### Changed
