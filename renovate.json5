@@ -35,6 +35,10 @@
       "allowedVersions": "< 0.7.0"
     },
     {
+      "matchPackageNames": ["github.com/fluxcd/helm-controller/api"],
+      "allowedVersions": "< 1.7.0"
+    },
+    {
       "allowedVersions": ">= 4.0.0",
       "matchPackageNames": ["/^github.com/giantswarm/apiextensions*/"]
     }
