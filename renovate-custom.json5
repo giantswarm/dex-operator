@@ -28,12 +28,5 @@
         '!/^sigs.k8s.io/cluster-api/',
       ],
     },
-    {
-      // CAPI v1.14 moved its API types into the separate
-      // sigs.k8s.io/cluster-api/api module, so the bump from v1.11 needs a
-      // go.mod migration first. Remove this rule once that is done.
-      matchDepNames: ['/^sigs.k8s.io/cluster-api/'],
-      enabled: false,
-    },
   ],
 }
