@@ -7,7 +7,7 @@ require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/dexidp/dex v2.13.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.7.1
-	github.com/giantswarm/apiextensions-application v0.6.0
+	github.com/giantswarm/apiextensions-application v0.6.2
 	github.com/giantswarm/backoff/v2 v2.0.0
 	github.com/giantswarm/k8smetadata v0.26.0
 	github.com/giantswarm/microerror v0.4.1
