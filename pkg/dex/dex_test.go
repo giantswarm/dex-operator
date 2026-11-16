@@ -3,6 +3,7 @@ package dex
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -11,10 +12,10 @@ func TestConnectorShapes(t *testing.T) {
 		for _, testCase := range []struct {
 			name      string
 			input     string
-			migration bool
+			storedMap bool
 		}{
-			{"list", `[{"id":"federation","connectorType":"oidc","connectorConfig":"secret: retained"}]`, true},
-			{"map", `{"federation":{"id":"ignored","connectorType":"oidc","connectorConfig":"secret: retained"}}`, false},
+			{"list", `[{"id":"federation","connectorType":"oidc","connectorConfig":"secret: retained"}]`, false},
+			{"map", `{"federation":{"id":"ignored","connectorType":"oidc","connectorConfig":"secret: retained"}}`, true},
 		} {
 			t.Run(owner+"/"+testCase.name, func(t *testing.T) {
 				var configuration DexOidc
@@ -22,32 +23,43 @@ func TestConnectorShapes(t *testing.T) {
 				if err := json.Unmarshal([]byte(input), &configuration); err != nil {
 					t.Fatal(err)
 				}
-				if configuration.NeedsMigration() != testCase.migration {
-					t.Fatalf("migration = %v, want %v", configuration.NeedsMigration(), testCase.migration)
+				if configuration.StoredAsMap() != testCase.storedMap {
+					t.Fatalf("StoredAsMap() = %v, want %v", configuration.StoredAsMap(), testCase.storedMap)
 				}
 				encoded, err := json.Marshal(configuration)
 				if err != nil {
 					t.Fatal(err)
 				}
 				var wire map[string]struct {
-					Connectors map[string]Connector `json:"connectors"`
+					Connectors []Connector `json:"connectors"`
 				}
 				if err := json.Unmarshal(encoded, &wire); err != nil {
-					t.Fatal(err)
+					t.Fatalf("connectors must be written as a list: %v", err)
 				}
-				connector := wire[owner].Connectors["federation"]
-				if connector.ID != "federation" || connector.Config != "secret: retained" {
-					t.Fatal("map ids and connector configuration must be preserved")
+				want := []Connector{{ID: "federation", Type: "oidc", Config: "secret: retained"}}
+				if !reflect.DeepEqual(wire[owner].Connectors, want) {
+					t.Fatalf("written connectors = %+v, want %+v", wire[owner].Connectors, want)
 				}
 				var roundTrip DexOidc
 				if err := json.Unmarshal(encoded, &roundTrip); err != nil {
 					t.Fatal(err)
 				}
-				if roundTrip.NeedsMigration() {
-					t.Fatal("a written map must not require migration")
+				if roundTrip.StoredAsMap() {
+					t.Fatal("a written list must not be rewritten again")
 				}
 			})
 		}
+	}
+}
+
+func TestMapConnectorsAreSortedByID(t *testing.T) {
+	var configuration DexOidc
+	if err := json.Unmarshal([]byte(`{"giantswarm":{"connectors":{"b":{},"a":{}}}}`), &configuration); err != nil {
+		t.Fatal(err)
+	}
+	want := []Connector{{ID: "a"}, {ID: "b"}}
+	if !reflect.DeepEqual(configuration.Giantswarm.Connectors, want) {
+		t.Fatalf("connectors = %+v, want %+v", configuration.Giantswarm.Connectors, want)
 	}
 }
 
@@ -60,8 +72,20 @@ func TestMixedOwnerShapes(t *testing.T) {
 		if err := json.Unmarshal([]byte(input), &configuration); err != nil {
 			t.Fatal(err)
 		}
-		if !configuration.NeedsMigration() || len(configuration.Giantswarm.Connectors) != 1 || len(configuration.Customer.Connectors) != 1 {
-			t.Fatal("a list under either owner must migrate without losing the other owner's map")
+		if !configuration.StoredAsMap() || len(configuration.Giantswarm.Connectors) != 1 || len(configuration.Customer.Connectors) != 1 {
+			t.Fatal("a map under either owner must be rewritten without losing the other owner's list")
+		}
+	}
+}
+
+func TestEmptyConnectorShapes(t *testing.T) {
+	for _, input := range []string{`{"giantswarm":{}}`, `{"giantswarm":{"connectors":null}}`, `{"giantswarm":{"connectors":[]}}`} {
+		var configuration DexOidc
+		if err := json.Unmarshal([]byte(input), &configuration); err != nil {
+			t.Fatalf("%s: %v", input, err)
+		}
+		if configuration.StoredAsMap() || len(configuration.Giantswarm.Connectors) != 0 {
+			t.Fatalf("%s: want no connectors and no rewrite", input)
 		}
 	}
 }

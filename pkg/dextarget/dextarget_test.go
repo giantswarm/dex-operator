@@ -89,13 +89,14 @@ oidc:
 			expectedOwners: []string{key.OwnerCustomer},
 		},
 		{
-			name: "giantswarm maps merge with managed connectors",
+			name: "giantswarm map replaces the managed list",
 			values: `oidc:
   giantswarm:
     connectors:
       federation:
         connectorType: oidc
 `,
+			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
 			name: "connectors set to a map",
@@ -107,7 +108,7 @@ oidc:
     connectors:
     - id: giantswarm-github
 `,
-			expectedOwners: []string{key.OwnerGiantswarm},
+			expectedOwners: []string{key.OwnerGiantswarm, key.OwnerCustomer},
 		},
 		{
 			name: "duplicate top-level key",
@@ -253,22 +254,26 @@ func TestHelmReleaseUserConnectorOwners(t *testing.T) {
 			expectedOwners: []string{key.OwnerCustomer},
 		},
 		{
-			name:       "target path at a map entry can coexist",
-			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: "connector-config", TargetPath: "oidc.giantswarm.connectors.federation.connectorConfig"}},
+			name:           "target path at a map entry replaces the managed list",
+			valuesFrom:     []helmv2.ValuesReference{{Kind: kindSecret, Name: "connector-config", TargetPath: "oidc.giantswarm.connectors.federation.connectorConfig"}},
+			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
-			name:       "giantswarm connector map in user config can coexist",
-			valuesFrom: []helmv2.ValuesReference{{Kind: kindConfigMap, Name: testUserValues}},
-			objects:    []client.Object{getConfigMap(testUserValues, map[string]string{testValuesKey: "oidc:\n  giantswarm:\n    connectors:\n      federation:\n        connectorType: oidc\n"})},
+			name:           "giantswarm connector map in user config replaces the managed list",
+			valuesFrom:     []helmv2.ValuesReference{{Kind: kindConfigMap, Name: testUserValues}},
+			objects:        []client.Object{getConfigMap(testUserValues, map[string]string{testValuesKey: "oidc:\n  giantswarm:\n    connectors:\n      federation:\n        connectorType: oidc\n"})},
+			expectedOwners: []string{key.OwnerGiantswarm},
 		},
 		{
-			name:       "customer target path at a map entry can coexist",
-			valuesFrom: []helmv2.ValuesReference{{Kind: kindSecret, Name: "connector-config", TargetPath: "oidc.customer.connectors.federation.connectorConfig"}},
+			name:           "customer target path at a map entry replaces the managed list",
+			valuesFrom:     []helmv2.ValuesReference{{Kind: kindSecret, Name: "connector-config", TargetPath: "oidc.customer.connectors.federation.connectorConfig"}},
+			expectedOwners: []string{key.OwnerCustomer},
 		},
 		{
-			name:       "customer connector map in user config can coexist",
-			valuesFrom: []helmv2.ValuesReference{{Kind: kindConfigMap, Name: testUserValues}},
-			objects:    []client.Object{getConfigMap(testUserValues, map[string]string{testValuesKey: "oidc:\n  customer:\n    connectors:\n      federation:\n        connectorType: oidc\n"})},
+			name:           "customer connector map in user config replaces the managed list",
+			valuesFrom:     []helmv2.ValuesReference{{Kind: kindConfigMap, Name: testUserValues}},
+			objects:        []client.Object{getConfigMap(testUserValues, map[string]string{testValuesKey: "oidc:\n  customer:\n    connectors:\n      federation:\n        connectorType: oidc\n"})},
+			expectedOwners: []string{key.OwnerCustomer},
 		},
 		{
 			name:           "target path under owner connectors",

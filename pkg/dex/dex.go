@@ -16,24 +16,19 @@ type DexOidc struct {
 	Customer   *DexOidcOwner `json:"customer,omitempty"`
 }
 
-func (d DexOidc) NeedsMigration() bool {
-	return (d.Giantswarm != nil && d.Giantswarm.legacyConnectors) ||
-		(d.Customer != nil && d.Customer.legacyConnectors)
+// StoredAsMap reports whether either owner's connectors were read from the
+// map form. The operator writes lists, so such a Secret is rewritten.
+func (d DexOidc) StoredAsMap() bool {
+	return (d.Giantswarm != nil && d.Giantswarm.mapConnectors) ||
+		(d.Customer != nil && d.Customer.mapConnectors)
 }
 
+// DexOidcOwner holds one owner's connectors. It reads connectors as a list or
+// as a map keyed by id, and writes a list: dex-app releases before 3.5.0 only
+// accept a list.
 type DexOidcOwner struct {
-	Connectors       []Connector `json:"connectors,omitempty"`
-	legacyConnectors bool
-}
-
-func (d DexOidcOwner) MarshalJSON() ([]byte, error) {
-	connectors := make(map[string]Connector, len(d.Connectors))
-	for _, connector := range d.Connectors {
-		connectors[connector.ID] = connector
-	}
-	return json.Marshal(struct {
-		Connectors map[string]Connector `json:"connectors,omitempty"`
-	}{Connectors: connectors})
+	Connectors    []Connector `json:"connectors,omitempty"`
+	mapConnectors bool
 }
 
 func (d *DexOidcOwner) UnmarshalJSON(data []byte) error {
@@ -49,8 +44,7 @@ func (d *DexOidcOwner) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(connectors, &decoded.Connectors); err != nil {
 			return err
 		}
-		decoded.legacyConnectors = true
-	} else if len(connectors) > 0 {
+	} else if len(connectors) > 0 && !bytes.Equal(connectors, []byte("null")) {
 		var entries map[string]Connector
 		if err := json.Unmarshal(connectors, &entries); err != nil {
 			return err
@@ -62,6 +56,7 @@ func (d *DexOidcOwner) UnmarshalJSON(data []byte) error {
 		slices.SortFunc(decoded.Connectors, func(a, b Connector) int {
 			return strings.Compare(a.ID, b.ID)
 		})
+		decoded.mapConnectors = true
 	}
 	*d = decoded
 	return nil
