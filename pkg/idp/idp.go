@@ -335,7 +335,7 @@ func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error 
 }
 
 func (s *Service) secretDataNeedsUpdate(oldData dex.DexConfig, newData dex.DexConfig) bool {
-	if oldData.Oidc.NeedsMigration() {
+	if oldData.Oidc.StoredAsMap() {
 		return true
 	}
 	if !s.oidcOwnerNeedsUpdate(oldData.Oidc.Giantswarm, newData.Oidc.Giantswarm) && !s.oidcOwnerNeedsUpdate(oldData.Oidc.Customer, newData.Oidc.Customer) {
