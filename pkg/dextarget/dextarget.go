@@ -2,7 +2,9 @@ package dextarget
 
 import (
 	"context"
+	"slices"
 
+	"github.com/Masterminds/semver/v3"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -24,9 +26,13 @@ type DexTarget interface {
 	// GetOrganizationLabel returns the organization label value if present
 	GetOrganizationLabel() string
 
-	// UserConnectorOwners returns the owners that have connectors set under
-	// oidc.<owner>.connectors in the user config of the target
-	UserConnectorOwners(ctx context.Context, client client.Client) ([]string, error)
+	// UserConnectors returns what each of the target's other values sources
+	// sets under oidc.<owner>.connectors.
+	UserConnectors(ctx context.Context, client client.Client) ([]UserConnectors, error)
+
+	// AcceptsConnectorMaps reports whether the dex-app chart the target runs,
+	// and any version it is moving to, accepts connectors as a map.
+	AcceptsConnectorMaps() bool
 
 	// HasClusterValuesConfig returns true if the target has a cluster values configmap reference
 	HasClusterValuesConfig() bool
@@ -67,11 +73,22 @@ type DexTarget interface {
 	ManagesSecretConfig() bool
 }
 
-// connectorOwners returns the owners that set oidc.<owner>.connectors in the
-// given Helm values. The operator writes a list there, and Helm does not merge a
-// list with any other value: a user list, map or null replaces the operator's
-// connectors or is replaced by them.
-func connectorOwners(values string) ([]string, error) {
+// UserConnectors is what one values source sets under oidc.<Owner>.connectors.
+// Helm merges a map with the map the operator writes, entry by entry; any
+// other value (a list, null, or a value replacing the whole connectors key)
+// replaces the operator's connectors or is replaced by them.
+type UserConnectors struct {
+	Owner string
+	// Map is true when the source sets connectors by id: a map, or a value at
+	// or below oidc.<Owner>.connectors.<id>.
+	Map bool
+	// IDs are the connector ids the source sets when Map is true.
+	IDs []string
+}
+
+// userConnectors returns what the given Helm values set under
+// oidc.<owner>.connectors, per owner.
+func userConnectors(values string) ([]UserConnectors, error) {
 	// Decode into maps, not a struct: a value of an unexpected type elsewhere
 	// under oidc must not fail the parse and hide a connectors key.
 	var v map[string]interface{}
@@ -79,12 +96,33 @@ func connectorOwners(values string) ([]string, error) {
 		return nil, err
 	}
 	oidc, _ := v["oidc"].(map[string]interface{})
-	var owners []string
+	var found []UserConnectors
 	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
 		ownerValues, _ := oidc[owner].(map[string]interface{})
-		if _, ok := ownerValues["connectors"]; ok {
-			owners = append(owners, owner)
+		connectors, ok := ownerValues["connectors"]
+		if !ok {
+			continue
+		}
+		entries, isMap := connectors.(map[string]interface{})
+		uc := UserConnectors{Owner: owner, Map: isMap}
+		for id := range entries {
+			uc.IDs = append(uc.IDs, id)
+		}
+		slices.Sort(uc.IDs)
+		found = append(found, uc)
+	}
+	return found, nil
+}
+
+// chartAcceptsConnectorMaps reports whether every given dex-app chart version
+// accepts connector maps. An empty or unparsable version does not.
+func chartAcceptsConnectorMaps(versions ...string) bool {
+	minimum := semver.MustParse(key.ConnectorMapMinChartVersion)
+	for _, v := range versions {
+		parsed, err := semver.NewVersion(v)
+		if err != nil || parsed.LessThan(minimum) {
+			return false
 		}
 	}
-	return owners, nil
+	return len(versions) > 0
 }

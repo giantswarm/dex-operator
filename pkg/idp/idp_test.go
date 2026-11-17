@@ -686,39 +686,86 @@ func TestCheckUniqueConnectorIDs(t *testing.T) {
 }
 
 func TestClashingOwners(t *testing.T) {
+	gs, customer := key.OwnerGiantswarm, key.OwnerCustomer
+	managedGiantswarm := key.GetProviderName(gs, mockprovider.ProviderName)
+	managedCustomer := key.GetProviderName(customer, mockprovider.ProviderName)
+	list := func(owner string) dextarget.UserConnectors { return dextarget.UserConnectors{Owner: owner} }
+	entries := func(owner string, ids ...string) dextarget.UserConnectors {
+		return dextarget.UserConnectors{Owner: owner, Map: true, IDs: ids}
+	}
 	testCases := []struct {
 		name             string
-		userOwners       []string
+		user             []dextarget.UserConnectors
 		providers        []provider.Provider
+		writesMaps       bool
 		expectedClashing []string
 	}{
 		{
-			name:       "no user connectors",
-			userOwners: nil,
-			providers:  []provider.Provider{getExampleProvider(key.OwnerGiantswarm)},
+			name:      "no user connectors",
+			providers: []provider.Provider{getExampleProvider(gs)},
 		},
 		{
-			name:       "user connectors under another owner",
-			userOwners: []string{key.OwnerCustomer},
-			providers:  []provider.Provider{getExampleProvider(key.OwnerGiantswarm)},
+			name:      "user connectors under another owner",
+			user:      []dextarget.UserConnectors{list(customer)},
+			providers: []provider.Provider{getExampleProvider(gs)},
 		},
 		{
-			name:             "user connectors under a managed owner",
-			userOwners:       []string{key.OwnerGiantswarm},
-			providers:        []provider.Provider{getExampleProvider(key.OwnerGiantswarm)},
-			expectedClashing: []string{key.OwnerGiantswarm},
+			name:             "user list under a managed owner",
+			user:             []dextarget.UserConnectors{list(gs)},
+			providers:        []provider.Provider{getExampleProvider(gs)},
+			writesMaps:       true,
+			expectedClashing: []string{gs},
 		},
 		{
 			name:             "only one of two user owners is managed",
-			userOwners:       []string{key.OwnerGiantswarm, key.OwnerCustomer},
-			providers:        []provider.Provider{getExampleProvider(key.OwnerCustomer)},
-			expectedClashing: []string{key.OwnerCustomer},
+			user:             []dextarget.UserConnectors{list(gs), list(customer)},
+			providers:        []provider.Provider{getExampleProvider(customer)},
+			expectedClashing: []string{customer},
+		},
+		{
+			name:             "user map while the operator writes a list",
+			user:             []dextarget.UserConnectors{entries(gs, "giantswarm-gazelle-oidc")},
+			providers:        []provider.Provider{getExampleProvider(gs)},
+			expectedClashing: []string{gs},
+		},
+		{
+			name:       "user map entries of other ids merge with the operator's map",
+			user:       []dextarget.UserConnectors{entries(gs, "giantswarm-gazelle-oidc"), entries(customer, "customer-alba-oidc")},
+			providers:  []provider.Provider{getExampleProvider(gs), getExampleProvider(customer)},
+			writesMaps: true,
+		},
+		{
+			name:       "empty user map merges with the operator's map",
+			user:       []dextarget.UserConnectors{entries(customer)},
+			providers:  []provider.Provider{getExampleProvider(customer)},
+			writesMaps: true,
+		},
+		{
+			name:             "user map entry with a managed id",
+			user:             []dextarget.UserConnectors{entries(gs, "giantswarm-gazelle-oidc", managedGiantswarm)},
+			providers:        []provider.Provider{getExampleProvider(gs)},
+			writesMaps:       true,
+			expectedClashing: []string{gs},
+		},
+		{
+			name:             "a managed id is checked under its own owner only",
+			user:             []dextarget.UserConnectors{entries(gs, managedCustomer), entries(customer, managedCustomer)},
+			providers:        []provider.Provider{getExampleProvider(gs), getExampleProvider(customer)},
+			writesMaps:       true,
+			expectedClashing: []string{customer},
+		},
+		{
+			name:             "an owner is reported once",
+			user:             []dextarget.UserConnectors{list(gs), entries(gs, managedGiantswarm)},
+			providers:        []provider.Provider{getExampleProvider(gs)},
+			writesMaps:       true,
+			expectedClashing: []string{gs},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			clashing := clashingOwners(tc.userOwners, tc.providers)
+			clashing := clashingOwners(tc.user, tc.providers, tc.writesMaps)
 			if !reflect.DeepEqual(clashing, tc.expectedClashing) {
 				t.Fatalf("Expected %v, got %v", tc.expectedClashing, clashing)
 			}

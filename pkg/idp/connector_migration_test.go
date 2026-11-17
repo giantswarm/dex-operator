@@ -11,29 +11,58 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/key"
 )
 
-func TestConnectorMapIsRewrittenAsListWithoutCredentialChange(t *testing.T) {
-	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
-		t.Run(owner, func(t *testing.T) {
-			var stored dex.DexConfig
-			input := fmt.Sprintf(`{"oidc":{%q:{"connectors":{"federation":{"connectorType":"oidc","connectorConfig":"clientSecret: retained"}}}}}`, owner)
-			if err := json.Unmarshal([]byte(input), &stored); err != nil {
-				t.Fatal(err)
-			}
-			service := Service{log: ctrl.Log.WithName("test")}
-			encoded, err := json.Marshal(stored)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var written dex.DexConfig
-			if err := json.Unmarshal(encoded, &written); err != nil {
-				t.Fatal(err)
-			}
-			if !service.secretDataNeedsUpdate(stored, written) {
-				t.Fatal("a stored map must be rewritten as a list")
-			}
-			if service.secretDataNeedsUpdate(written, written) {
-				t.Fatal("an unchanged list must not trigger another update")
-			}
-		})
+func TestConnectorShapeChangeRewritesWithoutCredentialChange(t *testing.T) {
+	stored := map[bool]string{
+		false: `[{"id":"federation","connectorType":"oidc","connectorConfig":"clientSecret: retained"}]`,
+		true:  `{"federation":{"connectorType":"oidc","connectorConfig":"clientSecret: retained"}}`,
 	}
+	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
+		for _, writesMaps := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/writesMaps=%v", owner, writesMaps), func(t *testing.T) {
+				service := Service{log: ctrl.Log.WithName("test")}
+				var old dex.DexConfig
+				if err := json.Unmarshal([]byte(fmt.Sprintf(`{"oidc":{%q:{"connectors":%s}}}`, owner, stored[!writesMaps])), &old); err != nil {
+					t.Fatal(err)
+				}
+
+				desired := old
+				desiredOwner := *ownerOf(old, owner)
+				desiredOwner.Map = writesMaps
+				setOwner(&desired, owner, &desiredOwner)
+
+				if !service.secretDataNeedsUpdate(old, desired) {
+					t.Fatal("a Secret in the other shape must be rewritten")
+				}
+				encoded, err := json.Marshal(desired)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var written dex.DexConfig
+				if err := json.Unmarshal(encoded, &written); err != nil {
+					t.Fatal(err)
+				}
+				if got := ownerOf(written, owner); got.Map != writesMaps || got.Connectors[0] != ownerOf(old, owner).Connectors[0] {
+					t.Fatalf("written = %+v, want the same connector in the requested shape", got)
+				}
+				if service.secretDataNeedsUpdate(written, desired) {
+					t.Fatal("a Secret already in the requested shape must not be rewritten again")
+				}
+			})
+		}
+	}
+}
+
+func ownerOf(config dex.DexConfig, owner string) *dex.DexOidcOwner {
+	if owner == key.OwnerGiantswarm {
+		return config.Oidc.Giantswarm
+	}
+	return config.Oidc.Customer
+}
+
+func setOwner(config *dex.DexConfig, owner string, value *dex.DexOidcOwner) {
+	if owner == key.OwnerGiantswarm {
+		config.Oidc.Giantswarm = value
+		return
+	}
+	config.Oidc.Customer = value
 }

@@ -2,7 +2,6 @@ package dextarget
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
@@ -46,18 +45,10 @@ func (h *HelmReleaseTarget) GetOrganizationLabel() string {
 	return h.GetLabels()[label.Organization]
 }
 
-func (h *HelmReleaseTarget) UserConnectorOwners(ctx context.Context, c client.Client) ([]string, error) {
+func (h *HelmReleaseTarget) UserConnectors(ctx context.Context, c client.Client) ([]UserConnectors, error) {
 	log := logr.FromContextOrDiscard(ctx)
 
-	var owners []string
-	add := func(found ...string) {
-		for _, owner := range found {
-			if !slices.Contains(owners, owner) {
-				owners = append(owners, owner)
-			}
-		}
-	}
-
+	var found []UserConnectors
 	for _, vf := range h.Spec.ValuesFrom {
 		// Skip our own managed secret
 		if vf.Name == key.GetDexConfigName(h.Name) {
@@ -65,8 +56,8 @@ func (h *HelmReleaseTarget) UserConnectorOwners(ctx context.Context, c client.Cl
 		}
 		// A targetPath entry sets one value at that path, so only the path matters
 		if vf.TargetPath != "" {
-			if owner := targetPathOwner(vf.TargetPath); owner != "" {
-				add(owner)
+			if uc, ok := targetPathConnectors(vf.TargetPath); ok {
+				found = append(found, uc)
 			}
 			continue
 		}
@@ -107,29 +98,44 @@ func (h *HelmReleaseTarget) UserConnectorOwners(ctx context.Context, c client.Cl
 		}
 
 		if values != "" {
-			found, err := connectorOwners(values)
+			sourceConnectors, err := userConnectors(values)
 			if err != nil {
 				// Do not log the error, it can quote Secret content.
 				log.Info("Failed to parse values from valuesFrom, skipping connector check",
 					"kind", vf.Kind, "name", vf.Name, "namespace", h.Namespace, "valuesKey", valuesKey)
 				continue
 			}
-			add(found...)
+			found = append(found, sourceConnectors...)
 		}
 	}
-	return owners, nil
+	return found, nil
 }
 
-// targetPathOwner returns the owner whose oidc.<owner>.connectors list the
-// given valuesFrom targetPath sets, or "" if there is none.
-func targetPathOwner(targetPath string) string {
+// targetPathConnectors returns what a valuesFrom targetPath sets under
+// oidc.<owner>.connectors: one map entry for a path at or below
+// connectors.<id>, the whole value for connectors itself or a list index.
+func targetPathConnectors(targetPath string) (UserConnectors, bool) {
 	for _, owner := range []string{key.OwnerGiantswarm, key.OwnerCustomer} {
 		path := "oidc." + owner + ".connectors"
-		if targetPath == path || strings.HasPrefix(targetPath, path+"[") || strings.HasPrefix(targetPath, path+".") {
-			return owner
+		switch {
+		case targetPath == path || strings.HasPrefix(targetPath, path+"["):
+			return UserConnectors{Owner: owner}, true
+		case strings.HasPrefix(targetPath, path+"."):
+			id, _, _ := strings.Cut(strings.TrimPrefix(targetPath, path+"."), ".")
+			return UserConnectors{Owner: owner, Map: true, IDs: []string{id}}, true
 		}
 	}
-	return ""
+	return UserConnectors{}, false
+}
+
+// AcceptsConnectorMaps reads the chart version of the release Flux last made.
+// A HelmRelease without one has not been installed yet.
+func (h *HelmReleaseTarget) AcceptsConnectorMaps() bool {
+	latest := h.Status.History.Latest()
+	if latest == nil {
+		return false
+	}
+	return chartAcceptsConnectorMaps(latest.ChartVersion)
 }
 
 func (h *HelmReleaseTarget) HasClusterValuesConfig() bool {

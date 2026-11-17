@@ -4,6 +4,7 @@ go 1.27.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.15.0
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/dexidp/dex v2.13.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.7.1
@@ -42,7 +43,6 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.13.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.10.1 // indirect
-	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/beevik/etree v1.6.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v6 v6.0.1 // indirect
