@@ -38,6 +38,10 @@ const (
 	// Note: HelmRelease does not have a priority system like App CR
 	// Values are merged in order, with later values overwriting earlier ones
 	MCDexHelmReleaseDefaultName = "dex-app"
+
+	// ConnectorMapMinChartVersion is the first dex-app chart version that
+	// accepts oidc.<owner>.connectors as a map keyed by connector id.
+	ConnectorMapMinChartVersion = "3.5.0"
 )
 
 // IsManagementClusterDexApp checks if the app is the management cluster dex app

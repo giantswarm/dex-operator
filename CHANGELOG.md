@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Write `oidc.giantswarm.connectors` and `oidc.customer.connectors` as a map keyed by connector id when the target runs dex-app 3.5.0 or later (a HelmRelease's last release, both the requested and the deployed version of an App), and as a list otherwise. A managed Secret in the other shape is rewritten without rotating credentials. Rolling back to 0.21.0 rewrites maps as lists; earlier versions cannot read a map.
+- On a target that gets a map, user connectors under the same owner no longer stop reconciliation when they are map entries, or `connectors.<id>` target paths, of ids dex-operator does not manage. A list, `null`, a value replacing the whole `connectors` key, or an entry with a managed id still does.
+
 ## [0.21.0] - 2026-11-17
 
 ### Added

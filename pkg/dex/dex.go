@@ -16,19 +16,38 @@ type DexOidc struct {
 	Customer   *DexOidcOwner `json:"customer,omitempty"`
 }
 
-// StoredAsMap reports whether either owner's connectors were read from the
-// map form. The operator writes lists, so such a Secret is rewritten.
-func (d DexOidc) StoredAsMap() bool {
-	return (d.Giantswarm != nil && d.Giantswarm.mapConnectors) ||
-		(d.Customer != nil && d.Customer.mapConnectors)
+// DexOidcOwner holds one owner's connectors. It reads connectors as a list or
+// as a map keyed by id. It writes a map when Map is set and a list otherwise:
+// dex-app releases before 3.5.0 only accept a list, and only a map merges with
+// connectors other values sources set under the same owner.
+type DexOidcOwner struct {
+	Connectors []Connector `json:"connectors,omitempty"`
+	// Map is the shape the connectors were read in, and are written in.
+	Map bool `json:"-"`
 }
 
-// DexOidcOwner holds one owner's connectors. It reads connectors as a list or
-// as a map keyed by id, and writes a list: dex-app releases before 3.5.0 only
-// accept a list.
-type DexOidcOwner struct {
-	Connectors    []Connector `json:"connectors,omitempty"`
-	mapConnectors bool
+// SameShape reports whether a and b store their connectors in the same shape.
+// An owner without connectors has no shape.
+func SameShape(a, b *DexOidcOwner) bool {
+	if a == nil || b == nil || len(a.Connectors) == 0 || len(b.Connectors) == 0 {
+		return true
+	}
+	return a.Map == b.Map
+}
+
+func (d DexOidcOwner) MarshalJSON() ([]byte, error) {
+	if !d.Map {
+		return json.Marshal(struct {
+			Connectors []Connector `json:"connectors,omitempty"`
+		}{Connectors: d.Connectors})
+	}
+	connectors := make(map[string]Connector, len(d.Connectors))
+	for _, connector := range d.Connectors {
+		connectors[connector.ID] = connector
+	}
+	return json.Marshal(struct {
+		Connectors map[string]Connector `json:"connectors,omitempty"`
+	}{Connectors: connectors})
 }
 
 func (d *DexOidcOwner) UnmarshalJSON(data []byte) error {
@@ -56,7 +75,7 @@ func (d *DexOidcOwner) UnmarshalJSON(data []byte) error {
 		slices.SortFunc(decoded.Connectors, func(a, b Connector) int {
 			return strings.Compare(a.ID, b.ID)
 		})
-		decoded.mapConnectors = true
+		decoded.Map = true
 	}
 	*d = decoded
 	return nil

@@ -41,7 +41,7 @@ func (a *AppTarget) GetOrganizationLabel() string {
 	return a.GetLabels()[label.Organization]
 }
 
-func (a *AppTarget) UserConnectorOwners(ctx context.Context, c client.Client) ([]string, error) {
+func (a *AppTarget) UserConnectors(ctx context.Context, c client.Client) ([]UserConnectors, error) {
 	// Check if user configmap is present
 	if a.Spec.UserConfig.ConfigMap.Name == "" && a.Spec.UserConfig.ConfigMap.Namespace == "" {
 		return nil, nil
@@ -60,13 +60,20 @@ func (a *AppTarget) UserConnectorOwners(ctx context.Context, c client.Client) ([
 	if !ok {
 		return nil, nil
 	}
-	owners, err := connectorOwners(values)
+	found, err := userConnectors(values)
 	if err != nil {
 		logr.FromContextOrDiscard(ctx).Info("Failed to parse user config values, skipping connector check",
 			"configmap", userConfigMap.Name, "namespace", userConfigMap.Namespace, "valuesKey", key.ValuesConfigMapKey)
 		return nil, nil
 	}
-	return owners, nil
+	return found, nil
+}
+
+// AcceptsConnectorMaps reads both the version app-operator deployed and the
+// one the App asks for, so a downgrade gets a list before the older chart
+// renders it.
+func (a *AppTarget) AcceptsConnectorMaps() bool {
+	return chartAcceptsConnectorMaps(a.Spec.Version, a.Status.Version)
 }
 
 func (a *AppTarget) HasClusterValuesConfig() bool {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/giantswarm/apiextensions-application/api/v1alpha1"
 
@@ -121,28 +122,42 @@ func checkUniqueConnectorIDs(providers []provider.Provider) error {
 	return nil
 }
 
-// clashingOwners returns the user connector owners that also own one of the providers.
-func clashingOwners(userOwners []string, providers []provider.Provider) []string {
+// clashingOwners returns the owners whose connectors a user values source
+// would replace or partly override: a source that is not a map, any source
+// while the operator writes a list, or a map entry with an id of a provider
+// the operator manages under that owner.
+func clashingOwners(user []dextarget.UserConnectors, providers []provider.Provider, writesMaps bool) []string {
 	var clashing []string
-	for _, owner := range userOwners {
+	for _, uc := range user {
+		if slices.Contains(clashing, uc.Owner) {
+			continue
+		}
+		var managed []string
 		for _, p := range providers {
-			if p.GetOwner() == owner {
-				clashing = append(clashing, owner)
-				break
+			if p.GetOwner() == uc.Owner {
+				managed = append(managed, p.GetName())
 			}
+		}
+		if len(managed) == 0 {
+			continue
+		}
+		if !writesMaps || !uc.Map || slices.ContainsFunc(uc.IDs, func(id string) bool { return slices.Contains(managed, id) }) {
+			clashing = append(clashing, uc.Owner)
 		}
 	}
 	return clashing
 }
 
 func (s *Service) Reconcile(ctx context.Context) error {
-	// Helm replaces lists, so user connectors under an owner we also write
-	// would overwrite ours or be overwritten. Back off in that case.
-	userOwners, err := s.target.UserConnectorOwners(ctx, s.Client)
+	// Helm merges maps entry by entry and replaces anything else, so user
+	// connectors under an owner we also write would override ours or be
+	// overridden, unless they are map entries of other ids. Back off then.
+	writesMaps := s.target.AcceptsConnectorMaps()
+	userConnectors, err := s.target.UserConnectors(ctx, s.Client)
 	if err != nil {
 		return microerror.Mask(err)
 	}
-	if clashing := clashingOwners(userOwners, s.providers); len(clashing) > 0 {
+	if clashing := clashingOwners(userConnectors, s.providers, writesMaps); len(clashing) > 0 {
 		if s.target.ManagesSecretConfig() {
 			s.log.Info(fmt.Sprintf("Dex %s has user config with connectors for owner(s) %v that dex-operator also manages. Cancelling reconciliation. We recommend to move configuration to a managed secret.", s.target.GetTargetType(), clashing))
 			return s.ReconcileDelete(ctx)
@@ -208,6 +223,11 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		newConfig, err := s.CreateOrUpdateProviderApps(appConfig, ctx, oldConnectors)
 		if err != nil {
 			return microerror.Mask(err)
+		}
+		for _, owner := range []*dex.DexOidcOwner{newConfig.Oidc.Giantswarm, newConfig.Oidc.Customer} {
+			if owner != nil {
+				owner.Map = writesMaps
+			}
 		}
 
 		if updateSecret := s.secretDataNeedsUpdate(oldConfig, newConfig); updateSecret {
@@ -335,7 +355,7 @@ func (s *Service) DeleteProviderApps(appName string, ctx context.Context) error 
 }
 
 func (s *Service) secretDataNeedsUpdate(oldData dex.DexConfig, newData dex.DexConfig) bool {
-	if oldData.Oidc.StoredAsMap() {
+	if !dex.SameShape(oldData.Oidc.Giantswarm, newData.Oidc.Giantswarm) || !dex.SameShape(oldData.Oidc.Customer, newData.Oidc.Customer) {
 		return true
 	}
 	if !s.oidcOwnerNeedsUpdate(oldData.Oidc.Giantswarm, newData.Oidc.Giantswarm) && !s.oidcOwnerNeedsUpdate(oldData.Oidc.Customer, newData.Oidc.Customer) {
