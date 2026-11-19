@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0-rc.1] - 2026-11-19
+
 ### Changed
 
 - Write `oidc.giantswarm.connectors` and `oidc.customer.connectors` as a map keyed by connector id when the target runs dex-app 3.5.0 or later (a HelmRelease's last release, both the requested and the deployed version of an App), and as a list otherwise. A managed Secret in the other shape is rewritten without rotating credentials. Rolling back to 0.21.0 rewrites maps as lists; earlier versions cannot read a map.
@@ -402,7 +404,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added azure active directory provider.
 - Added initial implementation of the dex operator.
 
-[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dex-operator/compare/v0.22.0-rc.1...HEAD
+[0.22.0-rc.1]: https://github.com/giantswarm/dex-operator/compare/v0.21.0...v0.22.0-rc.1
 [0.21.0]: https://github.com/giantswarm/dex-operator/compare/v0.21.0-rc.1...v0.21.0
 [0.21.0-rc.1]: https://github.com/giantswarm/dex-operator/compare/v0.20.0...v0.21.0-rc.1
 [0.20.0]: https://github.com/giantswarm/dex-operator/compare/v0.19.0...v0.20.0
