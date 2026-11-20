@@ -11,11 +11,12 @@ import (
 	sertext "github.com/microsoft/kiota-serialization-text-go"
 	core "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
+	"github.com/microsoftgraph/msgraph-sdk-go/serviceprincipals"
 )
 
 const graphBaseURL = "https://graph.microsoft.com/v1.0"
 
-// GraphClient exposes the /applications endpoint of Microsoft Graph.
+// GraphClient exposes the /applications and /servicePrincipals endpoints of Microsoft Graph.
 //
 // It mirrors what msgraphsdk.NewGraphServiceClient sets up, without importing
 // the msgraph-sdk-go root package. That package imports every Graph API
@@ -53,4 +54,8 @@ func NewGraphClient(auth absauth.AuthenticationProvider) (*GraphClient, error) {
 
 func (c *GraphClient) Applications() *applications.ApplicationsRequestBuilder {
 	return applications.NewApplicationsRequestBuilderInternal(c.pathParameters, c.adapter)
+}
+
+func (c *GraphClient) ServicePrincipals() *serviceprincipals.ServicePrincipalsRequestBuilder {
+	return serviceprincipals.NewServicePrincipalsRequestBuilderInternal(c.pathParameters, c.adapter)
 }

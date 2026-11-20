@@ -1,6 +1,8 @@
 package azure
 
 import (
+	"net/url"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -8,6 +10,7 @@ import (
 	"github.com/giantswarm/dex-operator/pkg/idp/provider"
 
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
@@ -300,6 +303,69 @@ func TestComputeURIUpdatePatch(t *testing.T) {
 			updateNeeded, _ := computeRedirectURIUpdatePatch(app, provider.GetTestConfig())
 			if updateNeeded != tc.updateNeeded {
 				t.Fatalf("Expected %v, got %v", updateNeeded, tc.updateNeeded)
+			}
+		})
+	}
+}
+
+func TestGetAdminConsentUrlCarriesRedirectURI(t *testing.T) {
+	u, err := url.Parse(getAdminConsentUrl("tenant", "client"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Path != "/tenant/adminconsent" {
+		t.Errorf("path = %q, want /tenant/adminconsent", u.Path)
+	}
+	if got := u.Query().Get("client_id"); got != "client" {
+		t.Errorf("client_id = %q, want client", got)
+	}
+	if got := u.Query().Get("redirect_uri"); got != AdminConsentRedirectURI {
+		t.Errorf("redirect_uri = %q, want %q", got, AdminConsentRedirectURI)
+	}
+}
+
+func resourceAccess(id uuid.UUID, kind string) models.ResourceAccessable {
+	a := models.NewResourceAccess()
+	a.SetId(&id)
+	a.SetTypeEscaped(&kind)
+	return a
+}
+
+func appRoleAssignment(id uuid.UUID) models.AppRoleAssignmentable {
+	a := models.NewAppRoleAssignment()
+	a.SetAppRoleId(&id)
+	return a
+}
+
+func TestRequiredAndMissingAppRoles(t *testing.T) {
+	readWriteAll := uuid.MustParse("1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9")  // Application.ReadWrite.All
+	directoryRead := uuid.MustParse("7ab1d382-f21e-4acd-a863-ba3e13f7da61") // Directory.Read.All
+	userRead := uuid.MustParse("e1fe6dd8-ba31-4d61-89e7-88639da4683d")      // User.Read, delegated
+
+	graph := models.NewRequiredResourceAccess()
+	graph.SetResourceAccess([]models.ResourceAccessable{
+		resourceAccess(userRead, PermissionType),
+		resourceAccess(readWriteAll, AppRolePermissionType),
+		resourceAccess(directoryRead, AppRolePermissionType),
+	})
+	required := requiredAppRoles([]models.RequiredResourceAccessable{graph})
+	if want := []string{readWriteAll.String(), directoryRead.String()}; !reflect.DeepEqual(required, want) {
+		t.Fatalf("requiredAppRoles = %v, want %v (delegated scopes excluded)", required, want)
+	}
+
+	tests := []struct {
+		name    string
+		granted []models.AppRoleAssignmentable
+		want    []string
+	}{
+		{"none granted", nil, []string{readWriteAll.String(), directoryRead.String()}},
+		{"some granted", []models.AppRoleAssignmentable{appRoleAssignment(readWriteAll)}, []string{directoryRead.String()}},
+		{"all granted", []models.AppRoleAssignmentable{appRoleAssignment(directoryRead), appRoleAssignment(readWriteAll)}, nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := missingAppRoles(required, tc.granted); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("missingAppRoles = %v, want %v", got, tc.want)
 			}
 		})
 	}
