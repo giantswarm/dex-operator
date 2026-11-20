@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Entra ID: the `dex-operator-<installation>` app is created with a reply URL, and the admin consent URL passes it, so the URL no longer fails with `AADSTS500113`.
+- Entra ID: creating the `dex-operator-<installation>` app waits up to 15 minutes for admin consent, and fails with the portal steps instead of returning credentials that cannot work. An existing app without any of its application permissions consented fails the same way.
+
 ## [0.22.0] - 2026-11-19
 
 ### Changed
