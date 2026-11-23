@@ -22,7 +22,7 @@ require (
 	github.com/microsoft/kiota-serialization-json-go v1.1.5
 	github.com/microsoft/kiota-serialization-multipart-go v1.1.7
 	github.com/microsoft/kiota-serialization-text-go v1.1.8
-	github.com/microsoftgraph/msgraph-sdk-go v1.106.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.107.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.4.1
 	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
