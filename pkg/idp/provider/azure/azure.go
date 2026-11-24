@@ -409,6 +409,7 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (ma
 		consentURL := getAdminConsentUrl(a.TenantID, *app.GetAppId())
 		a.Log.Info(fmt.Sprintf("Admin consent is needed for %s. Open %s, or %s.", config.Name, consentURL, getAdminConsentHint(config.Name)))
 		a.Log.Info("Please be aware that it can take a while for the app to become available. Wait a moment before logging in and granting consent.")
+		a.Log.Info("After you accept, Entra ID redirects to a page saying \"This is not the right page\". That is expected: close it, the consent is granted.")
 		if err := open.Start(consentURL); err != nil {
 			a.Log.Info(fmt.Sprintf("Could not open a browser (%v); open the URL above yourself.", err))
 		}
