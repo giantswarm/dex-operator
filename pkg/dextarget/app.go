@@ -84,12 +84,15 @@ func (a *AppTarget) GetClusterValuesConfigMapRef() (name, namespace string) {
 	return a.Spec.Config.ConfigMap.Name, a.Spec.Config.ConfigMap.Namespace
 }
 
+// secretConfigKind is the App extra config kind for a Secret.
+const secretConfigKind = "secret"
+
 func (a *AppTarget) HasSecretConfig(secretName string) bool {
 	if a.Spec.ExtraConfigs == nil {
 		return false
 	}
 	for _, config := range a.Spec.ExtraConfigs {
-		if config.Kind == "secret" && config.Name == secretName && config.Namespace == a.Namespace {
+		if config.Kind == secretConfigKind && config.Name == secretName && config.Namespace == a.Namespace {
 			return true
 		}
 	}
@@ -98,7 +101,7 @@ func (a *AppTarget) HasSecretConfig(secretName string) bool {
 
 func (a *AppTarget) AddSecretConfig(secretName, secretNamespace string) error {
 	config := v1alpha1.AppExtraConfig{
-		Kind:      "secret",
+		Kind:      secretConfigKind,
 		Name:      secretName,
 		Namespace: secretNamespace,
 		Priority:  key.DexSecretConfigPriority,
@@ -113,7 +116,7 @@ func (a *AppTarget) RemoveSecretConfig(secretName, secretNamespace string) error
 	}
 	result := []v1alpha1.AppExtraConfig{}
 	for _, config := range a.Spec.ExtraConfigs {
-		if !(config.Kind == "secret" && config.Name == secretName && config.Namespace == secretNamespace) {
+		if config.Kind != secretConfigKind || config.Name != secretName || config.Namespace != secretNamespace {
 			result = append(result, config)
 		}
 	}

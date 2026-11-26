@@ -135,7 +135,7 @@ func main() {
 		ManagementCluster:        managementCluster,
 		Client:                   mgr.GetClient(),
 		Log:                      ctrl.Log.WithName("controllers").WithName("App"),
-		Recorder:                 mgr.GetEventRecorderFor("app-controller"),
+		Recorder:                 mgr.GetEventRecorderFor("app-controller"), //nolint:staticcheck // the events.k8s.io API needs RBAC the chart does not grant yet
 		Scheme:                   mgr.GetScheme(),
 		LabelSelector:            key.DexLabelSelector(),
 		ProviderCredentials:      idpCredentials,
@@ -154,7 +154,7 @@ func main() {
 		ManagementCluster:        managementCluster,
 		Client:                   mgr.GetClient(),
 		Log:                      ctrl.Log.WithName("controllers").WithName("HelmRelease"),
-		Recorder:                 mgr.GetEventRecorderFor("helmrelease-controller"),
+		Recorder:                 mgr.GetEventRecorderFor("helmrelease-controller"), //nolint:staticcheck // the events.k8s.io API needs RBAC the chart does not grant yet
 		Scheme:                   mgr.GetScheme(),
 		LabelSelector:            key.DexLabelSelector(),
 		ProviderCredentials:      idpCredentials,

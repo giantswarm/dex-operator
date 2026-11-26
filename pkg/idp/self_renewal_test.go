@@ -221,7 +221,9 @@ func TestCheckAndRotateServiceCredentials(t *testing.T) {
 			ctx := context.Background()
 
 			scheme := runtime.NewScheme()
-			corev1.AddToScheme(scheme)
+			if err := corev1.AddToScheme(scheme); err != nil {
+				t.Fatal(err)
+			}
 
 			fakeClientBuilder := fake.NewClientBuilder().WithScheme(scheme)
 			if tc.existingSecret != nil {
@@ -360,7 +362,9 @@ func TestUpdateCredentialsSecret(t *testing.T) {
 			ctx := context.Background()
 
 			scheme := runtime.NewScheme()
-			corev1.AddToScheme(scheme)
+			if err := corev1.AddToScheme(scheme); err != nil {
+				t.Fatal(err)
+			}
 
 			fakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).
