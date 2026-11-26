@@ -2,6 +2,7 @@ package azure
 
 import (
 	"fmt"
+	"net/url"
 	"reflect"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/applications"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/serviceprincipals"
 )
 
 const (
@@ -24,6 +26,12 @@ const (
 	Claim                 = "groups"
 	Audience              = "AzureADMyOrg"
 	DexOperatorName       = "dex-operator"
+	// AdminConsentRedirectURI is registered on the apps dex-operator creates so the
+	// admin consent URL has somewhere to return to; without a reply URL Entra rejects
+	// it with AADSTS500113.
+	AdminConsentRedirectURI = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+	// AppRolePermissionType marks an application permission in requiredResourceAccess.
+	AppRolePermissionType = "Role"
 )
 
 func ProviderScope() []string {
@@ -206,5 +214,54 @@ func GetSecretCreateRequestBody(config provider.AppConfig) *applications.ItemAdd
 }
 
 func getAdminConsentUrl(organization string, clientID string) string {
-	return fmt.Sprintf("https://login.microsoftonline.com/%s/adminconsent?client_id=%s", organization, clientID)
+	return fmt.Sprintf("https://login.microsoftonline.com/%s/adminconsent?client_id=%s&redirect_uri=%s",
+		organization, clientID, url.QueryEscape(AdminConsentRedirectURI))
+}
+
+// getAdminConsentHint tells an admin how to grant consent without the URL, which
+// only works for apps that have AdminConsentRedirectURI registered.
+func getAdminConsentHint(appName string) string {
+	return fmt.Sprintf("grant it in the Azure portal: Entra ID > App registrations > %s > API permissions > Grant admin consent "+
+		"(needs Global Administrator or Privileged Role Administrator)", appName)
+}
+
+func GetServicePrincipalByAppIdRequestConfig(appID string) *serviceprincipals.ServicePrincipalsRequestBuilderGetRequestConfiguration {
+	requestFilter := fmt.Sprintf("appId eq '%s'", appID)
+	return &serviceprincipals.ServicePrincipalsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &serviceprincipals.ServicePrincipalsRequestBuilderGetQueryParameters{
+			Filter: &requestFilter,
+			Select: []string{"id"},
+		},
+	}
+}
+
+// requiredAppRoles returns the IDs of the application permissions an app requests.
+func requiredAppRoles(required []models.RequiredResourceAccessable) []string {
+	var roles []string
+	for _, r := range required {
+		for _, access := range r.GetResourceAccess() {
+			if t := access.GetTypeEscaped(); t == nil || *t != AppRolePermissionType || access.GetId() == nil {
+				continue
+			}
+			roles = append(roles, access.GetId().String())
+		}
+	}
+	return roles
+}
+
+// missingAppRoles returns the required application permissions that are not granted.
+func missingAppRoles(required []string, granted []models.AppRoleAssignmentable) []string {
+	have := map[string]bool{}
+	for _, g := range granted {
+		if id := g.GetAppRoleId(); id != nil {
+			have[id.String()] = true
+		}
+	}
+	var missing []string
+	for _, r := range required {
+		if !have[r] {
+			missing = append(missing, r)
+		}
+	}
+	return missing
 }

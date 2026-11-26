@@ -51,7 +51,15 @@ func (a *Azure) ShouldRotateServiceCredentials(ctx context.Context, config provi
 func (a *Azure) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
 	a.Log.Info("Rotating Azure service credentials", "app", config.Name)
 
-	credentials, err := a.GetCredentialsForAuthenticatedApp(config)
+	// Rotation runs in the operator pod: it only adds a secret to the existing app.
+	// Creating the app and waiting for admin consent is left to setup, which is interactive.
+	app, err := a.GetApp(config.Name)
+	if IsNotFound(err) {
+		return nil, microerror.Maskf(notFoundError, "Failed to rotate Azure credentials: %v Rotation never creates the app: run setup if it is missing, or delete the duplicates if there are several.", err)
+	} else if err != nil {
+		return nil, microerror.Maskf(requestFailedError, "Failed to rotate Azure credentials: %v", err)
+	}
+	credentials, err := a.credentialsForApp(ctx, app, config)
 	if err != nil {
 		return nil, microerror.Maskf(requestFailedError, "Failed to rotate Azure credentials: %v", err)
 	}
@@ -397,6 +405,7 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (ma
 		if needsUpdate, patch := computePermissionsUpdatePatch(app, parentApp); needsUpdate {
 			app.SetRequiredResourceAccess(patch)
 		}
+		app.SetWeb(getRedirectURIsRequestBody([]string{AdminConsentRedirectURI}))
 		app, err = a.Client.Applications().Post(ctx, app, nil)
 		if err != nil {
 			return nil, microerror.Maskf(requestFailedError, "Failed to create authenticated app: %s", PrintOdataError(err))
@@ -406,14 +415,24 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (ma
 			return nil, microerror.Maskf(notFoundError, "Could not find client ID of app %s.", config.Name)
 		}
 		consentURL := getAdminConsentUrl(a.TenantID, *app.GetAppId())
-		a.Log.Info(fmt.Sprintf("Admin consent is needed. Please grant under the following URL: %s", consentURL))
+		a.Log.Info(fmt.Sprintf("Admin consent is needed for %s. Open %s, or %s.", config.Name, consentURL, getAdminConsentHint(config.Name)))
 		a.Log.Info("Please be aware that it can take a while for the app to become available. Wait a moment before logging in and granting consent.")
-		err = open.Start(consentURL)
-		if err != nil {
+		a.Log.Info("After you accept, Entra ID redirects to a page saying \"This is not the right page\". That is expected: close it, the consent is granted.")
+		if err := open.Start(consentURL); err != nil {
+			a.Log.Info(fmt.Sprintf("Could not open a browser (%v); open the URL above yourself.", err))
+		}
+		if err := a.waitForAdminConsent(ctx, app, config.Name); err != nil {
 			return nil, microerror.Mask(err)
 		}
+	} else if err := a.checkAdminConsent(ctx, app, config.Name, false); err != nil {
+		return nil, microerror.Mask(err)
 	}
 
+	return a.credentialsForApp(ctx, app, config)
+}
+
+// credentialsForApp adds a secret to app and returns the credentials for it.
+func (a *Azure) credentialsForApp(ctx context.Context, app models.Applicationable, config provider.AppConfig) (map[string]string, error) {
 	id := app.GetId()
 	if id == nil {
 		return nil, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
@@ -427,6 +446,90 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (ma
 		ClientSecretKey: secret.ClientSecret,
 		TenantIDKey:     a.TenantID,
 	}, nil
+}
+
+// adminConsentTimeout bounds the wait for an admin to grant consent to a new app.
+var (
+	adminConsentTimeout      = 15 * time.Minute
+	adminConsentPollInterval = 15 * time.Second
+)
+
+// adminConsentMaxGraphFailures is how many consent checks in a row may fail on
+// Graph errors before the wait gives up: about two minutes at the poll interval.
+const adminConsentMaxGraphFailures = 8
+
+// waitForAdminConsent polls until every application permission the new app requests
+// is granted, or adminConsentTimeout passes.
+func (a *Azure) waitForAdminConsent(ctx context.Context, app models.Applicationable, appName string) error {
+	a.Log.Info(fmt.Sprintf("Waiting up to %s for admin consent on %s...", adminConsentTimeout, appName))
+	deadline := time.Now().Add(adminConsentTimeout)
+	graphFailures := 0
+	for {
+		err := a.checkAdminConsent(ctx, app, appName, true)
+		if err == nil {
+			a.Log.Info(fmt.Sprintf("Admin consent granted for %s.", appName))
+			return nil
+		}
+		if IsAdminConsentMissing(err) {
+			graphFailures = 0
+		} else {
+			// Graph can briefly fail right after consent, while the new service
+			// principal replicates, or throttle. Retry a few times in a row, but
+			// give up on an error that persists, such as a missing permission.
+			graphFailures++
+			if graphFailures >= adminConsentMaxGraphFailures {
+				return err
+			}
+			a.Log.Info(fmt.Sprintf("Checking admin consent on %s failed, retrying: %v", appName, err))
+		}
+		if time.Now().After(deadline) {
+			if IsAdminConsentMissing(err) {
+				return err
+			}
+			return microerror.Maskf(adminConsentMissingError, "Admin consent for %s was not confirmed within %s (last check failed: %v); %s.",
+				appName, adminConsentTimeout, err, getAdminConsentHint(appName))
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(adminConsentPollInterval):
+		}
+	}
+}
+
+// checkAdminConsent returns adminConsentMissingError when the app has no service
+// principal or lacks its requested application permissions. With requireAll unset,
+// as for apps that already exist, it only fails when none are granted and warns
+// otherwise, so an app whose permissions grew since its consent keeps renewing.
+func (a *Azure) checkAdminConsent(ctx context.Context, app models.Applicationable, appName string, requireAll bool) error {
+	required := requiredAppRoles(app.GetRequiredResourceAccess())
+	if len(required) == 0 {
+		return nil
+	}
+	if app.GetAppId() == nil {
+		return microerror.Maskf(notFoundError, "Could not find client ID of app %s.", appName)
+	}
+	sps, err := a.Client.ServicePrincipals().Get(ctx, GetServicePrincipalByAppIdRequestConfig(*app.GetAppId()))
+	if err != nil {
+		return microerror.Maskf(requestFailedError, "Failed to get service principal of app %s: %s", appName, PrintOdataError(err))
+	}
+	if len(sps.GetValue()) == 0 || sps.GetValue()[0].GetId() == nil {
+		return microerror.Maskf(adminConsentMissingError, "App %s has no service principal: admin consent was never granted; %s.", appName, getAdminConsentHint(appName))
+	}
+	assignments, err := a.Client.ServicePrincipals().ByServicePrincipalId(*sps.GetValue()[0].GetId()).AppRoleAssignments().Get(ctx, nil)
+	if err != nil {
+		return microerror.Maskf(requestFailedError, "Failed to get app role assignments of app %s: %s", appName, PrintOdataError(err))
+	}
+	missing := missingAppRoles(required, assignments.GetValue())
+	switch {
+	case len(missing) == 0:
+		return nil
+	case requireAll || len(missing) == len(required):
+		return microerror.Maskf(adminConsentMissingError, "App %s lacks admin consent for application permissions %v; %s.", appName, missing, getAdminConsentHint(appName))
+	default:
+		a.Log.Info(fmt.Sprintf("App %s lacks admin consent for application permissions %v; %s.", appName, missing, getAdminConsentHint(appName)))
+		return nil
+	}
 }
 
 func (a *Azure) CleanCredentialsForAuthenticatedApp(config provider.AppConfig) error {

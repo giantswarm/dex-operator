@@ -25,6 +25,15 @@ func IsNotFound(err error) bool {
 	return microerror.Cause(err) == notFoundError
 }
 
+var adminConsentMissingError = &microerror.Error{
+	Kind: "adminConsentMissingError",
+}
+
+// IsAdminConsentMissing asserts adminConsentMissingError.
+func IsAdminConsentMissing(err error) bool {
+	return microerror.Cause(err) == adminConsentMissingError
+}
+
 var requestFailedError = &microerror.Error{
 	Kind: "requestFailedError",
 }
