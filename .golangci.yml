@@ -22,3 +22,13 @@ linters:
         linters:
           - gosec
         text: "G101"
+      # Tests and test helpers repeat literal fixtures (names, versions, case
+      # labels) and use fake client IDs and secrets on purpose. Turning them
+      # into constants or flagging them as credentials makes tests harder to read.
+      - path: (_test\.go|pkg/idp/provider/test\.go|pkg/idp/provider/mockprovider/)
+        linters:
+          - goconst
+      - path: _test\.go
+        linters:
+          - gosec
+        text: "G101"
