@@ -54,7 +54,9 @@ func (a *Azure) RotateServiceCredentials(ctx context.Context, config provider.Ap
 	// Rotation runs in the operator pod: it only adds a secret to the existing app.
 	// Creating the app and waiting for admin consent is left to setup, which is interactive.
 	app, err := a.GetApp(config.Name)
-	if err != nil {
+	if IsNotFound(err) {
+		return nil, microerror.Maskf(notFoundError, "Failed to rotate Azure credentials: %v Rotation never creates the app: run setup if it is missing, or delete the duplicates if there are several.", err)
+	} else if err != nil {
 		return nil, microerror.Maskf(requestFailedError, "Failed to rotate Azure credentials: %v", err)
 	}
 	credentials, err := a.credentialsForApp(ctx, app, config)
@@ -452,24 +454,40 @@ var (
 	adminConsentPollInterval = 15 * time.Second
 )
 
+// adminConsentMaxGraphFailures is how many consent checks in a row may fail on
+// Graph errors before the wait gives up: about two minutes at the poll interval.
+const adminConsentMaxGraphFailures = 8
+
 // waitForAdminConsent polls until every application permission the new app requests
 // is granted, or adminConsentTimeout passes.
 func (a *Azure) waitForAdminConsent(ctx context.Context, app models.Applicationable, appName string) error {
 	a.Log.Info(fmt.Sprintf("Waiting up to %s for admin consent on %s...", adminConsentTimeout, appName))
 	deadline := time.Now().Add(adminConsentTimeout)
+	graphFailures := 0
 	for {
 		err := a.checkAdminConsent(ctx, app, appName, true)
 		if err == nil {
 			a.Log.Info(fmt.Sprintf("Admin consent granted for %s.", appName))
 			return nil
 		}
-		if time.Now().After(deadline) {
-			return err
-		}
-		if !IsAdminConsentMissing(err) {
+		if IsAdminConsentMissing(err) {
+			graphFailures = 0
+		} else {
 			// Graph can briefly fail right after consent, while the new service
-			// principal replicates, or throttle; keep polling until the deadline.
+			// principal replicates, or throttle. Retry a few times in a row, but
+			// give up on an error that persists, such as a missing permission.
+			graphFailures++
+			if graphFailures >= adminConsentMaxGraphFailures {
+				return err
+			}
 			a.Log.Info(fmt.Sprintf("Checking admin consent on %s failed, retrying: %v", appName, err))
+		}
+		if time.Now().After(deadline) {
+			if IsAdminConsentMissing(err) {
+				return err
+			}
+			return microerror.Maskf(adminConsentMissingError, "Admin consent for %s was not confirmed within %s (last check failed: %v); %s.",
+				appName, adminConsentTimeout, err, getAdminConsentHint(appName))
 		}
 		select {
 		case <-ctx.Done():
