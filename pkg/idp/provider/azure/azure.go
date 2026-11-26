@@ -51,7 +51,13 @@ func (a *Azure) ShouldRotateServiceCredentials(ctx context.Context, config provi
 func (a *Azure) RotateServiceCredentials(ctx context.Context, config provider.AppConfig) (map[string]string, error) {
 	a.Log.Info("Rotating Azure service credentials", "app", config.Name)
 
-	credentials, err := a.GetCredentialsForAuthenticatedApp(config)
+	// Rotation runs in the operator pod: it only adds a secret to the existing app.
+	// Creating the app and waiting for admin consent is left to setup, which is interactive.
+	app, err := a.GetApp(config.Name)
+	if err != nil {
+		return nil, microerror.Maskf(requestFailedError, "Failed to rotate Azure credentials: %v", err)
+	}
+	credentials, err := a.credentialsForApp(ctx, app, config)
 	if err != nil {
 		return nil, microerror.Maskf(requestFailedError, "Failed to rotate Azure credentials: %v", err)
 	}
@@ -420,6 +426,11 @@ func (a *Azure) GetCredentialsForAuthenticatedApp(config provider.AppConfig) (ma
 		return nil, microerror.Mask(err)
 	}
 
+	return a.credentialsForApp(ctx, app, config)
+}
+
+// credentialsForApp adds a secret to app and returns the credentials for it.
+func (a *Azure) credentialsForApp(ctx context.Context, app models.Applicationable, config provider.AppConfig) (map[string]string, error) {
 	id := app.GetId()
 	if id == nil {
 		return nil, microerror.Maskf(notFoundError, "Could not find ID of app %s.", config.Name)
@@ -452,8 +463,13 @@ func (a *Azure) waitForAdminConsent(ctx context.Context, app models.Applicationa
 			a.Log.Info(fmt.Sprintf("Admin consent granted for %s.", appName))
 			return nil
 		}
-		if !IsAdminConsentMissing(err) || time.Now().After(deadline) {
+		if time.Now().After(deadline) {
 			return err
+		}
+		if !IsAdminConsentMissing(err) {
+			// Graph can briefly fail right after consent, while the new service
+			// principal replicates, or throttle; keep polling until the deadline.
+			a.Log.Info(fmt.Sprintf("Checking admin consent on %s failed, retrying: %v", appName, err))
 		}
 		select {
 		case <-ctx.Done():
