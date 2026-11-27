@@ -16,10 +16,10 @@ require (
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/go-github/v93 v93.0.0
 	github.com/google/uuid v1.6.0
-	github.com/microsoft/kiota-abstractions-go v1.12.2
+	github.com/microsoft/kiota-abstractions-go v1.12.3
 	github.com/microsoft/kiota-authentication-azure-go v1.3.1
 	github.com/microsoft/kiota-serialization-form-go v1.1.8
-	github.com/microsoft/kiota-serialization-json-go v1.1.5
+	github.com/microsoft/kiota-serialization-json-go v1.1.6
 	github.com/microsoft/kiota-serialization-multipart-go v1.1.7
 	github.com/microsoft/kiota-serialization-text-go v1.1.8
 	github.com/microsoftgraph/msgraph-sdk-go v1.107.0
